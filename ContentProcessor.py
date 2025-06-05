@@ -23,6 +23,13 @@ class ContentProcessor(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_metadata(self) -> dict:
+        """
+        Returns metadata extracted from the content, if any.
+        """
+        pass
+
 
 class MarkdownProcessor(ContentProcessor):
     """
@@ -66,7 +73,7 @@ class MarkdownProcessor(ContentProcessor):
             print(e, file=sys.stderr)
             return raw_content
 
-    def get_meta(self) -> dict:
+    def get_metadata(self) -> dict:
         if "meta" in self.extensions:
             return self.meta
         else:

@@ -3,8 +3,10 @@ import django
 from django.template import Context, Template
 
 # mark_safe is for mixixng proccessed markdown with django template
-from django.utils.safestring import mark_safe
+import django.utils.safestring
+
 from ContentProcessor import MarkdownProcessor
+from page import Page
 from utils.fs_manager import FileSystemManager
 
 
@@ -18,23 +20,6 @@ from utils.fs_manager import FileSystemManager
 #     f"{GREEN}Converting process has been done succefuly{RESET}",
 #     file=sys.stderr,
 # )
-
-
-md_processor = MarkdownProcessor(["extra", "meta", "codehilite"])
-fs_handler = FileSystemManager()
-md_file_content = fs_handler.read_file("main.md")
-md_file_metadata = md_processor.get_meta()
-html_file_content = md_processor.process(md_file_content)
-page_title = md_processor.get_meta().get("title")
-# print(page_title)
-if len(page_title) >= 1:
-    print("Warning there is more than 1 title for this page")
-    print("Concatenating all titles and giving them as title")
-    output = ""
-    for title in page_title:
-        output = output + " " + title
-    page_title = output.strip()
-
 
 # --- Crucial Setup for Standalone DTL Usage ---
 if not settings.configured:
@@ -55,6 +40,13 @@ if not settings.configured:
     )
     django.setup()  # This initializes Django's settings and application registry
 # --- End of Setup ---
+
+fs_handler = FileSystemManager()
+md_processor = MarkdownProcessor(["extra", "meta", "codehilite"])
+test_page = Page()
+test_page.read_source_file("main.md")
+test_page.process_content(md_processor)
+test_page.process_metadata(md_processor)
 
 
 # 1. The template string
@@ -80,7 +72,7 @@ template_string = """
 t = Template(template_string)
 
 # 3. Define the context data
-context_data = {"page_title": page_title, "content": html_file_content}
+context_data = {"page_title": test_page.get_title(), "content": test_page.get_contex()}
 c = Context(context_data)
 
 # 4. Render the template with the context

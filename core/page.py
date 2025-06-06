@@ -1,4 +1,4 @@
-from ContentProcessor import ContentProcessor
+from processor.base_processor import ContentProcessor
 from utils.fs_manager import FileSystemManager
 
 """

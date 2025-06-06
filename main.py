@@ -5,8 +5,8 @@ from django.template import Context, Template
 # mark_safe is for mixixng proccessed markdown with django template
 import django.utils.safestring
 
-from ContentProcessor import MarkdownProcessor
-from page import Page
+from processor.markdown_processor import MarkdownProcessor
+from core.page import Page
 from utils.fs_manager import FileSystemManager
 
 
@@ -57,13 +57,46 @@ template_string = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="code.css">
+    <link rel="stylesheet" href="header.css">
     <title>{{ page_title|capfirst }}</title>
   </head>
+
   <body>
+    <header class="navbar">
+    <a href="#" class="logo">Logo</a>
+
+    <input type="checkbox" id="menu-toggle" />
+
+    <label for="menu-toggle" class="menu-icon">
+      <span></span>
+      <span></span>
+      <span></span>
+    </label>
+
+    <ul class="menu">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">About</a></li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Portfolio</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+  </header>
     <main>
       {{content|safe}}
     </main>
+    <script>
+      // This small script toggles a class on the body to prevent scrolling when the menu is open.
+      // The menu's open/close logic itself remains pure CSS.
+      const menuToggle = document.getElementById('menu-toggle');
+      menuToggle.addEventListener('change', function () {
+        if (this.checked) {
+          document.body.classList.add('menu-open');
+        } else {
+          document.body.classList.remove('menu-open');
+        }
+      });
+    </script>
   </body>
 </html>
 """

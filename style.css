@@ -3,7 +3,12 @@ body {
   color: rgb(171, 178, 191);
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   color: rgb(209, 154, 102);
   align-self: center;
 }
@@ -17,14 +22,16 @@ p {
     border: solid, black;
     width: 90%;
     display: flex;
-    margin: 2rem auto; /* TODO: Check what is best way for top margin */
+    margin: 2rem auto;
+    /* TODO: Check what is best way for top margin */
     flex-direction: column;
   }
 
-  main > * { /* Selects all direct children of main */
+  main>* {
+    /* Selects all direct children of main */
     padding-top: 5vh;
   }
-  
+
   header {
     display: flex;
     flex-direction: row;
@@ -32,7 +39,36 @@ p {
   }
 
   header li {
-    display:inline;
+    display: inline;
+  }
+
+  /* TODO: This is a basic solution to img tags which are wraped inside p tag. */
+  /* Target a paragraph that only contains an image */
+  p>img:only-child {
+    margin: 0;
+    /* Remove default paragraph margins */
+    padding: 0;
+    /* Add other styles as needed */
+  }
+
+  /* Target a paragraph that only contains a link, which only contains an image */
+  p>a:only-child>img:only-child {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Alternative if you want the <p> to not take up block space */
+  /* Be careful with this as it can affect accessibility or other layout */
+  /* Make the image itself a block if needed */
+  /*
+  p>img:only-child {
+    display: block; 
+  }
+  */
+
+  p:has(> img:only-child) {
+    display: contents;
+    /* Experimental, makes the <p> act as if it's not there for layout */
   }
 }
 

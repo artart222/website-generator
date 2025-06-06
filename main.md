@@ -15,6 +15,8 @@ I'm HTML paraghrap
 
 *[HTML]: Hyper Text Markup Language
 
+![Vim Screenshot](vim-screenshot.png)
+
 ``` python
 with open("main.md", mode="r", encoding="utf-8") as markdow_file:
     markdow_text = markdow_file.read()

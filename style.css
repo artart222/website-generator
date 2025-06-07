@@ -1,6 +1,182 @@
+/* --- Basic styles and Google Lato/Vazir Fonts import --- */
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Vazirmatn:wght@100..900&display=swap');
+
+
+
+/* --- Global Resets & Body Styles --- */
+* {
+    /* Ensures padding and border are included in the element's total width and height */
+    box-sizing: border-box;
+}
+
 body {
-  background-color: rgb(30, 33, 39);
-  color: rgb(171, 178, 191);
+    font-family: "Lato", "Vazirmatn", sans-serif;
+    margin: 0;
+    background-color: rgb(30, 33, 39);
+    color: rgb(171, 178, 191);
+    /* TODO: Check for good unit */
+    line-height: 1.5;
+}
+
+/* To prevent scrolling when the menu is open */
+body.menu-open {
+    overflow: hidden;
+}
+
+/* --- Responsive Images & Code Blocks --- */
+img,
+pre,
+code,
+video {
+    /* Prevents images and code blocks from overflowing their container */
+    max-width: 100%;
+}
+
+pre {
+    /* Adds a scrollbar if code is too wide */
+    overflow-x: auto;
+    /* Allows long lines of code to wrap */
+    white-space: pre-wrap;
+    /* Breaks long words if necessary */
+    word-wrap: break-word;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+/* --- Style for the header/navigation bar --- */
+.navbar {
+    background-color: rgb(55, 60, 67);
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* TODO: Check for better units */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.logo {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: #ffffff;
+    text-decoration: none;
+    z-index: 1001;
+    /* Ensure logo is above the mobile menu background */
+}
+
+/* --- MOBILE NAVIGATION STYLES (Mobile First) --- */
+
+#menu-toggle {
+    display: none;
+}
+
+.menu-icon {
+    cursor: pointer;
+    display: flex;
+    /* This will be changed to 'none' on desktop */
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 24px;
+    padding: 4px;
+    z-index: 2000;
+    position: relative;
+}
+
+.menu-icon span {
+    display: block;
+    width: 100%;
+    height: 3px;
+    background-color: rgb(255, 255, 255);
+    border-radius: 3px;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* This is the SINGLE navigation list, styled for mobile by default */
+.nav-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    /* Full-screen overlay styles for mobile */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(40, 44, 52, 0.85);
+    -webkit-backdrop-filter: blur(5px);
+    /* For safari on IOS */
+    backdrop-filter: blur(5px);
+
+    /* Center items vertically and horizontally */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    /* Hide the menu by default */
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-100%);
+    transition: transform 0.4s ease-in-out, opacity 0.4s ease-in-out, visibility 0.4s;
+}
+
+.nav-menu li {
+    margin: 20px 0;
+}
+
+.nav-menu li a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 2rem;
+    font-weight: 700;
+    transition: color 0.3s ease;
+}
+
+.nav-menu li a:hover {
+    color: #87cfff;
+}
+
+/* Show the menu when the checkbox is checked */
+#menu-toggle:checked~.nav-menu {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Animate the hamburger icon to an 'X' */
+#menu-toggle:checked+.menu-icon span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+}
+
+#menu-toggle:checked+.menu-icon span:nth-child(2) {
+    opacity: 0;
+    transform: scale(0);
+}
+
+#menu-toggle:checked+.menu-icon span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+}
+
+
+/* --- Main content styling --- */
+.content {
+    width: 90%;
+    /* Use percentage for responsiveness */
+    max-width: 800px;
+    /* But set a max-width for large screens */
+    margin: 2rem auto;
+    /* Vertical margin and horizontal auto for centering */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Spacing between direct children of .content */
+.content>*+* {
+    margin-top: 1.5rem;
 }
 
 h1,
@@ -9,69 +185,88 @@ h3,
 h4,
 h5,
 h6 {
-  color: rgb(209, 154, 102);
-  align-self: center;
+    color: rgb(209, 154, 102);
+    /* User's specified heading color */
+    text-align: center;
+    /* More reliable than align-self for this layout */
 }
 
 p {
-  direction: rtl;
+    direction: rtl;
+    /* User's specified text direction */
 }
 
-@media screen and (orientation: landscape) {
-  main {
-    border: solid, black;
-    width: 90%;
-    display: flex;
-    margin: 2rem auto;
-    /* TODO: Check what is best way for top margin */
-    flex-direction: column;
-  }
-
-  main>* {
-    /* Selects all direct children of main */
-    padding-top: 5vh;
-  }
-
-  header {
-    display: flex;
-    flex-direction: row;
-    border: solid black;
-  }
-
-  header li {
-    display: inline;
-  }
-
-  /* TODO: This is a basic solution to img tags which are wraped inside p tag. */
-  /* Target a paragraph that only contains an image */
-  p>img:only-child {
-    margin: 0;
-    /* Remove default paragraph margins */
-    padding: 0;
-    /* Add other styles as needed */
-  }
-
-  /* Target a paragraph that only contains a link, which only contains an image */
-  p>a:only-child>img:only-child {
+/* --- Fix for images wrapped in paragraph tags --- */
+/* Target a paragraph that only contains an image */
+p>img:only-child {
     margin: 0;
     padding: 0;
-  }
+}
 
-  /* Alternative if you want the <p> to not take up block space */
-  /* Be careful with this as it can affect accessibility or other layout */
-  /* Make the image itself a block if needed */
-  /*
-  p>img:only-child {
-    display: block; 
-  }
-  */
+/* Target a paragraph that only contains a link, which only contains an image */
+p>a:only-child>img:only-child {
+    margin: 0;
+    padding: 0;
+}
 
-  p:has(> img:only-child) {
+/* Experimental, makes the wrapping <p> tag have no layout effect */
+p:has(> img:only-child) {
     display: contents;
-    /* Experimental, makes the <p> act as if it's not there for layout */
-  }
 }
 
-.flex-item {
-  border: solid red;
+/* --- DESKTOP NAVIGATION STYLES (using Media Query) --- */
+
+/* Applies these styles for screens 768px wide or wider */
+@media (min-width: 768px) {
+
+    /* Hide the hamburger menu icon on desktop */
+    .menu-icon {
+        display: none;
+    }
+
+    /* --- Override the mobile styles for .nav-menu --- */
+    .nav-menu {
+        /* Reset positioning to be part of the navbar flow */
+        position: static;
+        transform: none;
+        visibility: visible;
+        opacity: 1;
+
+        /* Layout for horizontal navigation */
+        flex-direction: row;
+        justify-content: flex-end;
+        /* Align to the right */
+        gap: 2rem;
+        /* Spacing between links */
+
+        /* Remove full-screen overlay styles */
+        width: auto;
+        height: auto;
+        background-color: transparent;
+        -webkit-backdrop-filter: none;
+        /* For safari on IOS */
+        backdrop-filter: none;
+    }
+
+    .nav-menu li {
+        margin: 0;
+        /* Remove vertical margin */
+    }
+
+    .nav-menu li a {
+        color: #abb2bf;
+        font-size: 1rem;
+        /* Smaller font for desktop nav */
+        font-weight: 400;
+        /* Regular font weight */
+    }
+
+    .nav-menu li a:hover {
+        color: #61afef;
+        /* A common highlight color from dark themes */
+    }
+
+    main {
+        padding: 9rem;
+    }
 }

@@ -58,30 +58,28 @@ template_string = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="code.css">
-    <link rel="stylesheet" href="header.css">
     <title>{{ page_title|capfirst }}</title>
   </head>
 
   <body>
     <header class="navbar">
-    <a href="#" class="logo">Logo</a>
-
-    <input type="checkbox" id="menu-toggle" />
-
-    <label for="menu-toggle" class="menu-icon">
-      <span></span>
-      <span></span>
-      <span></span>
-    </label>
-
-    <ul class="menu">
-      <li><a href="#">Home</a></li>
-      <li><a href="#">About</a></li>
-      <li><a href="#">Services</a></li>
-      <li><a href="#">Portfolio</a></li>
-      <li><a href="#">Contact</a></li>
-    </ul>
-  </header>
+        <a href="#" class="logo">MySite</a>
+        <!-- The hamburger menu checkbox and icon (only visible on mobile) -->
+        <input type="checkbox" id="menu-toggle">
+        <label for="menu-toggle" class="menu-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+        </label>
+        
+        <!-- THE SINGLE navigation list for both mobile and desktop -->
+        <ul class="nav-menu">
+            <li><a href="#">Home</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact</a></li>
+        </ul>
+    </header>
     <main>
       {{content|safe}}
     </main>
@@ -89,12 +87,8 @@ template_string = """
       // This small script toggles a class on the body to prevent scrolling when the menu is open.
       // The menu's open/close logic itself remains pure CSS.
       const menuToggle = document.getElementById('menu-toggle');
-      menuToggle.addEventListener('change', function () {
-        if (this.checked) {
-          document.body.classList.add('menu-open');
-        } else {
-          document.body.classList.remove('menu-open');
-        }
+        menuToggle.addEventListener('change', function() {
+        document.body.classList.toggle('menu-open', this.checked);
       });
     </script>
   </body>
@@ -114,4 +108,4 @@ rendered_html = t.render(c)
 # 5. Print the output
 print(rendered_html)
 
-fs_handler.write_file("output.html", rendered_html)
+fs_handler.write_file("output/output.html", rendered_html)

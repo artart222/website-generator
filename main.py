@@ -56,8 +56,8 @@ template_string = """
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="code.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="styles/code.css">
     <title>{{ page_title|capfirst }}</title>
   </head>
 
@@ -109,3 +109,4 @@ rendered_html = t.render(c)
 print(rendered_html)
 
 fs_handler.write_file("output/output.html", rendered_html)
+fs_handler.copy_file("styles", "output/styles")

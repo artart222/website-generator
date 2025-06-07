@@ -103,7 +103,7 @@ class FileSystemManager:
                     f"Failed to create destination directory '{dest_dir}' for copy operation. Error: {e}"
                 )
         try:
-            shutil.copy2(source_path, dest_path)  # Using copy2 to also copy metadatas
+            shutil.copytree(source_path, dest_path)
         except Exception as e:
             raise Exception(
                 f"An unexpected error occurred while copying {source_path}: {e}"

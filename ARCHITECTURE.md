@@ -217,46 +217,62 @@ The system will be built around the following core classes:
 
 ## 5. Directory Structure (Example)
 
+This section shows an example directory structure for a **user's project** and for the **generator's own source code**. The user project structure is inspired by conventions from popular static site generators, using top-level folders for different content types.
 
+**User Project Structure (`my-website-project/`)**
 
 my-website-project/
-├── project.conf.yaml             # Project configuration
-├── src/                          # Source files
-│   ├── pages/                  # Page content files (e.g., .md)
-│   │   ├── index.md
-│   │   └── about.md
-│   │   └── blog/
-│   │       └── my-first-post.md
-│   ├── templates/              # Template files (e.g., .html, .jinja2)
-│   │   ├── base.html
-│   │   └── page.html
-│   │   └── post.html
-│   ├── assets/                 # Static assets
-│   │   ├── css/
-│   │   │   └── style.css
-│   │   ├── js/
-│   │   │   └── script.js
-│   │   └── images/
-│   │       └── logo.png
-│   └── _data/                  # (Optional) Global data files (e.g., navigation.json)
-│   └── plugins_custom/         # (Optional) Custom local plugins
-├── output/                       # Generated website (ignored by VCS)
-└── website_generator_program/    # The generator's own source code
+├── _config.yaml                  # Project configuration.
+├── _posts/                       # Blog posts (e.g., YYYY-MM-DD-my-post-title.md)
+│   └── 2025-06-06-hello-world.md
+├── _pages/                       # Other pages like 'About' or 'Contact'.
+│   ├── about.md
+│   └── contact.md
+├── _layouts/                     # Base templates that content is injected into.
+│   ├── default.html
+│   └── post.html
+├── _includes/                    # Reusable template partials (e.g., header, footer).
+│   ├── header.html
+│   └── footer.html
+├── _data/                        # Global data files (e.g., navigation.yml).
+│   └── navigation.yml
+├── assets/                       # Static files that will be copied over.
+│   ├── css/
+│   │   └── main.css
+│   ├── js/
+│   │   └── app.js
+│   └── images/
+│       └── logo.svg
+├── _plugins/                     # Custom local plugins for this specific project.
+│   └── my_custom_filter.py
+└── _site/                        # Generated website output (ignored by VCS).
+
+
+**Generator's Source Code Structure (`website_generator_program/`)**
+
+website_generator_program/
+├── init.py
+├── main.py                       # CLI entry point.
 ├── core/
+│   ├── init.py
 │   ├── project.py
 │   ├── site.py
-│   ├── page.py
-│   └── ... (other core classes)
-├── engines/
-│   └── jinja_engine.py
+│   └── page.py
 ├── processors/
+│   ├── init.py
+│   ├── base_processor.py         # Could contain ContentProcessor ABC.
 │   └── markdown_processor.py
+├── engines/
+│   ├── init.py
+│   ├── base_engine.py            # Could contain TemplateEngine ABC.
+│   └── jinja_engine.py
 ├── plugins/
-│   ├── base_plugin.py
-│   └── sitemap_plugin.py (example built-in plugin)
+│   ├── init.py
+│   ├── base_plugin.py            # Plugin ABC and PluginManager.
+│   └── sitemap_plugin.py         # Example built-in plugin.
 └── utils/
-└── fs_manager.py
-└── main.py                   # CLI entry point
+├── init.py
+└── file_handler.py           # Renamed from fs_manager.py for clarity.
 
 
 ## 6. Future Considerations & Extensibility Points
@@ -270,4 +286,3 @@ my-website-project/
 * **Data Pipelines:** Allow processing and transformation of data before it's used in templates.
 
 This architecture provides a solid foundation for building a flexible and powerful website generator. Each component has clear responsibilities, promoting separation of concerns and making the system easier to develop, test, and extend over time.
-

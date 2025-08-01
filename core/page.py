@@ -32,6 +32,7 @@ class Page:
         self.metadata = {}
         self.processed_content = ""
         self.raw_content = ""
+        self.slug = ""
 
     def read_source_file(self, source_filepath):
         local_fs_manager = FileSystemManager()
@@ -73,3 +74,10 @@ class Page:
 
     def get_title(self) -> str:
         return self.title
+
+    # TODO: I don't know if this is good idea
+    def set_slug(self):
+        if self.metadata.get("slug"):
+            self.slug = self.metadata.get("slug")
+        elif self.metadata.get("title"):
+            self.slug = self.metadata.get("title")

@@ -13,7 +13,7 @@ class FileSystemManager:
     copy_file(source_path: str, dest_path: str)
     create_directory(dir_path: str, exist_ok: bool = True)
     list_files(directory: str, recursive: bool = False, extensions: list[str] | None = None) -> list[str]
-    path_exists(self, filepath: str) -> bool
+    path_exists(filepath: str) -> bool
     """
 
     def __init__(self) -> None:
@@ -46,7 +46,7 @@ class FileSystemManager:
 
     def write_file(self, filepath: str, content: str):
         """
-        Writes given content to a file
+        Writes given content to a file.
 
         Args:
             filepath: The path to the file.
@@ -99,9 +99,9 @@ class FileSystemManager:
             try:
                 self.create_directory(dest_dir)
             except Exception as e:
-                print(
+                raise IOError(
                     f"Failed to create destination directory '{dest_dir}' for copy operation. Error: {e}"
-                )
+                ) from e
         try:
             shutil.copytree(source_path, dest_path)
         except Exception as e:

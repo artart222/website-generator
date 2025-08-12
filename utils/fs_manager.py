@@ -7,7 +7,7 @@ import logging
 class FileSystemManager:
     """
     Manages file system operations such as reading, writing, copying files,
-    creating directories, listing files, and checking path existence.
+    copying directories creating directories, listing files, and checking path existence.
     """
 
     def __init__(self) -> None:

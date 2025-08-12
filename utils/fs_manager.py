@@ -113,6 +113,59 @@ class FileSystemManager:
             self.logger.error(msg)
             raise IOError(msg) from e
 
+    def copy_directory(
+        self, source_dir: str, dest_dir: str, exist_ok: bool = False
+    ) -> None:
+        """
+        Recursively copies a directory from a source to a destination.
+
+        Args:
+            source_dir: The path to the source directory.
+            dest_dir: The path to the destination directory.
+            exist_ok: If False (default), raises an error if dest_dir exists.
+                    If True, existing files in the destination may be overwritten.
+
+        Raises:
+            NotADirectoryError: If the source is not a directory.
+            FileExistsError: If the destination exists and is a file.
+            IOError: For other OS-level copying errors.
+        """
+        self.logger.debug(
+            f"Attempting to copy directory from '{source_dir}' to '{dest_dir}'"
+        )
+
+        if self.path_exists(dest_dir) and not os.path.isdir(dest_dir):
+            msg = f"Destination path exists and is not a directory: {dest_dir}"
+            self.logger.error(msg)
+            raise FileExistsError(msg)
+
+        try:
+            # shutil.copytree handles the recursive copy.
+            # The `dirs_exist_ok` parameter was added in Python 3.8 and aligns with our `exist_ok`.
+            shutil.copytree(source_dir, dest_dir, dirs_exist_ok=exist_ok)
+            self.logger.info(
+                f"Successfully copied directory '{source_dir}' to '{dest_dir}'"
+            )
+        except NotADirectoryError as e:
+            msg = (
+                f"Source directory for copy does not exist or it is file: {source_dir}"
+            )
+            self.logger.error(msg)
+            raise NotADirectoryError(msg) from e
+        except FileExistsError as e:
+            msg = f"Destination path exists and is not a directory: {dest_dir}"
+            self.logger.error(msg)
+            raise FileExistsError(msg) from e
+        except shutil.Error as e:
+            msg = f"An error occurred during '{source_dir}' copy"
+            self.logger.error(msg)
+            raise IOError(msg) from e
+        except OSError as e:
+            # OSError reports lower-level problems (e.g., permissions, disk full)
+            msg = f"A system error occurred during '{source_dir}' copy"
+            self.logger.error(msg)
+            raise IOError(msg) from e
+
     def create_directory(self, dir_path: str, exist_ok: bool = True) -> None:
         """
         Creates a directory and any necessary parents.

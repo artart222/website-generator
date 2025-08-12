@@ -1,0 +1,23 @@
+# Site Metadata
+site_name: My Personal Blog
+site_description: Thoughts, tutorials, and tech experiments.
+base_url: https://example.com
+author: Artin Mobasher
+
+# Output Paths
+source_directory: ./src
+output_directory: ./output
+
+# Template Engine
+template_engine: django # or jinja2, etc.
+
+# Navigation (can also be in a separate data file)
+navigation:
+  - title: Home
+    slug: index
+  - title: Blog
+    slug: blog
+  - title: About
+    slug: about
+  - title: Contact
+    slug: contact

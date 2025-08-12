@@ -9,16 +9,6 @@ import argparse
 
 debug = True
 
-# TODO: Remove this, this was just a test
-# import sys
-# RED = "\033[91m"  # Red
-# YELLOW = "\033[33m"  # Yellow
-# GREEN = "\033[32m"  # Green
-# RESET = "\033[0m"  # Default color
-# print(
-#     f"{GREEN}Converting process has been done succefuly{RESET}",
-#     file=sys.stderr,
-# )
 
 # NOTE: A Basic logger has been added.
 # TODO: In future complete this
@@ -39,21 +29,25 @@ elif args.no_debug:
 
 # Setup logging
 logging.basicConfig(
+    # TODO: Fix this
     level=logging.DEBUG if debug else logging.INFO,
-    format="[%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.debug("Debug mode is active")
 logging.info("App started")
 
 app_config = Config()
-app_config.load("./config.yaml")
+app_config.load("./configfsaf.yaml")
 
 debug = app_config.get("debug", True)
 
 # Setup logging
 logging.basicConfig(
+    # TODO: Fix this
     level=logging.DEBUG if debug else logging.INFO,
-    format="[%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.debug("Debug mode is active")
 logging.info("Initilizing new logger")
@@ -72,4 +66,4 @@ rendered_html = template_engine.render("post", context_data)
 
 
 fs_handler.write_file("output/output.html", rendered_html)
-fs_handler.copy_file("styles", "output/styles")
+fs_handler.copy_directory("styles", "output/styles")

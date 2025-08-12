@@ -1,55 +1,111 @@
-"""
-Configuration
-
-Responsibility: Loads, stores, and provides access to project settings from a configuration file (e.g., YAML, JSON, TOML).
-Attributes:
-settings: dict - Internal dictionary holding all configuration data.
-source_directory: str - Path to content and template sources.
-output_directory: str - Path where the generated site will be saved.
-templates_directory: str - Path to template files within the source directory.
-assets_directory: str - Path to static assets within the source directory.
-pages_directory: str - Path to page content files.
-default_template: str - Default template to use if a page doesn't specify one.
-plugins: list[dict] - Configuration for plugins to be loaded.
-Methods:
-load(filepath: str): Loads configuration from the given file.
-get(key: str, default: Any = None) -> Any: Retrieves a setting.
-set(key: str, value: Any): Sets a setting (primarily for internal/plugin use).
-"""
-
 import yaml
-from typing import Any
+import logging
+from typing import Any, Optional, Dict
 from utils.fs_manager import FileSystemManager
 
 
 class Config:
-    def __init__(self) -> None:
-        self.settings: dict = {}
-        self.source_directory: str
-        self.output_directory: str
-        self.templates_directory: str
-        self.debug: bool = True
-        # assets_directory: str
-        # pages_directory: str
-        # default_template: str
-        # plugins: list[dict]
-        pass
+    """
+    Loads, stores, and provides access to project settings
+    from a configuration file (YAML).
 
-    def load(self, filepath: str = "./config.yaml"):
-        # TODO: Write docstrings
-        # TODO: Error proof this
-        fs_manager = FileSystemManager()
-        setting_file = fs_manager.read_file(filepath)
-        # For preventing setting self.settings to None
-        self.settings = yaml.safe_load(setting_file) or {}
-        for k, v in self.settings.items():
-            if hasattr(self, k):
-                setattr(self, k, v)
-            else:
-                print(f"[Config] Ignored unknown setting: {k}")
+    Supports default known keys as attributes,
+    but also allows arbitrary extra keys.
+    """
 
-    def get(self, key: Any = None, default: Any = None):
+    def __init__(
+        self,
+        fs_manager: Optional[FileSystemManager] = None,
+    ) -> None:
+        self.logger = logging.getLogger(__name__)
+        self.fs_manager = fs_manager or FileSystemManager()
+
+        # Defaults for known keys as attributes.
+        self.settings: Dict[str, Any] = {
+            "source_directory": "./source",
+            "output_directory": "./output",
+            "templates_directory": "./templates/blog-theme/post.html",
+        }
+
+        # Sync attributes for known keys for easy access
+        self._sync_attributes_from_settings()
+
+    def _sync_attributes_from_settings(self):
+        """
+        Sync known keys from the settings dict to instance attributes.
+        """
+        for key in self.settings:
+            setattr(self, key, self.settings[key])
+
+    def load(self, filepath: str = "./config.yaml") -> None:
+        """
+        Loads configuration from a YAML file and updates settings.
+
+        Overrides defaults if keys exist in file,
+        adds any unknown keys as well.
+
+        Args:
+            filepath: Path to the YAML config file.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            yaml.YAMLError: If YAML parsing fails.
+        """
+        self.logger.debug(f"Loading config from '{filepath}'")
+        try:
+            file_content = self.fs_manager.read_file(filepath)
+            loaded_settings = yaml.safe_load(file_content) or {}
+
+            if not isinstance(loaded_settings, dict):
+                raise yaml.YAMLError("Config root element must be a dictionary")
+
+            # Update settings dict with loaded keys (overrides defaults if keys overlap)
+            self.settings.update(loaded_settings)
+
+            # Sync known keys as attributes again to reflect overrides
+            self._sync_attributes_from_settings()
+
+            self.logger.info(
+                f"Config loaded from '{filepath}' with keys: {list(self.settings.keys())}"
+            )
+
+        except FileNotFoundError:
+            self.logger.error(f"Config file not found: {filepath}")
+            self.logger.warning("Using default settings")
+        except yaml.YAMLError:
+            self.logger.error(f"YAML parsing error in config file '{filepath}'")
+            self.logger.warning("Using default settings")
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Retrieves a configuration setting by key.
+
+        Args:
+            key: The configuration key.
+            default: Value to return if key not found.
+
+        Returns:
+            The setting value or default.
+        """
         return self.settings.get(key, default)
 
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> None:
+        """
+        Sets or updates a configuration setting.
+
+        Updates attribute if it's one of the known default keys.
+
+        Args:
+            key: The configuration key to set.
+            value: The value to assign.
+        """
         self.settings[key] = value
+        if hasattr(self, key):
+            setattr(self, key, value)
+        self.logger.debug(f"Config setting updated: {key} = {value}")
+
+    def keys(self):
+        """
+        Returns all configuration keys currently stored.
+        """
+        return list(self.settings.keys())

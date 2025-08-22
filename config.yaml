@@ -5,7 +5,7 @@ base_url: https://example.com
 author: Artin Mobasher
 
 # Output Paths
-source_directory: ./src
+source_directory: ./source
 output_directory: ./output
 
 # Template Engine

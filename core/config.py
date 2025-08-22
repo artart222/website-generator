@@ -25,6 +25,7 @@ class Config:
             "source_directory": "./source",
             "output_directory": "./output",
             "templates_directory": "./templates/blog-theme/post.html",
+            "template_engine": "django",
         }
 
         # Sync attributes for known keys for easy access
@@ -104,8 +105,8 @@ class Config:
             setattr(self, key, value)
         self.logger.debug(f"Config setting updated: {key} = {value}")
 
-    def keys(self):
+    def get_keys(self):
         """
         Returns all configuration keys currently stored.
         """
-        return list(self.settings.keys())
+        return self.settings.keys()

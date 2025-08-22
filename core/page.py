@@ -1,5 +1,6 @@
 from processor.base_processor import ContentProcessor
 from utils.fs_manager import FileSystemManager
+import logging
 
 """
 * **`Page`**
@@ -7,15 +8,9 @@ from utils.fs_manager import FileSystemManager
     * **Attributes:**
         * `title: str`
         * `slug: str` - URL-friendly identifier (e.g., "about-us").
-        * `source_filepath: str` - Path to the original content file (e.g., Markdown).
-        * `output_filepath: str` - Calculated path for the generated HTML file.
-        * `template_name: str | None` - Name of the template to use for rendering this page.
         * `metadata: dict` - Frontmatter or other page-specific data.
         * `raw_content: str` - The raw content read from the source file.
         * `processed_content: str` - Content after processing (e.g., Markdown to HTML).
-        * `sections: list[Section]` - (Optional) If page structure is more complex than just main content.
-        * `elements: list[Element]` - (Alternative to sections) A flat list of elements if sections are not used.
-        * `parent_site: Site` - Reference to the parent site.
     * **Methods:**
         * `__init__(source_filepath: str, config: Configuration, parent_site: Site)`
         * `load_content_and_metadata()`: Reads the source file, parses frontmatter/metadata.
@@ -27,16 +22,19 @@ from utils.fs_manager import FileSystemManager
 
 
 class Page:
-    def __init__(self) -> None:
+    def __init__(self, source_filepath) -> None:
+        self.logger = logging.getLogger(__name__)
         self.title = ""
+        self.source_filepath: str = source_filepath
         self.metadata = {}
         self.processed_content = ""
         self.raw_content = ""
         self.slug = ""
+        self.page_type = [None]
 
-    def read_source_file(self, source_filepath):
+    def read_source_file(self):
         local_fs_manager = FileSystemManager()
-        self.raw_content = local_fs_manager.read_file(source_filepath)
+        self.raw_content = local_fs_manager.read_file(self.source_filepath)
 
     def process_content(self, content_processor: ContentProcessor | None):
         if content_processor is not None:
@@ -75,9 +73,23 @@ class Page:
     def get_title(self) -> str:
         return self.title
 
+    def get_metadata(self) -> dict:
+        return self.metadata
+
+    def get_page_type(self):
+        return self.page_type
+
     # TODO: I don't know if this is good idea
     def set_slug(self):
         if self.metadata.get("slug"):
             self.slug = self.metadata.get("slug")
         elif self.metadata.get("title"):
             self.slug = self.metadata.get("title")
+
+    # TODO: I don't know if this is good idea
+    def set_page_type(self):
+        if self.metadata.get("type"):
+            self.page_type = self.metadata.get("type")
+
+    def get_source_filepath(self):
+        return self.source_filepath

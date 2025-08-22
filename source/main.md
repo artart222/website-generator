@@ -6,6 +6,9 @@ Authors: Artin
 Date:    October 2, 2007
 blank-value:
 base_url: http://example.com
+type: blog
+      eshop 
+      game
 
 This is the first paragraph of the document.
 

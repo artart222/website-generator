@@ -11,6 +11,14 @@ output_directory: ./output
 # Template Engine
 template_engine: django # or jinja2, etc.
 
+# Program log levels:
+# Debug = 10
+# Info = 20
+# Warning = 30
+# Error = 40
+# Critical = 50
+log_level: 10
+
 # Navigation (can also be in a separate data file)
 navigation:
   - title: Home

@@ -1,40 +1,13 @@
 from .site import Site
 from .config import Config
-
-# from .page import Page
+from .page import Page
 from engines.base_engine import TemplateEngine
 from engines.factory import create_template_engine
-from processor.base_processor import ContentProcessor
 from processor.factory import create_content_processor
 from utils.fs_manager import FileSystemManager
+import os
 
-"""
-Project
-
-Attributes:
-
-config: Configuration - Holds all project settings.
-
-site: Site - The main site object to be built.
-
-plugin_manager: PluginManager - Manages active plugins.
-
-fs_manager: FileSystemManager - Utility for file operations.
-
-template_engine_instance: TemplateEngine - The chosen template engine.
-
-Methods:
-
-__init__(config_path: str): Initializes the project by loading configuration.
-
-load_plugins(): Discovers and loads configured plugins.
-
-initialize_site(): Creates and populates the Site object based on source files and config.
-
-build(): Orchestrates the entire site generation process (e.g., pre-build hooks, page rendering, asset copying, post-build hooks).
-
-get_template_engine() -> TemplateEngine: Returns the configured template engine.
-"""
+import logging
 
 
 class Project:
@@ -46,48 +19,32 @@ class Project:
 
     def __init__(self, config_path: str):
         """Initializes the project by loading configuration."""
+        self.logger = logging.getLogger(__name__)
+
         self.config = Config()
         self.config.load(config_path)
         self.site = Site(self.config)
         # self.plugin_manager
-        self.fs_handler = FileSystemManager()
+        self.fs_manager = FileSystemManager()
         self.template_engine_instance = create_template_engine(
-            self.config.settings["template_engine"]
+            self.config.settings["template_engine"],
+            self.config.settings["template_dirs"],
         )
 
     def build(self):
         """Orchestrates the entire site generation process."""
-        print("Starting build...")
-        # fs_handler = FileSystemManager()
-        # md_processor = MarkdownProcessor(["extra", "meta", "codehilite"])
-        # test_page = Page("")
-        # test_page.read_source_file("source/main.md")
-        # test_page.process_content(md_processor)
-        # test_page.process_metadata(md_processor)
-        # test_page.set_page_type()
-        # print(test_page.get_page_type())
-
-        # template_engine = DjangoTemplateEngine()
-        # context_data = {"page_title": test_page.get_title(), "content": test_page.get_contex()}
-        # rendered_html = template_engine.render("post", context_data)
-
-        # fs_handler.write_file("output/output.html", rendered_html)
-        # fs_handler.copy_directory("styles", "output/styles")
-        site_pages = self.site.discover_content(
-            self.config.get("source_directory"), self.config.get("pages_dir")
-        )
-        for page in site_pages:
+        self.logger.info("Starting build...")
+        self._discover_and_load_pages()
+        for page in self.site.pages:
             page.read_source_file()
-            file_extension = page.get_source_filepath().split(".")[-1]
-            content_processor = create_content_processor(file_extension)
-            page.process_content(content_processor)
-            page.process_metadata(content_processor)
-            page.set_page_type()
-            context_data = {
+            contex_data = {
                 "page_title": page.get_title(),
                 "content": page.get_contex(),
             }
-            rendered_html = self.template_engine_instance.render("post", context_data)
+            # TODO: Change this in future and add auto template detection.
+            rendered_html = self.template_engine_instance.render(
+                "post.html", contex_data
+            )
 
             # Splits the file name by dot and
             # excludes the last item which is extension
@@ -99,8 +56,8 @@ class Project:
                 page.get_source_filepath().split(".")[:-1]
             ).split("\\")[-1]
             print(f"Output file name ==> '{output_file_name}.html'")
-            self.fs_handler.write_file(f"output/{output_file_name}.html", rendered_html)
-        self.fs_handler.copy_directory("styles", "output/styles")
+            self.fs_manager.write_file(f"output/{output_file_name}.html", rendered_html)
+        self.fs_manager.copy_directory("styles", "output/styles")
 
         # self.site.discover_assets()
         # Add rendering logic here later.
@@ -108,3 +65,19 @@ class Project:
 
     def get_template_engine(self) -> TemplateEngine:
         return self.template_engine_instance
+
+    def _discover_and_load_pages(self):
+        """Finds content files, creates Page objects, and loads their data."""
+        self.logger.info("Discovering and loading site content...")
+
+        content_path = self.config.get("source_directory")
+        page_filepaths = self.fs_manager.list_files(content_path, recursive=True)
+
+        for path in page_filepaths:
+            if os.path.splitext(path)[1].lstrip(".") == "md":
+                page = Page(path, self.config, self.fs_manager)
+                # 2. Get the correct content processor from factory
+                extension = os.path.splitext(path)[1].lstrip(".")
+                processor = create_content_processor(extension)
+                page.load(self.fs_manager, processor)
+                self.site.add_page(page)

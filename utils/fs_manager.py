@@ -254,7 +254,7 @@ class FileSystemManager:
             self.logger.error(msg)
             raise IOError(msg) from e
 
-    def path_exists(self, filepath: str) -> bool:
+    def path_exists(self, path: str) -> bool:
         """
         Checks if a path exists.
 
@@ -264,4 +264,4 @@ class FileSystemManager:
         Returns:
             True if path exists, else False.
         """
-        return os.path.exists(filepath)
+        return os.path.exists(path)

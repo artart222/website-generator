@@ -1,7 +1,14 @@
 import logging
 
 
-def setup_logging(log_level: int):
+def setup_logging(log_level: int) -> None:
+    """
+    Removes old handlers and sets up a new, configured root logger.
+
+    Args:
+        log_level: The logging level to set (e.g., logging.INFO).
+    """
+
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)

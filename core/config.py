@@ -24,7 +24,8 @@ class Config:
         self.settings: Dict[str, Any] = {
             "source_directory": "./source",
             "output_directory": "./output",
-            "template_dirs": ["./templates/blog-theme/"],
+            # TODO: Add default.html template
+            "template_dirs": ["./templates/blog-template/"],
             "template_engine": "django",
         }
 

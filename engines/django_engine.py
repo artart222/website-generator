@@ -98,7 +98,7 @@ class DjangoTemplateEngine(TemplateEngine):
         found = False
         # TODO: change that in future to something like default.html
         # Setting a default template for fallback
-        template_file = fs_handler.read_file("./templates/blog-theme/post.html")
+        template_file = fs_handler.read_file("./templates/blog-template/post.html")
         for template in templates:
             # If template name found in template path
             if template_name in template:

@@ -9,6 +9,8 @@ log_level = 10
 
 def main():
     # Setup logging
+    # TODO: Check this: maybe it's better to move it at the first of file
+    # Outside the main function, after imports
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",

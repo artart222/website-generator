@@ -1,6 +1,6 @@
 from .base_processor import ContentProcessor
 import markdown
-import sys
+import logging
 
 
 class MarkdownProcessor(ContentProcessor):
@@ -8,7 +8,7 @@ class MarkdownProcessor(ContentProcessor):
     Processes content written in Markdown format and converts it to HTML.
     """
 
-    def __init__(self, extensions: list[str] | None = None):
+    def __init__(self, extensions: list[str] | None = None) -> None:
         """
         Initializes the MarkdownProcessor.
 
@@ -16,15 +16,14 @@ class MarkdownProcessor(ContentProcessor):
             extensions: Optional list of Markdown extensions to use
                         (e.g., ['fenced_code', 'tables']).
         """
+        self.logger = logging.getLogger(__name__)
         self.extensions = extensions if extensions is not None else []
+        self._converter = markdown.Markdown(extensions=self.extensions)
         self.meta = {}
-        # You can also initialize the Markdown converter instance here
-        # if you want to reuse it with specific configurations.
-        # self.md_converter = markdown.Markdown(extensions=self.extensions)
 
     def process(self, raw_content: str) -> str:
         """
-        Converts a raw Markdown string into an HTML string.
+        Converts a raw Markdown string into an HTML string and extracts metadata.
 
         Args:
             raw_content: The string containing Markdown text.
@@ -32,22 +31,31 @@ class MarkdownProcessor(ContentProcessor):
         Returns:
             A string containing the equivalent HTML.
         """
+        self.logger.debug("Converting Markdown to HTML.")
         try:
-            markdown_converter = markdown.Markdown(extensions=self.extensions)
-            html_string = markdown_converter.convert(raw_content)
+            # The reset() method clears metadata from the previous run
+            self._converter.reset()
+            html_string = self._converter.convert(raw_content)
+            # Populate metadata if the extension is enabled
             if "meta" in self.extensions:
-                self.meta = getattr(markdown_converter, "Meta", {})
+                self.meta = getattr(self._converter, "Meta", {})
+                self.logger.debug("Extracted metadata from Markdown.")
             return html_string
+        except ImportError as e:
+            msg = "Markdown extension not found"
+            self.logger.error(msg)
+            raise ImportError(msg) from e
         except Exception as e:
-            print(
-                "There was an error in process method in MarkdownProcessor class returning raw_content"
-            )
-            print(e, file=sys.stderr)
-            return raw_content
+            msg = "An unexpected error occurred during Markdown processing"
+            self.logger.error(msg)
+            raise IOError(msg) from e
 
     def get_metadata(self) -> dict:
-        if "meta" in self.extensions:
-            return self.meta
-        else:
-            print('"meta" is not in extensions. returning empty dictianry')
-            return {}
+        """
+        Returns the metadata extracted from the last processed content.
+        """
+        if "meta" not in self.extensions:
+            self.logger.warning(
+                "get_metadata() called, but 'meta' extension is not enabled. Returning empty dictionary."
+            )
+        return self.meta

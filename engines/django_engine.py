@@ -8,14 +8,13 @@ import django.utils.safestring
 import logging
 
 from .base_engine import TemplateEngine
-from core.config import Config
 from utils.fs_manager import FileSystemManager
 
 
 class DjangoTemplateEngine(TemplateEngine):
     """A template engine that uses Django's template system for rendering HTML templates."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, template_dirs: list[str]) -> None:
         """
         Initializes the DjangoTemplateEngine.
 
@@ -23,7 +22,7 @@ class DjangoTemplateEngine(TemplateEngine):
             template_dirs: A list of directories where templates are located.
         """
         self.logger = logging.getLogger(__name__)
-        self.template_dirs: list[str] = config.settings["templates_directory"]
+        self.templates_dirs = template_dirs
         self.logger.debug("Configuring standalone Django template.")
         # --- Crucial Setup for Standalone DTL Usage ---
         if not settings.configured:
@@ -32,7 +31,7 @@ class DjangoTemplateEngine(TemplateEngine):
                     {
                         "BACKEND": "django.template.backends.django.DjangoTemplates",
                         # Tell Django where to find templates
-                        "DIRS": self.template_dirs,
+                        "DIRS": self.templates_dirs,
                         "APP_DIRS": False,  # We don't have Django "apps"
                     }
                 ]

@@ -1,27 +1,39 @@
 from django.conf import settings
 import django
-from django.template import Context, Template
+from django.template import Context, Template, loader, exceptions
 
 # mark_safe is for mixing processed markdown with django template
 import django.utils.safestring
 
-from .base_engine import TemplateEngine
-from utils.fs_manager import FileSystemManager
+import logging
 
-# TODO: Clean this file.
+from .base_engine import TemplateEngine
+from core.config import Config
+from utils.fs_manager import FileSystemManager
 
 
 class DjangoTemplateEngine(TemplateEngine):
     """A template engine that uses Django's template system for rendering HTML templates."""
 
-    def __init__(self) -> None:
+    def __init__(self, config: Config) -> None:
+        """
+        Initializes the DjangoTemplateEngine.
+
+        Args:
+            template_dirs: A list of directories where templates are located.
+        """
+        self.logger = logging.getLogger(__name__)
+        self.template_dirs: list[str] = config.settings["templates_directory"]
+        self.logger.debug("Configuring standalone Django template.")
         # --- Crucial Setup for Standalone DTL Usage ---
         if not settings.configured:
             settings.configure(
                 TEMPLATES=[
                     {
                         "BACKEND": "django.template.backends.django.DjangoTemplates",
-                        "OPTIONS": {},
+                        # Tell Django where to find templates
+                        "DIRS": self.template_dirs,
+                        "APP_DIRS": False,  # We don't have Django "apps"
                     }
                 ]
             )
@@ -38,11 +50,21 @@ class DjangoTemplateEngine(TemplateEngine):
 
         Returns:
             str: The rendered HTML as a string.
+
         """
-        template = self.load_template(template_name)
-        context_obj = Context(context)
-        rendered_html = template.render(context_obj)
-        return rendered_html
+        """Renders a template by name with the given context."""
+        try:
+            # Using Django's built-in function to find and load the template
+            template = loader.get_template(template_name)
+            return template.render(context)
+        except exceptions.TemplateDoesNotExist as e:
+            msg = f"Template '{template_name}' does not exist."
+            self.logger.error(msg)
+            raise exceptions.TemplateDoesNotExist(msg) from e
+        except Exception as e:
+            msg = f"An unexpected error occurred while rendering '{template_name}'"
+            self.logger.error(msg)
+            raise RuntimeError(msg) from e
 
     def render_from_string(self, template_string: str, context: dict) -> str:
         """
@@ -60,6 +82,7 @@ class DjangoTemplateEngine(TemplateEngine):
         rendered_html = template.render(context_obj)
         return rendered_html
 
+    # TODO: Maybe remove this?
     def load_template(self, template_name: str) -> Template:
         """
         Loads a template by name from the templates directory.
@@ -84,7 +107,7 @@ class DjangoTemplateEngine(TemplateEngine):
                 template_file = fs_handler.read_file(template)
 
         if not found:
-            print("Couldn't find ", template_name)
-            print("Using default template")
+            self.logger.warning(f"Couldn't find {template_name}")
+            self.logger.info("Using default template")
 
         return Template(template_file)

@@ -28,3 +28,6 @@ class Site:
         """
         self.pages.append(page)
         self.logger.debug(f"Page '{page.source_filepath}' added to site.")
+
+    def get_pages(self) -> list[Page]:
+        return self.pages

@@ -135,7 +135,7 @@ class FileSystemManager:
         )
 
         if self.path_exists(dest_dir) and not os.path.isdir(dest_dir):
-            msg = f"Destination path exists and is not a directory: {dest_dir}"
+            msg = f"Destination path exists: {dest_dir}"
             self.logger.error(msg)
             raise FileExistsError(msg)
 
@@ -153,7 +153,7 @@ class FileSystemManager:
             self.logger.error(msg)
             raise NotADirectoryError(msg) from e
         except FileExistsError as e:
-            msg = f"Destination path exists and is not a directory: {dest_dir}"
+            msg = f"Destination path exists: {dest_dir}"
             self.logger.error(msg)
             raise FileExistsError(msg) from e
         except shutil.Error as e:

@@ -44,14 +44,16 @@ class DjangoTemplateEngine(TemplateEngine):
         Renders a template by name with the given context.
 
         Args:
-            template_name (str): The name of the template file to render.
-            context (dict): The context data to pass to the template.
+            template_name: The name of the template file to render.
+            context: The context data to pass to the template.
 
         Returns:
-            str: The rendered HTML as a string.
+            The rendered HTML as a string.
 
+        Raises:
+            django.template.exceptions.TemplateDoesNotExist: If the template does not exist.
+            RuntimeError: For other errors.
         """
-        """Renders a template by name with the given context."""
         try:
             # Using Django's built-in function to find and load the template
             template = loader.get_template(template_name)
@@ -70,11 +72,11 @@ class DjangoTemplateEngine(TemplateEngine):
         Renders a template from a string with the given context.
 
         Args:
-            template_string (str): The template content as a string.
-            context (dict): The context data to pass to the template.
+            template_string: The template content as a string.
+            context: The context data to pass to the template.
 
         Returns:
-            str: The rendered HTML as a string.
+            The rendered HTML as a string.
         """
         template = Template(template_string)
         context_obj = Context(context)
@@ -87,17 +89,20 @@ class DjangoTemplateEngine(TemplateEngine):
         Loads a template by name from the templates directory.
 
         Args:
-            template_name (str): The name of the template file to load.
+            template_name: The name of the template file to load.
 
         Returns:
-            Template: A Django Template object loaded with the template content.
+            A Django Template object loaded with the template content.
         """
 
         fs_handler = FileSystemManager()
-        templates = fs_handler.list_files("./templates", recursive=True)
+        templates = []
+        for dir_path in self.templates_dirs:
+            templates.extend(fs_handler.list_files(dir_path, recursive=True))
         found = False
         # TODO: change that in future to something like default.html
         # Setting a default template for fallback
+        # TODO: Change this in future
         template_file = fs_handler.read_file("./templates/blog-template/post.html")
         for template in templates:
             # If template name found in template path
@@ -108,5 +113,8 @@ class DjangoTemplateEngine(TemplateEngine):
         if not found:
             self.logger.warning(f"Couldn't find {template_name}")
             self.logger.info("Using default template")
+
+        self.logger.debug(f"Template name: '{template_name}'")
+        self.logger.debug(f"Template file path: '{template_file}'")
 
         return Template(template_file)

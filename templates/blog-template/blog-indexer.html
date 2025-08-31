@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../styles/styles.css">
+    <link rel="stylesheet" href="../styles/code.css">
+    <title>Blogs</title>
+</head>
+
+<body>
+    <header class="navbar">
+        <a href="#" class="logo">MySite</a>
+        <!-- The hamburger menu checkbox and icon (only visible on mobile) -->
+        <input type="checkbox" id="menu-toggle" title="Toggle navigation menu">
+        <label for="menu-toggle" class="menu-icon">
+            <span></span>
+            <span></span>
+        </label>
+
+        <!-- THE SINGLE navigation list for both mobile and desktop -->
+        <ul class="nav-menu">
+            <li><a href="#">Home</a></li>
+            <li><a href="#">Blog</a></li>
+        </ul>
+    </header>
+    <main>
+        <h1>Blogs</h1>
+        <ul>
+            {{content|safe}}
+        </ul>
+    </main>
+    <script>
+        // This small script toggles a class on the body to prevent scrolling when the menu is open.
+        // The menu's open/close logic itself remains pure CSS.
+        const menuToggle = document.getElementById('menu-toggle');
+        menuToggle.addEventListener('change', function () {
+            document.body.classList.toggle('menu-open', this.checked);
+        });
+    </script>
+</body>
+
+</html>

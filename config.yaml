@@ -11,6 +11,9 @@ output_directory: ./output
 # Template Engine
 template_engine: django # or jinja2, etc.
 
+plugins:
+  - BlogIndexerPlugin
+
 # Program log levels:
 # Debug = 10
 # Info = 20

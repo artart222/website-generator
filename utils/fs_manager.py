@@ -2,6 +2,7 @@ from typing import List, Optional
 import os
 import shutil
 import logging
+from pathlib import Path
 
 
 class FileSystemManager:
@@ -15,6 +16,18 @@ class FileSystemManager:
         Initializes the FileSystemManager and its logger.
         """
         self.logger = logging.getLogger(__name__)
+
+    def to_posix(self, path: str) -> str:
+        """
+        Converts a path to POSIX format (forward slashes).
+
+        Args:
+            path: The path to file/directory.
+
+        Returns:
+            path of item in POSIX format.
+        """
+        return Path(path).as_posix()
 
     def read_file(self, filepath: str) -> str:
         """
@@ -63,6 +76,7 @@ class FileSystemManager:
             IOError: For other OS-related errors.
         """
         self.logger.debug(f"Attempting to write file to: {filepath}")
+        filepath = self.to_posix(filepath)
         try:
             directory = os.path.dirname(filepath)
             if directory:
@@ -93,6 +107,7 @@ class FileSystemManager:
             IOError: For other OS-related errors.
         """
         self.logger.debug(f"Attempting to copy from '{source_path}' to '{dest_path}'")
+        dest_path = self.to_posix(dest_path)
         try:
             dest_dir = os.path.dirname(dest_path)
             if dest_dir:
@@ -136,6 +151,7 @@ class FileSystemManager:
         self.logger.debug(
             f"Attempting to copy directory from '{source_dir}' to '{dest_dir}'"
         )
+        dest_dir = self.to_posix(dest_dir)
 
         if self.path_exists(dest_dir) and not os.path.isdir(dest_dir):
             msg = f"Destination path exists: {dest_dir}"
@@ -180,6 +196,7 @@ class FileSystemManager:
             IOError: For other OS errors.
         """
         self.logger.debug(f"Ensuring directory exists: {dir_path}")
+        dir_path = self.to_posix(dir_path)
         try:
             os.makedirs(dir_path, exist_ok=exist_ok)
         except PermissionError as e:
@@ -225,7 +242,7 @@ class FileSystemManager:
                         ext = os.path.splitext(file)[1].lower()
                         if normalized_exts is None or ext in normalized_exts:
                             found_files.append(
-                                os.path.abspath(os.path.join(root, file))
+                                self.to_posix(os.path.abspath(os.path.join(root, file)))
                             )
             else:
                 for entry in os.listdir(directory):
@@ -233,7 +250,9 @@ class FileSystemManager:
                     if os.path.isfile(entry_path):
                         ext = os.path.splitext(entry)[1].lower()
                         if normalized_exts is None or ext in normalized_exts:
-                            found_files.append(os.path.abspath(entry_path))
+                            found_files.append(
+                                self.to_posix(os.path.abspath(entry_path))
+                            )
             self.logger.info(f"Found {len(found_files)} files in '{directory}'")
             return found_files
         except FileNotFoundError as e:

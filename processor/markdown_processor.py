@@ -23,13 +23,18 @@ class MarkdownProcessor(ContentProcessor):
 
     def process(self, raw_content: str) -> str:
         """
-        Converts a raw Markdown string into an HTML string and extracts metadata.
+        Converts a raw Markdown string into an HTML string and extracts metadata
+        if the meta extension is enabled.
 
         Args:
             raw_content: The string containing Markdown text.
 
         Returns:
             A string containing the equivalent HTML.
+
+        Raises:
+            ImportError: If there extension doesn't been found.
+            RuntimeError: For other errors.
         """
         self.logger.debug("Converting Markdown to HTML.")
         try:
@@ -48,7 +53,7 @@ class MarkdownProcessor(ContentProcessor):
         except Exception as e:
             msg = "An unexpected error occurred during Markdown processing"
             self.logger.error(msg)
-            raise IOError(msg) from e
+            raise RuntimeError(msg) from e
 
     def get_metadata(self) -> dict:
         """

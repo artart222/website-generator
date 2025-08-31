@@ -4,10 +4,10 @@ from .markdown_processor import MarkdownProcessor
 
 # This dictionary maps identifiers to the processor CLASS.
 # The factory will create the instances
-PROCESSOR_MAP = {"md": MarkdownProcessor}
+_PROCESSOR_MAP = {"md": MarkdownProcessor}
 
 # Central place to manage default settings for processors
-DEFAULT_EXTENSIONS = {"md": ["extra", "meta", "codehilite"]}
+_DEFAULT_EXTENSIONS = {"md": ["extra", "meta", "codehilite"]}
 
 
 def create_content_processor(name: str) -> ContentProcessor:
@@ -25,7 +25,7 @@ def create_content_processor(name: str) -> ContentProcessor:
         RuntimeError: If the processor class fails to initialize.
     """
     logging.debug(f"Attempting to create content processor for '{name}'.")
-    processor_class = PROCESSOR_MAP.get(
+    processor_class = _PROCESSOR_MAP.get(
         name.lower()
     )  # Use .lower() for case-insensitivity
     if not processor_class:
@@ -34,7 +34,7 @@ def create_content_processor(name: str) -> ContentProcessor:
         raise ValueError(msg)
     try:
         # Check if there are default extensions for this processor type
-        extensions = DEFAULT_EXTENSIONS.get(name.lower())
+        extensions = _DEFAULT_EXTENSIONS.get(name.lower())
         if extensions:
             instance = processor_class(extensions=extensions)
         else:

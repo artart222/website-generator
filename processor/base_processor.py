@@ -24,6 +24,6 @@ class ContentProcessor(ABC):
     @abstractmethod
     def get_metadata(self) -> dict:
         """
-        Returns metadata extracted from the content, if any.
+        Returns metadata extracted from the last processed content, if any.
         """
         pass

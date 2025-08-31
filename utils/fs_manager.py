@@ -7,10 +7,13 @@ import logging
 class FileSystemManager:
     """
     Manages file system operations such as reading, writing, copying files,
-    copying directories creating directories, listing files, and checking path existence.
+    copying directories, creating directories, listing files, and checking path existence.
     """
 
     def __init__(self) -> None:
+        """
+        Initializes the FileSystemManager and its logger.
+        """
         self.logger = logging.getLogger(__name__)
 
     def read_file(self, filepath: str) -> str:
@@ -32,7 +35,7 @@ class FileSystemManager:
         try:
             with open(filepath, "r", encoding="utf-8") as file:
                 content = file.read()
-                self.logger.info(f"Successfully read file: {filepath}")
+                self.logger.debug(f"Successfully read file: {filepath}")
                 return content
         except FileNotFoundError as e:
             msg = f"File not found at path: {filepath}"
@@ -66,7 +69,7 @@ class FileSystemManager:
                 self.create_directory(directory)
             with open(filepath, "w", encoding="utf-8") as file:
                 file.write(content)
-            self.logger.info(f"Successfully wrote file: {filepath}")
+            self.logger.debug(f"Successfully wrote file: {filepath}")
         except PermissionError as e:
             msg = f"Permission denied when writing to file: {filepath}"
             self.logger.error(msg)
@@ -95,7 +98,7 @@ class FileSystemManager:
             if dest_dir:
                 self.create_directory(dest_dir)
             shutil.copy2(source_path, dest_path)
-            self.logger.info(f"Successfully copied '{source_path}' to '{dest_path}'")
+            self.logger.debug(f"Successfully copied '{source_path}' to '{dest_path}'")
         except FileNotFoundError as e:
             msg = f"Source file for copy not found: {source_path}"
             self.logger.error(msg)
@@ -141,15 +144,13 @@ class FileSystemManager:
 
         try:
             # shutil.copytree handles the recursive copy.
-            # The `dirs_exist_ok` parameter was added in Python 3.8 and aligns with our `exist_ok`.
+            # The `dirs_exist_ok` parameter was added in Python 3.8 and aligns with `exist_ok`.
             shutil.copytree(source_dir, dest_dir, dirs_exist_ok=exist_ok)
-            self.logger.info(
+            self.logger.debug(
                 f"Successfully copied directory '{source_dir}' to '{dest_dir}'"
             )
-        except NotADirectoryError as e:
-            msg = (
-                f"Source directory for copy does not exist or it is file: {source_dir}"
-            )
+        except (FileNotFoundError, NotADirectoryError) as e:
+            msg = f"Source directory does not exist or is not a directory: {source_dir}"
             self.logger.error(msg)
             raise NotADirectoryError(msg) from e
         except FileExistsError as e:
@@ -205,7 +206,7 @@ class FileSystemManager:
             extensions: List of file extensions to filter by (case-insensitive).
 
         Returns:
-            List of absolute file paths.
+            Absolute file paths that match the filter.
 
         Raises:
             FileNotFoundError: If directory does not exist.
@@ -214,15 +215,9 @@ class FileSystemManager:
         """
         self.logger.debug(f"Listing files in '{directory}' (recursive={recursive})")
         found_files = []
-        normalized_exts = (
-            [
-                ext.lower() if ext.startswith(".") else f".{ext.lower()}"
-                for ext in extensions
-            ]
-            if extensions
-            else None
-        )
-
+        # It renames extension of files to ensure extension
+        # is lowercase and starts with dot
+        normalized_exts = self._normalize_extensions(extensions)
         try:
             if recursive:
                 for root, _, files in os.walk(directory):
@@ -259,9 +254,30 @@ class FileSystemManager:
         Checks if a path exists.
 
         Args:
-            filepath: Path to check.
+            path: Path to check.
 
         Returns:
             True if path exists, else False.
         """
         return os.path.exists(path)
+
+    def _normalize_extensions(
+        self, extensions: Optional[List[str]]
+    ) -> Optional[List[str]]:
+        """
+        Normalizes a list of file extensions:
+        - Ensures all are lowercase.
+        - Ensures each starts with a dot (".").
+
+        Args:
+            extensions: List of extensions (with or without leading dots).
+
+        Returns:
+            Normalized extensions, or None if no extensions were provided.
+        """
+        if not extensions:
+            return None
+        return [
+            ext.lower() if ext.startswith(".") else f".{ext.lower()}"
+            for ext in extensions
+        ]

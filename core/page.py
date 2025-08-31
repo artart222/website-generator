@@ -4,7 +4,8 @@ from slugify import slugify
 from processor.base_processor import ContentProcessor
 from utils.fs_manager import FileSystemManager
 from .config import Config
-from typing import Optional
+from typing import Optional, Any
+from pathlib import Path
 
 
 class Page:
@@ -25,9 +26,9 @@ class Page:
             fs_manager (FileSystemManager): An instance of the file system manager.
         """
         self.logger = logging.getLogger(__name__)
-        self.config = config
-        self.source_filepath = source_filepath
-        self.fs_manager = fs_manager
+        self.config: Config | None = config
+        self.source_filepath: str = source_filepath
+        self.fs_manager: FileSystemManager | None = fs_manager
 
         # Attributes to be populated by loading methods
         self.raw_content: str = ""
@@ -37,12 +38,13 @@ class Page:
         self.slug: str = ""
         self.page_type: str | None = None
 
-        self.output_path = ""
+        self.output_path: str = ""
+        self.url: str = ""
 
     # TODO:
     # Will be DEPRECATED.
     # Instead load method will be used.
-    def read_source_file(self):
+    def read_source_file(self) -> None:
         """
         Reads the raw content from the source file using a FileSystemManager.
         """
@@ -58,7 +60,7 @@ class Page:
     # TODO:
     # Will be DEPRECATED.
     # Instead load method will be used.
-    def process_content(self, content_processor: ContentProcessor | None):
+    def process_content(self, content_processor: ContentProcessor | None) -> None:
         """
         Processes the raw content using the provided content processor.
 
@@ -79,7 +81,7 @@ class Page:
     # TODO:
     # Will be DEPRECATED.
     # Instead load method will be used.
-    def process_metadata(self, content_processor: ContentProcessor | None):
+    def process_metadata(self, content_processor: ContentProcessor | None) -> None:
         """
         Extracts metadata using a content processor and sets the page `title`.
 
@@ -119,18 +121,21 @@ class Page:
                 f"No title was ultimately set from metadata for {self.source_filepath}."
             )
 
-    def load(
-        self, fs_manager: FileSystemManager, content_processor: ContentProcessor | None
-    ):
+    def load(self, content_processor: ContentProcessor | None) -> None:
         """
         Reads, processes, and extracts all data for the page from its source file.
 
         Args:
-            fs_manager: An instance of the file system manager for file operations.
             content_processor: An optional processor for content and metadata.
         """
         self.logger.debug(f"Loading page from: {self.source_filepath}")
-        self.raw_content = fs_manager.read_file(self.source_filepath)
+        if self.fs_manager is not None:
+            self.raw_content = self.fs_manager.read_file(self.source_filepath)
+        else:
+            self.logger.error(
+                "FileSystemManager is not provided. Cannot read source file."
+            )
+            self.raw_content = ""
 
         if content_processor:
             self.processed_content = content_processor.process(self.raw_content)
@@ -144,7 +149,36 @@ class Page:
 
         self._populate_attributes()
 
-    def _populate_attributes(self):
+    def generate_url(self) -> str:
+        """
+        Generates the URL for the page based on slug and page type.
+
+        Args:
+            base_url (str, optional): The base URL of the website (e.g., "https://example.com").
+                                    If not provided, returns a relative URL.
+
+        Returns:
+            str: The page URL.
+        """
+        base_url = self.config.get("base_url", "") if self.config is not None else ""
+        # Build relative path
+        parts = []
+        if self.page_type:
+            parts.append(self.page_type)
+        parts.append(self.slug)
+        relative_path = "/".join(parts) + "/"
+
+        # Combine with base URL if provided
+        if base_url:
+            # Ensure base_url doesn't end with '/'
+            base_url = base_url.rstrip("/")
+            self.url = f"{base_url}/{relative_path}"
+        else:
+            self.url = f"/{relative_path}"
+
+        return self.url
+
+    def _populate_attributes(self) -> None:
         """Internal helper method to set page attributes based on extracted metadata."""
         default_title = os.path.splitext(os.path.basename(self.source_filepath))[0]
         self.title = str(self.metadata.get("title", [default_title])[0])
@@ -171,12 +205,14 @@ class Page:
         """
         filename = f"{self.slug}.html"
         if self.page_type:
-            self.output_path = os.path.join(output_dir, self.page_type, filename)
+            self.output_path = Path(
+                os.path.join(output_dir, self.page_type, filename)
+            ).as_posix()
             return self.output_path
-        self.output_path = os.path.join(output_dir, filename)
+        self.output_path = Path(os.path.join(output_dir, filename)).as_posix()
         return self.output_path
 
-    def set_raw_content(self, content: str):
+    def set_raw_content(self, content: str) -> None:
         """Sets the page raw content.
 
         Args:
@@ -184,7 +220,7 @@ class Page:
         """
         self.raw_content = content
 
-    def set_processed_content(self, content: str):
+    def set_processed_content(self, content: str) -> None:
         """Sets the page processed content.
 
         Args:
@@ -192,8 +228,7 @@ class Page:
         """
         self.processed_content = content
 
-    # TODO: Complete this
-    def add_metadata(self, inp):
+    def add_metadata(self, inp: dict[str, Any]) -> None:
         """
         Adds a metadata to page metadadas.
 
@@ -202,33 +237,54 @@ class Page:
         """
         self.metadata.update(inp)
 
-    def set_slug(self):
-        """Sets the page slug from metadata, with a fallback to a slugified title."""
+    def set_slug(self) -> None:
+        """Sets the page slug based on metadata or title."""
         slug_source = self.metadata.get("slug", [self.title])[0]
         self.slug = slugify(str(slug_source))
 
-    def set_page_type(self):
-        """Sets the page type from metadata."""
+    def set_page_type(self) -> None:
+        """Sets the page type based on metadata."""
         page_type_value = self.metadata.get("type", [None])[0]
         self.page_type = str(page_type_value) if page_type_value else None
 
-    def set_output_path(self, output_path):
+    def set_output_path(self, output_path: str) -> None:
+        """Sets the output path for the page."""
         self.output_path = output_path
 
     def get_context(self) -> dict:
-        """Gets the processed content of the page."""
+        """
+        Returns the context dictionary to be passed to templates.
+
+        Returns:
+            Context which have at least `content` and `page_title`.
+        """
         return {"content": self.processed_content, "page_title": self.get_title()}
 
     def get_title(self) -> str:
-        """Gets the title of the page."""
+        """
+        Returns the page title.
+
+        Returns:
+            The page title.
+        """
         return self.title
 
     def get_metadata(self) -> dict:
-        """Gets the metadata dictionary of the page."""
+        """
+        Returns the page metadata dictionary.
+
+        Returns:
+            The page metadata.
+        """
         return self.metadata
 
     def get_page_type(self) -> list:
-        """Gets the type of the page, always returning a list."""
+        """
+        Returns the page type as a list.
+
+        Returns:
+            List containing the page type, or empty if None.
+        """
         if isinstance(self.page_type, list):
             return self.page_type
         elif self.page_type is None:
@@ -237,13 +293,31 @@ class Page:
             return [self.page_type]
 
     def get_source_filepath(self) -> str:
-        """Gets the source file path of the page."""
+        """
+        Returns the source file path of the page.
+
+        Returns:
+            The path to source file.
+        """
         return self.source_filepath
 
     def get_slug(self) -> str:
-        """Gets the slug of the page."""
+        """
+        Returns the page slug.
+
+        Returns:
+            The page slug.
+        """
         return self.slug
 
     def get_output_path(self) -> str:
-        """Gets the output path of page file."""
+        """
+        Returns the output path of the rendered HTML file.
+
+        Returns:
+            The path to output file.
+        """
         return self.output_path
+
+    def __repr__(self) -> str:
+        return f"<Page title='{self.title}' slug='{self.slug}' type='{self.page_type}'>"

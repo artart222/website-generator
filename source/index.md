@@ -1,4 +1,4 @@
-Title:   My Document
+Title:   Index File Test
 Title:   Your Document
 Summary: A brief description of my document.
 Authors: Artin

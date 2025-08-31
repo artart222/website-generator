@@ -11,7 +11,7 @@ class Site:
 
     def __init__(self, config: Config) -> None:
         self.logger = logging.getLogger(__name__)
-        self.config = config
+        self.config: Config = config
 
         self.name: str = config.get("site_name", "Default Site Name")
         self.base_url: str = config.get("base_url", "/")
@@ -24,10 +24,42 @@ class Site:
         Adds a fully loaded Page object to the site's collection.
 
         Args:
-            page: List of website pages.
+            page: A single Page object to add.
         """
         self.pages.append(page)
         self.logger.debug(f"Page '{page.source_filepath}' added to site.")
 
     def get_pages(self) -> list[Page]:
+        """
+        Returns a list of website pages.
+
+        Returns:
+            List of website pages.
+        """
         return self.pages
+
+    def get_page_by_url(self, url: str) -> Page | None:
+        """
+        Retrieve a page by its URL.
+
+        Args:
+            url: The URL of the page to find.
+
+        Returns:
+            The matching Page instance if found, otherwise None.
+        """
+        for page in self.pages:
+            if page.url == url:
+                return page
+        return None
+
+    # It seems this make page iterable.
+    def __iter__(self):
+        return iter(self.pages)
+
+    # The repr() function makes string representation of an object.
+    def __repr__(self):
+        return f"<Site name='{self.name}' pages={len(self.pages)}>"
+
+    def __len__(self):
+        return len(self.pages)

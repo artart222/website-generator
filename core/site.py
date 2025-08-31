@@ -1,6 +1,7 @@
 import logging
 from .config import Config
 from .page import Page
+from typing import Iterator
 
 
 class Site:
@@ -54,12 +55,12 @@ class Site:
         return None
 
     # It seems this make page iterable.
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Page]:
         return iter(self.pages)
 
     # The repr() function makes string representation of an object.
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Site name='{self.name}' pages={len(self.pages)}>"
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.pages)

@@ -17,6 +17,12 @@ class Config:
         self,
         fs_manager: Optional[FileSystemManager] = None,
     ) -> None:
+        """
+        Initializes the configuration manager with default settings.
+
+        Args:
+            fs_manager (FileSystemManager, optional): Custom file system manager. Defaults to a new FileSystemManager instance.
+        """
         self.logger = logging.getLogger(__name__)
         self.fs_manager = fs_manager or FileSystemManager()
 
@@ -56,7 +62,9 @@ class Config:
         self.logger.debug(f"Loading config from '{filepath}'")
         try:
             file_content = self.fs_manager.read_file(filepath)
-            loaded_settings = yaml.safe_load(file_content) or {}
+            loaded_settings: Optional[dict[str, Any]] = (
+                yaml.safe_load(file_content) or {}
+            )
 
             if not isinstance(loaded_settings, dict):
                 raise yaml.YAMLError("Config root element must be a dictionary")
@@ -106,8 +114,11 @@ class Config:
             setattr(self, key, value)
         self.logger.debug(f"Config setting updated: {key} = {value}")
 
-    def get_keys(self):
+    def get_keys(self) -> list[str]:
         """
         Returns all configuration keys currently stored.
+
+        Returns:
+            List of all configuration keys.
         """
-        return self.settings.keys()
+        return list(self.settings.keys())

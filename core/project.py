@@ -5,11 +5,12 @@ from engines.base_engine import TemplateEngine
 from engines.factory import create_template_engine
 from processor.factory import create_content_processor
 from utils.fs_manager import FileSystemManager
-from plugins.blog_indexer import BlogIndexerPlugin
 from .plugin_manager import PluginManager
 import os
 
 import logging
+
+# TODO: Complete hooks.
 
 
 class Project:
@@ -20,15 +21,20 @@ class Project:
     """
 
     def __init__(self, config_path: str):
-        """Initializes the project by loading configuration."""
+        """
+        Initializes the project by loading configuration and setting up components.
+
+        Args:
+            config_path: Path to the YAML configuration file.
+        """
         self.logger = logging.getLogger(__name__)
 
-        self.config = Config()
+        self.config: Config = Config()
         self.config.load(config_path)
-        self.site = Site(self.config)
-        self.plugin_manager = PluginManager(self.config, self.site)
-        self.fs_manager = FileSystemManager()
-        self.template_engine = create_template_engine(
+        self.site: Site = Site(self.config)
+        self.plugin_manager: PluginManager = PluginManager(self.config, self.site)
+        self.fs_manager: FileSystemManager = FileSystemManager()
+        self.template_engine: TemplateEngine = create_template_engine(
             self.config.settings["template_engine"],
             self.config.settings["template_dirs"],
         )
@@ -37,20 +43,19 @@ class Project:
         """Orchestrates the entire site generation process."""
         self.logger.info("Build process started.")
         self.plugin_manager.detect_and_load_plugins()
-
         self._discover_and_load_pages()
-        self.fs_manager.copy_directory(
-            "./styles", f"{self.config.get('output_directory')}/styles"
-        )
-        # self._copy_assets() # TODO: Make this
-        # blog_indexer_plugin = BlogIndexerPlugin()
-        # blog_indexer_plugin.on_after_build(self.site)
-        self.plugin_manager.run_hook("on_after_build", self.site)
+        self.plugin_manager.run_hook("on_after_build", site=self.site)
         self._render_pages()
-
+        self._copy_assets()
         self.logger.info("Build process finished successfully.")
 
     def get_template_engine(self) -> TemplateEngine:
+        """
+        Returns the template engine instance used for rendering pages.
+
+        Returns:
+            TemplateEngine: The configured template engine.
+        """
         return self.template_engine
 
     def _discover_and_load_pages(self) -> None:
@@ -68,13 +73,14 @@ class Project:
                 # 2. Get the correct content processor from factory
                 extension = os.path.splitext(path)[1].lstrip(".")
                 processor = create_content_processor(extension)
-                page.load(self.fs_manager, processor)
+                page.load(processor)
 
                 if page.get_output_path() == "":
                     output_path = page.calculate_output_path(output_dir)
                 else:
                     output_path = page.get_output_path()
                 page.set_output_path(output_path)
+                page.generate_url()
                 self.site.add_page(page)
 
     def _render_pages(self) -> None:
@@ -87,6 +93,7 @@ class Project:
 
             # 3. Template is determined by page metadata (with a fallback)
             # template_name = page.metadata.get("template", ["default.html"])[0]
+            # TODO: Fix default template.
             template_name = page.metadata.get("template", "post.html")
 
             rendered_html = self.template_engine.render(template_name, context)
@@ -94,3 +101,34 @@ class Project:
             self.logger.debug(
                 f"Rendered page: {page.source_filepath} -> {page.get_output_path()}"
             )
+
+    def _copy_assets(self) -> None:
+        """
+        Copies global site assets (e.g., CSS, JS, images) from source directories
+        to the output directory.
+
+        Always includes './styles' as default CSS template.
+        Additional asset directories can be specified in config under 'asset_dirs'.
+        """
+        output_dir: str = self.config.get("output_directory")
+
+        # Get asset directories from config, always include './styles'
+        asset_dirs = self.config.get("asset_dirs", [])
+        if "./styles" not in asset_dirs:
+            asset_dirs.insert(0, "./styles")
+
+        for asset_dir in asset_dirs:
+            if os.path.exists(asset_dir):
+                dest_dir = os.path.join(output_dir, os.path.basename(asset_dir))
+                try:
+                    self.fs_manager.copy_directory(asset_dir, dest_dir)
+                    self.logger.info(
+                        f"Copied asset directory: {asset_dir} -> {dest_dir}"
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to copy asset directory {asset_dir}: {e}",
+                        exc_info=True,
+                    )
+            else:
+                self.logger.warning(f"Asset directory does not exist: {asset_dir}")

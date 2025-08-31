@@ -4,23 +4,49 @@ from .site import Site
 
 import os
 import importlib
-
 import inspect
-from plugins.base_plugin import BasePlugin
 import logging
 
-# TODO: Clean this file.
 
 class PluginManager:
+    """
+    Manages the discovery, loading, and execution of plugins.
+
+    A plugin is a class that inherits from `BasePlugin`, located in the `plugins/`
+    directory, and explicitly listed in the `plugins` section of the config.
+    """
+
     def __init__(self, config: Config, site: Site) -> None:
+        """
+        Initialize the plugin manager.
+
+        Args:
+            config (Config): Application configuration.
+            site (Site): The site instance, representing the project being built.
+        """
         self.logger = logging.getLogger(__name__)
         self.config: Config = config
-        self.site = site
+        self.site: Site = site
         self.plugins: list[BasePlugin] = []
 
-    def detect_and_load_plugins(self):
-        plugins_list = self.config.get("plugins")
-        # TODO: Check for possibilty of not correct plugins_list
+    def detect_and_load_plugins(self) -> list[BasePlugin]:
+        """
+        Detects available plugin modules in the `plugins/` directory,
+        imports them dynamically, and loads classes that match the following criteria:
+          - Subclass of `BasePlugin`
+          - Class name is listed in the config under `plugins`
+
+        Successfully matched plugins are instantiated and stored in `self.plugins`.
+
+        Raises:
+            ImportError: If a plugin module cannot be imported.
+            Exception: If plugin instantiation fails.
+        """
+        plugins_list = self.config.get("plugins", [])
+        if not isinstance(plugins_list, list):
+            self.logger.warning("'plugins' should be a list in config. Skipping.")
+            plugins_list = []
+            return []
 
         plugin_dir = "plugins"
         plugin_files = [
@@ -36,7 +62,9 @@ class PluginManager:
                 module = importlib.import_module(module_name)
                 plugin_modules.append(module)
             except ImportError as e:
-                print(f"Failed to import module {module_name}: {e}")
+                self.logger.error(
+                    f"Failed to import module {module_name}: {e}", exc_info=True
+                )
 
         plugins_to_load = []
         for module in plugin_modules:
@@ -48,18 +76,32 @@ class PluginManager:
                         if obj.__name__ in plugins_list:
                             plugins_to_load.append(obj())
 
+        for plugin_name in plugins_list:
+            if not any(p.__class__.__name__ == plugin_name for p in plugins_to_load):
+                self.logger.warning(
+                    f"Plugin '{plugin_name}' was listed in config but not found."
+                )
+
         self.plugins = plugins_to_load
+        return self.plugins
 
-    # def run_on_after_builds(self):
-    #     for plugin in self.plugins:
-    #         plugin.on_after_build(self.site)
+    def run_hook(self, hook_name: str, *args, **kwargs) -> None:
+        """
+        Executes a named hook method on all loaded plugins.
 
-    # def run_on_before_build(self):
-    #     for plugin in self.plugins:
-    #         plugin.on_before_build(self.site)
+        For each plugin:
+          - If the plugin defines a method with the given hook name,
+            that method is called with the provided arguments.
 
-    def run_hook(self, hook_name: str, *args, **kwargs):
-        """Runs a specified hook on all loaded plugins."""
+        Args:
+            hook_name: The name of the hook/method to call on plugins.
+            *args: Positional arguments passed to the hook method.
+            **kwargs: Keyword arguments passed to the hook method.
+
+        Notes:
+            - If a plugin raises an exception, it is logged but does not stop other plugins.
+            - Errors include full stack traces in logs for debugging.
+        """
         for plugin in self.plugins:
             method = getattr(plugin, hook_name, None)
             if method and callable(method):
@@ -67,5 +109,6 @@ class PluginManager:
                     method(*args, **kwargs)
                 except Exception as e:
                     logging.error(
-                        f"Plugin '{plugin.__class__.__name__}' failed on hook '{hook_name}': {e}"
+                        f"Plugin '{plugin.__class__.__name__}' failed on hook '{hook_name}': {e}",
+                        exc_info=True,
                     )

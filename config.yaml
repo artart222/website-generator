@@ -1,7 +1,7 @@
 # Site Metadata
-site_name: My Personal Blog
-site_description: Thoughts, tutorials, and tech experiments.
-base_url: http://localhost:8080
+site_name: artart222 Portfolio/Blog
+site_description: Portfolio and blog.
+base_url: https://artart222.tech
 author: Artin Mobasher
 
 asset_dirs:

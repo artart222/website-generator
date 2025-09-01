@@ -18,7 +18,7 @@ I'm HTML paraghrap
 
 *[HTML]: Hyper Text Markup Language
 
-![Vim Screenshot](vim-screenshot.png)
+![Vim Screenshot](/assets/vim-screenshot.png)
 
 ``` python
 with open("main.md", mode="r", encoding="utf-8") as markdow_file:

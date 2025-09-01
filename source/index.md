@@ -1,4 +1,4 @@
-Title:   Index File Test
+Title:   index
 Summary: A brief description of my document.
 Authors: Artin
          Martin

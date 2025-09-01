@@ -30,6 +30,12 @@ class BasePlugin(ABC):
         """
 
     @abstractmethod
+    def on_before_page_rendered(self, *args, **kwargs) -> Any:
+        """
+        Called before a Page is rendered into HTML.
+        """
+
+    @abstractmethod
     def on_after_build(self, *args, **kwargs) -> Any:
         """
         Called after the whole site is built.

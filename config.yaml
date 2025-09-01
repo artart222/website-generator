@@ -1,8 +1,11 @@
 # Site Metadata
 site_name: My Personal Blog
 site_description: Thoughts, tutorials, and tech experiments.
-base_url: https://example.com
+base_url: http://localhost:8080
 author: Artin Mobasher
+
+asset_dirs:
+  - ./source/assets
 
 # Output Paths
 source_directory: ./source
@@ -25,10 +28,6 @@ log_level: 10
 # Navigation (can also be in a separate data file)
 navigation:
   - title: Home
-    slug: index
+    type: index
   - title: Blog
-    slug: blog
-  - title: About
-    slug: about
-  - title: Contact
-    slug: contact
+    type: blog-indexer

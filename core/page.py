@@ -5,7 +5,6 @@ from processor.base_processor import ContentProcessor
 from utils.fs_manager import FileSystemManager
 from .config import Config
 from typing import Optional, Any
-from pathlib import Path
 
 
 class Page:
@@ -14,7 +13,7 @@ class Page:
     def __init__(
         self,
         source_filepath,
-        config: Optional[Config],
+        config: Config,
         fs_manager: Optional[FileSystemManager],
     ) -> None:
         """
@@ -26,7 +25,7 @@ class Page:
             fs_manager (FileSystemManager): An instance of the file system manager.
         """
         self.logger = logging.getLogger(__name__)
-        self.config: Config | None = config
+        self.config: Config = config
         self.source_filepath: str = source_filepath
         self.fs_manager: FileSystemManager | None = fs_manager
 
@@ -186,6 +185,8 @@ class Page:
         slug_source = str(self.metadata.get("slug", [self.title])[0])
         self.slug = slugify(slug_source)
 
+        # TODO: In future change page_type to list of types
+        # Not a list with a type.
         page_type_value = self.metadata.get("type", [None])[0]
         self.page_type = str(page_type_value) if page_type_value else None
 
@@ -203,13 +204,22 @@ class Page:
         Returns:
             str: The full path for the output file.
         """
-        filename = f"{self.slug}.html"
+        if not self.fs_manager:
+            raise RuntimeError("FileSystemManager is required to create output paths")
+
+        # Build slugified folder path
+        parts = [output_dir]
         if self.page_type:
-            self.output_path = Path(
-                os.path.join(output_dir, self.page_type, filename)
-            ).as_posix()
-            return self.output_path
-        self.output_path = Path(os.path.join(output_dir, filename)).as_posix()
+            parts.append(slugify(self.page_type))
+        parts.append(slugify(self.slug))
+
+        folder_path = os.path.join(*parts)
+
+        # Ensure folder exists via fs_manager
+        self.fs_manager.create_directory(folder_path)
+
+        # Set output path to 'index.html' inside folder
+        self.output_path = os.path.join(folder_path, "index.html")
         return self.output_path
 
     def set_raw_content(self, content: str) -> None:
@@ -242,23 +252,32 @@ class Page:
         slug_source = self.metadata.get("slug", [self.title])[0]
         self.slug = slugify(str(slug_source))
 
-    def set_page_type(self) -> None:
-        """Sets the page type based on metadata."""
-        page_type_value = self.metadata.get("type", [None])[0]
-        self.page_type = str(page_type_value) if page_type_value else None
+    def set_page_type(self, page_type: str) -> None:
+        """
+        Sets the page type based on input.
+
+        Args:
+            page_type: The page type which user want to set.
+        """
+        self.page_type = page_type
 
     def set_output_path(self, output_path: str) -> None:
         """Sets the output path for the page."""
         self.output_path = output_path
 
-    def get_context(self) -> dict:
+    def get_context(self, header: str) -> dict:
         """
         Returns the context dictionary to be passed to templates.
 
         Returns:
             Context which have at least `content` and `page_title`.
         """
-        return {"content": self.processed_content, "page_title": self.get_title()}
+        return {
+            "content": self.processed_content,
+            "page_title": self.get_title(),
+            "header": header,
+            "site_name": self.config.get("site_name", "Default Site Name"),
+        }
 
     def get_title(self) -> str:
         """
@@ -318,6 +337,15 @@ class Page:
             The path to output file.
         """
         return self.output_path
+
+    def get_url(self) -> str:
+        """
+        Returns the URL of HTML file.
+
+        Returns:
+            The URL of HTML file.
+        """
+        return self.url
 
     def __repr__(self) -> str:
         return f"<Page title='{self.title}' slug='{self.slug}' type='{self.page_type}'>"

@@ -11,6 +11,7 @@ import os
 import logging
 
 # TODO: Complete hooks.
+# TODO: Complete header navigation.
 
 
 class Project:
@@ -44,7 +45,12 @@ class Project:
         self.logger.info("Build process started.")
         self.plugin_manager.detect_and_load_plugins()
         self._discover_and_load_pages()
-        self.plugin_manager.run_hook("on_after_build", site=self.site)
+        self.plugin_manager.run_hook(
+            "on_before_page_rendered",
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+        )
         self._render_pages()
         self._copy_assets()
         self.logger.info("Build process finished successfully.")
@@ -89,7 +95,7 @@ class Project:
 
         for page in self.site.pages:
             # 2. Page provides its own rendering context
-            context = page.get_context()
+            context = page.get_context(self.site.populate_header())
 
             # 3. Template is determined by page metadata (with a fallback)
             # template_name = page.metadata.get("template", ["default.html"])[0]

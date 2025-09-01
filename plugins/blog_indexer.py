@@ -36,6 +36,8 @@ class BlogIndexerPlugin(BasePlugin):
         config = kwargs.get("config")
         fs_manager = kwargs.get("fs_manager")
 
+        self.logger.debug("BlogIndexerPlugin started working")
+
         if not isinstance(site, Site):
             msg = (
                 "Missing or invalid 'site' argument in BlogIndexerPlugin.on_after_build"
@@ -88,3 +90,6 @@ class BlogIndexerPlugin(BasePlugin):
     def on_page_rendered(self, **kwargs):
         """No action needed for page rendered."""
         pass
+
+    def on_after_build(self, **kwargs):
+        """No action needed for page builded."""

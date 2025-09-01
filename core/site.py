@@ -17,6 +17,7 @@ class Site:
         self.name: str = config.get("site_name", "Default Site Name")
         self.base_url: str = config.get("base_url", "/")
         self.pages: list[Page] = []
+        self.header = ""
 
         self.logger.debug(f"Site object created for '{self.name}'.")
 
@@ -53,6 +54,36 @@ class Site:
             if page.url == url:
                 return page
         return None
+
+    def get_page_by_type(self, type: str) -> list[Page]:
+        """
+        Returns a a list of pages with given type.
+
+        Args:
+            type: The type of the pages to find.
+
+        Returns:
+            The matching Page instances if found.
+        """
+        pages = []
+        for page in self.pages:
+            if page.get_page_type() == type:
+                pages.append(page)
+        return pages
+
+    def populate_header(self) -> str:
+        header_config: list[dict] = self.config.get("navigation", "")
+        header_str = ""
+        for header_item in header_config:
+            for page in self.get_pages():
+                if header_item.get("type") in page.get_page_type():
+                    header_str = (
+                        header_str
+                        + "\n"
+                        + f"<li><a href='{page.get_url()}'>{header_item.get('title')}</a></li>"
+                    )
+        self.header = header_str
+        return header_str
 
     # It seems this make page iterable.
     def __iter__(self) -> Iterator[Page]:

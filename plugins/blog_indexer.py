@@ -1,5 +1,7 @@
 from core.page import Page
 from core.site import Site
+from core.config import Config
+from utils.fs_manager import FileSystemManager
 from .base_plugin import BasePlugin
 import logging
 
@@ -21,18 +23,35 @@ class BlogIndexerPlugin(BasePlugin):
         """Nothing to do before build."""
         pass
 
-    def on_after_build(self, **kwargs) -> None:
+    def on_before_page_rendered(self, **kwargs) -> None:
         """
          Generate the blog index page after all pages are built.
 
         Expected kwargs:
             site (Site): The Site object
+            config (Config): The site config object
+            fs_manager (FileSystemManager): The site file system manager.
         """
         site = kwargs.get("site")
-        msg = "Missing or invalid 'site' argument in BlogIndexerPlugin.on_after_build"
-        self.logger.warning(msg)
+        config = kwargs.get("config")
+        fs_manager = kwargs.get("fs_manager")
+
         if not isinstance(site, Site):
-            raise ValueError(msg)
+            msg = (
+                "Missing or invalid 'site' argument in BlogIndexerPlugin.on_after_build"
+            )
+            self.logger.warning(msg)
+            raise RuntimeError(msg)
+
+        if not isinstance(config, Config):
+            msg = "Missing or invalid 'config' argument in BlogIndexerPlugin.on_after_build"
+            self.logger.warning(msg)
+            raise RuntimeError(msg)
+
+        if not isinstance(fs_manager, FileSystemManager):
+            msg = "Missing or invalid 'fs_manager' argument in BlogIndexerPlugin.on_after_build"
+            self.logger.warning(msg)
+            raise RuntimeError(msg)
 
         blog_pages = [
             p
@@ -44,17 +63,19 @@ class BlogIndexerPlugin(BasePlugin):
 
         # Build simple HTML list
         list_items = "\n".join(
-            f"<li><article><a href='{'../' + '/'.join(p.get_output_path().split('/')[1:])}'>{p.title}</a></article></li>"
+            f"<li><article><a href='{p.get_url()}'>{p.title}</a></article></li>"
             for p in blog_pages
         )
         html_list = f"<ul>{list_items}</ul>"
 
         # Create a new Page object
         self.logger.debug("Generating virtual index page")
-        index_page = Page(source_filepath="", config=None, fs_manager=None)
+        index_page = Page(source_filepath="", config=config, fs_manager=fs_manager)
         index_page.add_metadata({"template": "blog-indexer.html"})
-        index_page.set_output_path("./output/blog-indexer/blog-indexer.html")
+        index_page.calculate_output_path("./output/blog-indexer/")
+        index_page.set_page_type("blog-indexer")
         index_page.set_processed_content(html_list)
+        index_page.generate_url()
 
         # Add to site pages
         site.add_page(index_page)

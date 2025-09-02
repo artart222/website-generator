@@ -2,7 +2,7 @@ Title:   Project Design
 Summary: This blog post is about why I chose my current design pattern for writing my website-generator.
 Authors: Artin Mobasher
 Date:    9/2/2025
-base_url: https://artart222.tech
+base_url: https://artart.dev
 type: blog
 
 # Why I Chose These Design Choices for My Website Generator

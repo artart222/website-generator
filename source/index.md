@@ -2,7 +2,7 @@ Title:   Home
 Summary: My portfolio.
 Authors: Artin Mobasher
 Date:    9/1/2025
-base_url: https://artart222.tech
+base_url: https://artart.dev
 type: index
 
 # Artin Mobasher(artart222) - Portfolio & Blog
@@ -19,7 +19,7 @@ A modular **Python** website generator with a pluggable architecture, theming vi
 
 * **Technologies Used:** Python, Django, YAML
 
-* [**Link to Project Demo(This blog is a demo 😏)**](https://artart222.tech)
+* [**Link to Project Demo(This blog is a demo 😏)**](https://artart.dev)
 
 * [**GitHub Repository**](https://github.com/artart222/website-generator)
 
@@ -39,7 +39,7 @@ Welcome to my blog! I write about the things I'm learning and the challenges I'm
 
 🚧 Under construction 👷‍♂️ 
 
-[Read all posts →](https://artart222.tech/blog-indexer/)
+[Read all posts →](https://artart.dev/blog-indexer/)
 
 ### 📫 Get in Touch
 

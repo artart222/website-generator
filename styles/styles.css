@@ -166,7 +166,7 @@ pre {
 .content {
     width: 90%;
     /* Use percentage for responsiveness */
-    max-width: 800px;
+    /* max-width: 800px; */
     /* But set a max-width for large screens */
     margin: 2rem auto;
     /* Vertical margin and horizontal auto for centering */
@@ -269,4 +269,78 @@ p:has(> img:only-child) {
     main {
         padding: 9rem;
     }
+}
+
+a {
+    color: #61afef;
+    /* A pleasant blue that complements your color scheme */
+    text-decoration: none;
+    transition: color 0.2s ease, border-bottom 0.2s ease;
+    border-bottom: 1px solid rgba(97, 175, 239, 0.3);
+    padding-bottom: 1px;
+}
+
+a:hover {
+    color: #87cfff;
+    /* Lighter blue for hover */
+    border-bottom-color: #87cfff;
+}
+
+.nav-menu li a {
+    color: #abb2bf;
+    font-size: 1rem;
+    font-weight: 400;
+    text-decoration: none;
+    padding: 0.5rem 0;
+    position: relative;
+    transition: color 0.3s ease;
+}
+
+.nav-menu li a::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: 0;
+    left: 0;
+    background-color: #61afef;
+    transition: width 0.3s ease;
+}
+
+.nav-menu li a:hover {
+    color: #61afef;
+}
+
+.nav-menu li a:hover::after {
+    width: 100%;
+}
+
+
+footer a,
+.secondary-link {
+    color: #5c6370;
+    border-bottom: 1px dotted #5c6370;
+}
+
+footer a:hover,
+.secondary-link:hover {
+    color: #61afef;
+    border-bottom-style: solid;
+}
+
+a.button {
+    display: inline-block;
+    background-color: #61afef;
+    color: #282c34 !important;
+    padding: 0.5rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+    border: none;
+}
+
+a.button:hover {
+    background-color: #87cfff;
+    color: #282c34;
+    border: none;
 }

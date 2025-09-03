@@ -29,7 +29,7 @@ This is a NeoVim config which let you use NeoVim as general purpose IDE
 
 * **Technologies Used:** Lua, [lazy.nvim](https://github.com/folke/lazy.nvim), and many plugins.
 
-* [**Link to Project Demo**](https://github.com/folke/lazy.nvim)
+* [**Link to Project Demo**](https://github.com/artart222/CodeArt?tab=readme-ov-file#camera_flash-screenshots)
 
 * [**GitHub Repository**](https://github.com/artart222/CodeArt)
 

@@ -6,7 +6,7 @@ A modular, pluggable static site generator built in Python. It transforms struct
 
 [My portfolio/blog built with this project](https://artart.dev)
 
-![Demo](Demo Screenshot.png)
+![Demo](Demo-Screenshot.png "Demo Screenshot")
 
 > MIT Licensed. See [LICENSE](./LICENSE).
 

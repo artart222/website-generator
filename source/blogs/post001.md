@@ -66,7 +66,6 @@ This allows swapping or upgrading templating logic without changing the rest of 
 ---
 
 ## 5. Tradeoffs I Made
-- **Kept the codebase small** → some features (like asset handling or caching) are simplified.  
 - **Focused on clarity over optimization** → since this is a learning project and a resume showcase, readability was more important than micro-optimizations.  
 - **YAML config** → I chose YAML for config files because it’s widely used in static site generators and is more readable than JSON for non-developers.  
 

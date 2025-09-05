@@ -5,7 +5,7 @@ Date:    9/2/2025
 base_url: https://artart.dev
 type: blog
 
-# My Design choices for websites generator
+# My Design Choices For Websites Generator
 
 ![Code base screenshot](/assets/project-screenshot.png "Code base screenshot")
 

@@ -1,0 +1,10 @@
+[MASTER]
+ignore=.git,venv,.venv,__pycache__,migrations
+
+[MESSAGES CONTROL]
+disable=
+    W0511,  # TODO comments
+
+[FORMAT]
+# Ignore docstring lines for length checking
+ignore-long-lines=^\s*(\"\"\"|''')|^\s*\w+.*(\"\"\"|''')

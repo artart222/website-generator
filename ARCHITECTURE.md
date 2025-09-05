@@ -24,7 +24,8 @@ The system will be built around the following core classes:
         * `config: Configuration` - Holds all project settings.
         * `site: Site` - The main site object to be built.
         * `plugin_manager: PluginManager` - Manages active plugins.
-        * `fs_manager: FileSystemManager` - Utility for file operations.
+        * `fs_manager
+        * : FileSystemManager` - Utility for file operations.
         * `template_engine_instance: TemplateEngine` - The chosen template engine.
     * **Methods:**
         * `__init__(config_path: str)`: Initializes the project by loading configuration.
@@ -179,9 +180,12 @@ The system will be built around the following core classes:
         * `read_file(filepath: str) -> str`
         * `write_file(filepath: str, content: str)`
         * `copy_file(source_path: str, dest_path: str)`
+        * `copy_directory(source_dir: str, dest_dir: str, exist_ok: bool = False)`
         * `create_directory(dir_path: str, exist_ok: bool = True)`
         * `list_files(directory: str, recursive: bool = False, extensions: list[str] | None = None) -> list[str]`
-        * `path_exists(filepath: str) -> bool`
+        * `path_exists(path: str) -> bool`
+* **`logging_setup`** Module
+    * **Responsibility:** To provide a configurable logging setup for the entire application, allowing the log level to be set based on the project's configuration.
 
 ## 4. Workflow / Data Flow
 
@@ -251,28 +255,32 @@ my-website-project/
 **Generator's Source Code Structure (`website_generator_program/`)**
 
 website_generator_program/
-├── init.py
+├── __init__.py
 ├── main.py                       # CLI entry point.
 ├── core/
 │   ├── init.py
 │   ├── project.py
 │   ├── site.py
+│   ├── config.py
 │   └── page.py
 ├── processors/
 │   ├── init.py
-│   ├── base_processor.py         # Could contain ContentProcessor ABC.
+│   ├── base_processor.py         # Contains ContentProcessor ABC.
 │   └── markdown_processor.py
+|   └── factory.py
 ├── engines/
-│   ├── init.py
-│   ├── base_engine.py            # Could contain TemplateEngine ABC.
-│   └── jinja_engine.py
+│   ├── __init__.py
+│   ├── base_engine.py            # Contains TemplateEngine ABC.
+│   ├── django_engine.py
+|   └── factory.py
 ├── plugins/
-│   ├── init.py
+│   ├── __init__.py
 │   ├── base_plugin.py            # Plugin ABC and PluginManager.
 │   └── sitemap_plugin.py         # Example built-in plugin.
 └── utils/
-├── init.py
-└── file_handler.py           # Renamed from fs_manager.py for clarity.
+    ├── init.py
+    |── fs_manager.py
+    └── logging_setup.py
 
 
 ## 6. Future Considerations & Extensibility Points

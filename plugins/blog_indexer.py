@@ -65,7 +65,7 @@ class BlogIndexerPlugin(BasePlugin):
 
         # Build simple HTML list
         list_items = "\n".join(
-            f"<li><article><a href='{p.get_url()}'>{p.title}</a></article></li>"
+            f"<li><article><a href='{p.get_root_rel_url()}'>{p.title}</a></article></li>"
             for p in blog_pages
         )
         html_list = f"<ul>{list_items}</ul>"
@@ -77,7 +77,8 @@ class BlogIndexerPlugin(BasePlugin):
         index_page.calculate_output_path("./output/blog-indexer/")
         index_page.set_page_type("blog-indexer")
         index_page.set_processed_content(html_list)
-        index_page.generate_url()
+        index_page.generate_abs_url()
+        index_page.generate_root_rel_url()
 
         # Add to site pages
         site.add_page(index_page)

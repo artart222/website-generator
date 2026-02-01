@@ -1,4 +1,5 @@
 import logging
+from colorlog import ColoredFormatter
 
 
 def setup_logging(log_level: int) -> None:
@@ -18,9 +19,16 @@ def setup_logging(log_level: int) -> None:
     # Create new console handler
     handler = logging.StreamHandler()
     handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+        ColoredFormatter(
+            "%(log_color)s%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%H:%M:%S",
+            log_colors={
+                "DEBUG": "cyan",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "bold_red",
+            },
         )
     )
     root_logger.addHandler(handler)

@@ -51,7 +51,7 @@ class Site:
             The matching Page instance if found, otherwise None.
         """
         for page in self.pages:
-            if page.url == url:
+            if page.abs_url == url:
                 return page
         return None
 
@@ -80,7 +80,7 @@ class Site:
                     header_str = (
                         header_str
                         + "\n"
-                        + f"<li><a href='{page.get_url()}'>{header_item.get('title')}</a></li>"
+                        + f"<li><a href='{page.get_root_rel_url()}'>{header_item.get('title')}</a></li>"
                     )
         self.header = header_str
         return header_str

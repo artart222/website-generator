@@ -38,7 +38,8 @@ class Page:
         self.page_type: str | None = None
 
         self.output_path: str = ""
-        self.url: str = ""
+        self.abs_url: str = ""
+        self.root_rel_url: str = ""
 
     # TODO:
     # Will be DEPRECATED.
@@ -148,7 +149,21 @@ class Page:
 
         self._populate_attributes()
 
-    def generate_url(self) -> str:
+    def get_output_path_without_output_dir(self, output_dir: str) -> str:
+        """
+        Returns the output path without the base output directory.
+
+        Args:
+            output_dir (str): The base output directory from the config.
+
+        Returns:
+            str: The output path without the base directory.
+        """
+        if self.output_path.startswith(output_dir):
+            return self.output_path[len(output_dir) :].lstrip(os.sep)
+        return self.output_path
+
+    def generate_abs_url(self) -> str:
         """
         Generates the URL for the page based on slug and page type.
 
@@ -171,11 +186,39 @@ class Page:
         if base_url:
             # Ensure base_url doesn't end with '/'
             base_url = base_url.rstrip("/")
-            self.url = f"{base_url}/{relative_path}"
+            self.abs_url = f"{base_url}/{relative_path}"
         else:
-            self.url = f"/{relative_path}"
+            self.abs_url = f"/{relative_path}"
 
-        return self.url
+        print("Abs URL:", self.abs_url)
+
+        return self.abs_url
+
+    def generate_root_rel_url(self) -> str:
+        """
+        Generates the root-relative URL for the page based on slug and page type.
+
+        Returns:
+            str: The root-relative page URL.
+        """
+        # Build relative path
+        # parts = []
+        # if self.page_type:
+        #     parts.append(self.page_type)
+        # parts.append(self.slug)
+        # relative_path = "/".join(parts) + "/"
+
+        # self.root_rel_url = f"/{relative_path}"
+
+        self.root_rel_url = self.get_output_path_without_output_dir(self.config.get("output_directory", ""))
+        self.root_rel_url = self.root_rel_url.replace(os.sep, "/")
+        # self.root_rel_url = "/" + self.root_rel_url
+        if not self.root_rel_url.startswith("/"):
+            self.root_rel_url = "/" + self.root_rel_url
+
+        print("Rel URL ==> ", self.root_rel_url)
+
+        return self.root_rel_url
 
     def _populate_attributes(self) -> None:
         """Internal helper method to set page attributes based on extracted metadata."""
@@ -278,6 +321,15 @@ class Page:
             "header": header,
             "site_name": self.config.get("site_name", "Default Site Name"),
         }
+    
+    def set_rel_url(self, rel_url: str) -> None:
+        """
+        Sets the root-relative URL for the page.
+
+        Args:
+            rel_url: The root-relative URL to set.
+        """
+        self.root_rel_url = rel_url
 
     def get_title(self) -> str:
         """
@@ -338,14 +390,23 @@ class Page:
         """
         return self.output_path
 
-    def get_url(self) -> str:
+    def get_abs_url(self) -> str:
         """
-        Returns the URL of HTML file.
+        Returns the absolute URL of HTML file.
 
         Returns:
-            The URL of HTML file.
+            The absolute URL of HTML file.
         """
-        return self.url
+        return self.abs_url
+
+    def get_root_rel_url(self) -> str:
+        """
+        Returns the root-relative URL of HTML file.
+
+        Returns:
+            The root-relative URL of HTML file.
+        """
+        return self.root_rel_url
 
     def __repr__(self) -> str:
         return f"<Page title='{self.title}' slug='{self.slug}' type='{self.page_type}'>"

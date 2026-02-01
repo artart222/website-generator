@@ -86,7 +86,8 @@ class Project:
                 else:
                     output_path = page.get_output_path()
                 page.set_output_path(output_path)
-                page.generate_url()
+                page.generate_abs_url()
+                page.generate_root_rel_url()
                 self.site.add_page(page)
 
     def _render_pages(self) -> None:

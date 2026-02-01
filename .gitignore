@@ -7,4 +7,9 @@ __pycache__/
 # Distribution / packaging
 .venv/
 
+# IDE items:
+.idea
+
+# Output items
 output/
+output.zip

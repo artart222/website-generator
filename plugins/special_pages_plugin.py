@@ -59,7 +59,9 @@ class SpecialPagesPlugin(BasePlugin):
                     # Determine output path
                     output_dir = site.config.get("output_directory")
                     if ptype == "index" or ptype == "home":
+                        # TODO: Fix this
                         page.set_output_path(output_dir + "/" + "index.html")
+                        page.set_rel_url("/")
                     elif ptype == "blog-index":
                         page.set_output_path(
                             output_dir + "/" + "blog-index" + "/" + "index.html"
@@ -80,9 +82,9 @@ class SpecialPagesPlugin(BasePlugin):
                     if ptype == "index":
                         self.generate_special_url(page)
                     else:
-                        page.generate_url()
+                        page.generate_abs_url()
                     self.logger.info(
-                        f"Special page handled: {page.title} -> {page.get_output_path()} -> {page.get_url()}"
+                        f"Special page handled: {page.title} -> {page.get_output_path()} -> {page.get_abs_url()}"
                     )
 
     def on_after_build(self, **kwargs):
@@ -118,7 +120,7 @@ class SpecialPagesPlugin(BasePlugin):
         base_url = page.config.get("base_url", "") if page.config else ""
 
         if page.page_type in ("home", "index") or page.slug == "index":
-            page.url = "/" if not base_url else base_url.rstrip("/") + "/"
-            return page.url
+            page.abs_url = "/" if not base_url else base_url.rstrip("/") + "/"
+            return page.abs_url
 
         return ""

@@ -23,9 +23,9 @@ class BlogIndexerPlugin(BasePlugin):
             config (Config): The site config object
             fs_manager (FileSystemManager): The site file system manager.
         """
-        site: Site = kwargs.get("site")
-        config: Config = kwargs.get("config")
-        fs_manager: FileSystemManager = kwargs.get("fs_manager")
+        site: Site = kwargs["site"]
+        config: Config = kwargs["config"]
+        fs_manager: FileSystemManager = kwargs["fs_manager"]
 
         blog_pages = [
             p

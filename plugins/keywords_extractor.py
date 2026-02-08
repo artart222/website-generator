@@ -14,7 +14,7 @@ class PageKeyWordExtractor(BasePlugin):
     def after_page_parsed(self, **kwargs):
         # TODO: Maybe in future do weighted extraction.
 
-        site: Site = kwargs.get("site")
+        site: Site = kwargs["site"]
 
         for p in site.get_pages():
             keywords = []

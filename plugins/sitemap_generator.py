@@ -23,8 +23,8 @@ class SitemapPlugin(BasePlugin):
         Called after the site build is complete.
         Generates sitemap.xml for all pages.
         """
-        site: Site = kwargs.get("site")
-        config: Config = kwargs.get("config")
+        site: Site = kwargs["site"]
+        config: Config = kwargs["config"]
 
         output_dir = Path(config.get("output_directory"))
 

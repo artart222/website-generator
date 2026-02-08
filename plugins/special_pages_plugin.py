@@ -22,7 +22,7 @@ class SpecialPagesPlugin(BasePlugin):
         """
         Modify output paths and URLs for pages of special types.
         """
-        site: Site = kwargs.get("site")
+        site: Site = kwargs["site"]
 
         for page in site.pages:
             page_types = page.get_page_type()

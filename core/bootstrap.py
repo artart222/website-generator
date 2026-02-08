@@ -44,7 +44,7 @@ def bootstrap(config_path: str | Path) -> Config:
 
     # --- load config ---
     config = Config()
-    config.load(config_path)
+    config.load(str(config_path))
 
     # --- reconfigure logging using config ---
     log_level = config.get("log_level", DEFAULT_LOG_LEVEL)

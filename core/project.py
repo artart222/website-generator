@@ -8,7 +8,12 @@ from utils.fs_manager import FileSystemManager
 from .plugin_manager import PluginManager
 import os
 
+from processor.factory import _PROCESSOR_MAP
+
 import logging
+
+supported_extensions = list(_PROCESSOR_MAP.keys())
+
 
 # TODO: Complete hooks.
 # TODO: Complete header navigation.
@@ -43,6 +48,7 @@ class Project:
     def build(self) -> None:
         """Orchestrates the entire site generation process."""
         self.logger.info("Build process started.")
+
         self.plugin_manager.detect_and_load_plugins()
         self._discover_and_load_pages()
         self.plugin_manager.run_hook(
@@ -80,17 +86,18 @@ class Project:
         output_dir = self.config.get("output_directory")
 
         for path in page_filepaths:
-            if os.path.splitext(path)[1].lstrip(".") == "md":
+            ext = os.path.splitext(path)[1].lstrip(".").lower()
+            if ext in supported_extensions:
                 page = Page(path, self.config, self.fs_manager)
-                # 2. Get the correct content processor from factory
-                extension = os.path.splitext(path)[1].lstrip(".")
-                processor = create_content_processor(extension)
+                processor = create_content_processor(ext)
                 page.load(processor)
 
-                if page.get_output_path() == "":
-                    output_path = page.calculate_output_path(output_dir)
-                else:
-                    output_path = page.get_output_path()
+                # Compute output path if not set
+                output_path = (
+                    page.get_output_path()
+                    if page.get_output_path() != ""
+                    else page.calculate_output_path(output_dir)
+                )
                 page.set_output_path(output_path)
                 page.generate_abs_url()
                 page.generate_root_rel_url()
@@ -100,6 +107,14 @@ class Project:
         """Renders all loaded pages to their output files."""
         self.logger.info("Rendering pages...")
         for page in self.site.pages:
+            self.plugin_manager.run_hook(
+                "before_page_parsed",
+                site=self.site,
+                config=self.config,
+                fs_manager=self.fs_manager,
+                page=page,
+            )
+
             # 2. Page provides its own rendering context
             context = page.get_context(self.site.populate_header())
 

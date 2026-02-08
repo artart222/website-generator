@@ -67,7 +67,8 @@ class Site:
         """
         pages = []
         for page in self.pages:
-            if page.get_page_type() == type:
+            page_types = page.get_page_type()
+            if page_types and type in page_types:
                 pages.append(page)
         return pages
 

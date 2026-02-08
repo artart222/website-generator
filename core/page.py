@@ -36,6 +36,8 @@ class Page:
         self.title: str = ""
         self.slug: str = ""
         self.page_type: str | None = None
+        self.author: str | list | None = ""
+        self.keywords: str | list | None = ""
 
         self.output_path: str = ""
         self.abs_url: str = ""
@@ -53,7 +55,7 @@ class Page:
             self.raw_content = self.fs_manager.read_file(self.source_filepath)
         else:
             self.logger.debug(
-                "Reading source file was not succefull because no FileSystemManager has been provided"
+                "Reading source file was not successful because no FileSystemManager has been provided"
             )
             return
 
@@ -72,6 +74,7 @@ class Page:
         """
         if content_processor:
             self.processed_content = content_processor.process(self.raw_content)
+            # TODO: Add plugin manager on_parse hook here in future.
         else:
             self.processed_content = self.raw_content
             self.logger.warning(
@@ -190,8 +193,6 @@ class Page:
         else:
             self.abs_url = f"/{relative_path}"
 
-        print("Abs URL:", self.abs_url)
-
         return self.abs_url
 
     def generate_root_rel_url(self) -> str:
@@ -210,13 +211,13 @@ class Page:
 
         # self.root_rel_url = f"/{relative_path}"
 
-        self.root_rel_url = self.get_output_path_without_output_dir(self.config.get("output_directory", ""))
+        self.root_rel_url = self.get_output_path_without_output_dir(
+            self.config.get("output_directory", "")
+        )
         self.root_rel_url = self.root_rel_url.replace(os.sep, "/")
         # self.root_rel_url = "/" + self.root_rel_url
         if not self.root_rel_url.startswith("/"):
             self.root_rel_url = "/" + self.root_rel_url
-
-        print("Rel URL ==> ", self.root_rel_url)
 
         return self.root_rel_url
 
@@ -233,8 +234,11 @@ class Page:
         page_type_value = self.metadata.get("type", [None])[0]
         self.page_type = str(page_type_value) if page_type_value else None
 
+        self.author = self.metadata.get("authors", "")
+        self.keywords = self.metadata.get("keywords", "")
+
         self.logger.debug(
-            f"Final attributes for page '{self.title}': Slug='{self.slug}', Type='{self.page_type}'"
+            f"Final attributes for page '{self.title}': Slug='{self.slug}', Type='{self.page_type}', Author='{self.author}', Keywords='{self.keywords}'"
         )
 
     def calculate_output_path(self, output_dir: str) -> str:
@@ -319,9 +323,12 @@ class Page:
             "content": self.processed_content,
             "page_title": self.get_title(),
             "header": header,
+            "page_description": self.get_page_description(),
+            "page_keywords": self.keywords,
+            "page_authors": self.author,
             "site_name": self.config.get("site_name", "Default Site Name"),
         }
-    
+
     def set_rel_url(self, rel_url: str) -> None:
         """
         Sets the root-relative URL for the page.
@@ -339,6 +346,19 @@ class Page:
             The page title.
         """
         return self.title
+
+    def get_page_description(self) -> str:
+        """
+        Returns the page description from metadata if available.
+
+        Returns:
+            The page description or an empty string if not set.
+        """
+
+        description = self.metadata.get("description", "")
+        if isinstance(description, list):
+            return str(description[0]) if description else ""
+        return str(description)
 
     def get_metadata(self) -> dict:
         """

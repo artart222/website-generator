@@ -3,6 +3,7 @@ Summary: This blog post is about why I chose my current design pattern for writi
 Authors: Artin Mobasher
 Date:    9/2/2025
 base_url: https://artart.dev
+description: A deep dive into the design choices behind my Python static website generator, including its architecture, plugins, and content processing.
 type: blog
 
 # My Design Choices For Websites Generator

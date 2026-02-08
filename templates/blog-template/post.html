@@ -4,9 +4,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link rel="stylesheet" href="/styles/styles.css">
   <link rel="stylesheet" href="/styles/code.css">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="{{ page_url }}">
+
   <title>{{page_title|capfirst}}</title>
+
+  <meta name="description"
+    content="{% if page_description %}{{ page_description }}{% else %}{{ page_title }}{% endif %}">
+  <meta name="keywords" content="{% if page_keywords %}{{ page_keywords|join:', ' }}{% endif %}">
+  <meta name="author" content="{{ page_authors|join:', ' }}">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="{{ page_title|capfirst }}">
+  <meta property="og:description"
+    content="{% if page_description %}{{ page_description }}{% else %}{{ page_title }}{% endif %}">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="{{ page_url }}">
+  <meta property="og:image" content="{{ page_image|default:'/assets/default-share.png' }}">
+  <meta property="og:site_name" content="{{ site_name }}">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ page_title|capfirst }}">
+  <meta name="twitter:description"
+    content="{% if page_description %}{{ page_description }}{% else %}{{ page_title }}{% endif %}">
+  <meta name="twitter:image" content="{{ page_image|default:'/assets/default-share.png' }}">
+  <meta name="twitter:site" content="@YourTwitterHandle">
 </head>
 
 <body>

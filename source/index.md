@@ -19,7 +19,7 @@ A modular **Python** website generator with a pluggable architecture, theming vi
 
 * **Technologies Used:** Python, Django, YAML
 
-* [**Link to Project Demo(This blog is a demo 😏)**](https://artart.dev)
+* [**Link to Project Demo(This blog is a demo 😏)**](.)
 
 * [**GitHub Repository**](https://github.com/artart222/website-generator)
 
@@ -39,7 +39,7 @@ Welcome to my blog! I write about the things I'm learning and the challenges I'm
 
 🚧 Under construction 👷‍♂️ 
 
-[Read all posts →](https://artart.dev/blog-indexer/)
+[Read all posts →](/blog-indexer/)
 
 ### 📫 Get in Touch
 

@@ -38,6 +38,7 @@ class Page:
         self.page_type: str | None = None
         self.author: str | list | None = ""
         self.keywords: str | list | None = ""
+        self.image: str = ""
 
         self.output_path: str = ""
         self.abs_url: str = ""
@@ -123,6 +124,8 @@ class Page:
             self.logger.debug(
                 f"No title was ultimately set from metadata for {self.source_filepath}."
             )
+
+        self.image = self.ensure_image_url_is_safe()
 
     def load(self, content_processor: ContentProcessor | None) -> None:
         """
@@ -234,8 +237,8 @@ class Page:
         page_type_value = self.metadata.get("type", [None])[0]
         self.page_type = str(page_type_value) if page_type_value else None
 
-        self.author = self.metadata.get("authors", "")
-        self.keywords = self.metadata.get("keywords", "")
+        self.author = self.metadata.get("authors", [])
+        self.keywords = self.metadata.get("keywords", [])
 
         self.logger.debug(
             f"Final attributes for page '{self.title}': Slug='{self.slug}', Type='{self.page_type}', Author='{self.author}', Keywords='{self.keywords}'"
@@ -263,7 +266,7 @@ class Page:
         folder_path = os.path.join(*parts)
 
         # Ensure folder exists via fs_manager
-        self.fs_manager.create_directory(folder_path)
+        # self.fs_manager.create_directory(folder_path)
 
         # Set output path to 'index.html' inside folder
         self.output_path = os.path.join(folder_path, "index.html")
@@ -299,6 +302,11 @@ class Page:
         slug_source = self.metadata.get("slug", [self.title])[0]
         self.slug = slugify(str(slug_source))
 
+    def set_title(self) -> None:
+        """Sets the page title based on metadata or source filename."""
+        default_title = os.path.splitext(os.path.basename(self.source_filepath))[0]
+        self.title = str(self.metadata.get("title", [default_title])[0])
+
     def set_page_type(self, page_type: str) -> None:
         """
         Sets the page type based on input.
@@ -327,6 +335,8 @@ class Page:
             "page_keywords": self.keywords,
             "page_authors": self.author,
             "site_name": self.config.get("site_name", "Default Site Name"),
+            "page_url": self.get_abs_url(),
+            "page_image": self.metadata.get("image", "/assets/default-share.png"),
         }
 
     def set_rel_url(self, rel_url: str) -> None:
@@ -427,6 +437,17 @@ class Page:
             The root-relative URL of HTML file.
         """
         return self.root_rel_url
+
+    def ensure_image_url_is_safe(self) -> str:
+        image_addr: Any = self.metadata.get("image")
+
+        if isinstance(image_addr, list):
+            return str(image_addr[0]) if image_addr else "/assets/default-share.png"
+
+        if isinstance(image_addr, str) and image_addr:
+            return image_addr
+
+        return "/assets/default-share.png"
 
     def __repr__(self) -> str:
         return f"<Page title='{self.title}' slug='{self.slug}' type='{self.page_type}'>"

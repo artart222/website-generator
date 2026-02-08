@@ -17,6 +17,8 @@ template_engine: django # or jinja2, etc.
 plugins:
   - BlogIndexerPlugin
   - SpecialPagesPlugin
+  - PageKeyWordExtractor
+  - SitemapPlugin
 
 # Program log levels:
 # Debug = 10

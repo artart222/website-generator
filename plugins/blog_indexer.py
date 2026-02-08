@@ -3,6 +3,7 @@ from core.site import Site
 from core.config import Config
 from utils.fs_manager import FileSystemManager
 from .base_plugin import BasePlugin
+from pathlib import Path
 
 
 class BlogIndexerPlugin(BasePlugin):
@@ -45,9 +46,13 @@ class BlogIndexerPlugin(BasePlugin):
         # Create a new Page object
         self.logger.debug("Generating virtual index page")
         index_page = Page(source_filepath="", config=config, fs_manager=fs_manager)
-        index_page.add_metadata({"template": "blog-indexer.html"})
+        index_page.add_metadata({"template": "blog-indexer.html", "title": ["Blog"], "type": "blog-indexer"})
+        # NOTE: You should set these properties manually.
+        # metadata and object properties are two different things.
+        index_page.set_title()
+        index_page.set_slug()
         index_page.calculate_output_path(
-            config.get("output_directory") + "/blog-indexer"
+            str(Path(config.get("output_directory")) / Path("/blog-indexer"))
         )
         index_page.set_page_type("blog-indexer")
         index_page.set_processed_content(html_list)

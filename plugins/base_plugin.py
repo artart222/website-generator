@@ -88,6 +88,13 @@ class BasePlugin(ABC):
         pass
 
     @log_hook
+    def before_page_parsed(self, *args, **kwargs) -> Any:
+        """
+        Called before a Page object is created and parsed.
+        """
+        pass
+
+    @log_hook
     def after_page_parsed(self, *args, **kwargs) -> Any:
         """
         Called after a Page object is created and parsed.

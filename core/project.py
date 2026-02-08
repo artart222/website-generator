@@ -21,7 +21,7 @@ class Project:
     Orchestrates the build process.
     """
 
-    def __init__(self, config_path: str):
+    def __init__(self, config: Config):
         """
         Initializes the project by loading configuration and setting up components.
 
@@ -30,8 +30,8 @@ class Project:
         """
         self.logger = logging.getLogger(__name__)
 
-        self.config: Config = Config()
-        self.config.load(config_path)
+        self.config: Config = config
+        # self.config.load(config_path)
         self.site: Site = Site(self.config)
         self.plugin_manager: PluginManager = PluginManager(self.config, self.site)
         self.fs_manager: FileSystemManager = FileSystemManager()
@@ -46,13 +46,19 @@ class Project:
         self.plugin_manager.detect_and_load_plugins()
         self._discover_and_load_pages()
         self.plugin_manager.run_hook(
-            "on_before_page_rendered",
+            "after_pages_discovered",
             site=self.site,
             config=self.config,
             fs_manager=self.fs_manager,
         )
         self._render_pages()
         self._copy_assets()
+        self.plugin_manager.run_hook(
+            "after_build",
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+        )
         self.logger.info("Build process finished successfully.")
 
     def get_template_engine(self) -> TemplateEngine:
@@ -93,15 +99,30 @@ class Project:
     def _render_pages(self) -> None:
         """Renders all loaded pages to their output files."""
         self.logger.info("Rendering pages...")
-
         for page in self.site.pages:
             # 2. Page provides its own rendering context
             context = page.get_context(self.site.populate_header())
+
+            self.plugin_manager.run_hook(
+                "after_page_parsed",
+                site=self.site,
+                config=self.config,
+                fs_manager=self.fs_manager,
+                page=page,
+            )
 
             # 3. Template is determined by page metadata (with a fallback)
             # template_name = page.metadata.get("template", ["default.html"])[0]
             # TODO: Fix default template.
             template_name = page.metadata.get("template", "post.html")
+
+            self.plugin_manager.run_hook(
+                "before_page_rendered",
+                site=self.site,
+                config=self.config,
+                fs_manager=self.fs_manager,
+                page=page,
+            )
 
             rendered_html = self.template_engine.render(template_name, context)
             self.fs_manager.write_file(page.get_output_path(), rendered_html)

@@ -7,6 +7,8 @@ import django.utils.safestring
 
 import logging
 
+from typing import NoReturn
+
 from .base_engine import TemplateEngine
 from utils.fs_manager import FileSystemManager
 
@@ -23,6 +25,7 @@ class DjangoTemplateEngine(TemplateEngine):
         """
         self.logger = logging.getLogger(__name__)
         self.templates_dirs = template_dirs
+        self.fs_manager = FileSystemManager()
         self.logger.debug("Configuring standalone Django template.")
         # --- Crucial Setup for Standalone DTL Usage ---
         if not settings.configured:
@@ -84,37 +87,48 @@ class DjangoTemplateEngine(TemplateEngine):
         return rendered_html
 
     # TODO: Maybe remove this?
-    def load_template(self, template_name: str) -> Template:
+    # def load_template(self, template_name: str) -> Template:
+    #     """
+    #     Loads a template by name from the templates directory.
+
+    #     Args:
+    #         template_name: The name of the template file to load.
+
+    #     Returns:
+    #         A Django Template object loaded with the template content.
+    #     """
+
+    #     templates = []
+    #     for dir_path in self.templates_dirs:
+    #         templates.extend(self.fs_manager.list_files(dir_path, recursive=True))
+    #     found = False
+    #     # TODO: change that in future to something like default.html
+    #     # Setting a default template for fallback
+    #     # TODO: Change this in future
+    #     template_file = self.fs_manager.read_file("./templates/blog-template/post.html")
+    #     for template in templates:
+    #         # If template name found in template path
+    #         if template_name in template:
+    #             found = True
+    #             template_file = self.fs_manager.read_file(template)
+
+    #     if not found:
+    #         self.logger.warning(f"Couldn't find {template_name}")
+    #         self.logger.info("Using default template")
+
+    #     self.logger.debug(f"Template name: '{template_name}'")
+    #     self.logger.debug(f"Template file path: '{template_file}'")
+
+    #     return Template(template_file)
+
+    def load_template(self, template_name: str) -> NoReturn:
         """
-        Loads a template by name from the templates directory.
+        NOT SUPPORTED.
 
-        Args:
-            template_name: The name of the template file to load.
-
-        Returns:
-            A Django Template object loaded with the template content.
+        DjangoTemplateEngine does not expose template loading.
+        Templates are loaded internally by Django via loader.get_template().
         """
-
-        fs_handler = FileSystemManager()
-        templates = []
-        for dir_path in self.templates_dirs:
-            templates.extend(fs_handler.list_files(dir_path, recursive=True))
-        found = False
-        # TODO: change that in future to something like default.html
-        # Setting a default template for fallback
-        # TODO: Change this in future
-        template_file = fs_handler.read_file("./templates/blog-template/post.html")
-        for template in templates:
-            # If template name found in template path
-            if template_name in template:
-                found = True
-                template_file = fs_handler.read_file(template)
-
-        if not found:
-            self.logger.warning(f"Couldn't find {template_name}")
-            self.logger.info("Using default template")
-
-        self.logger.debug(f"Template name: '{template_name}'")
-        self.logger.debug(f"Template file path: '{template_file}'")
-
-        return Template(template_file)
+        raise NotImplementedError(
+            "load_template() is not supported for DjangoTemplateEngine. "
+            "Use render() instead."
+        )

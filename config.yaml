@@ -11,6 +11,9 @@ asset_dirs:
 source_directory: ./source
 output_directory: ./output
 
+template_dirs:
+  - "./templates/blog-template/"
+
 # Template Engine
 template_engine: django # or jinja2, etc.
 

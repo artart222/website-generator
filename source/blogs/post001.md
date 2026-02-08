@@ -16,7 +16,9 @@ It is also a demonstration of the project itself, since this blog post (and the 
 ---
 
 ## 1. Why I Built It
+
 I wanted to learn how static site generators work internally and design one myself, with a focus on:
+
 - **Flexibility** → supporting different site types like blogs, shops, portfolios.  
 - **Extensibility** → making it easy to add new features through plugins.  
 - **Clarity** → keeping the codebase small but structured enough to be maintainable.  
@@ -26,6 +28,7 @@ This project also serves as a **portfolio project for my resume**, to show my un
 ---
 
 ## 2. The Core Abstractions
+
 I designed three main building blocks:
 
 - **Page**  
@@ -43,6 +46,7 @@ I designed three main building blocks:
 ---
 
 ## 3. The Plugin System
+
 Instead of hardcoding features like a blog index or RSS feed, I added a **plugin system**.  
 Plugins can hook into lifecycle events:
 
@@ -58,6 +62,7 @@ This pattern is common in real-world projects (like Jekyll, Hugo, and MkDocs) be
 ---
 
 ## 4. Content Processors and Template Engine
+
 To process different input formats (Markdown, HTML, etc.), I added a **ContentProcessor factory**.  
 This way, supporting new formats in the future (e.g., reStructuredText or AsciiDoc) will be as simple as writing a new processor class.
 
@@ -67,13 +72,16 @@ This allows swapping or upgrading templating logic without changing the rest of 
 ---
 
 ## 5. Tradeoffs I Made
+
 - **Focused on clarity over optimization** → since this is a learning project and a resume showcase, readability was more important than micro-optimizations.  
 - **YAML config** → I chose YAML for config files because it’s widely used in static site generators and is more readable than JSON for non-developers.  
 
 ---
 
 ## 6. What I Learned
+
 Through this project I practiced:
+
 - Designing **modular, extensible systems**.  
 - Using **factories and plugins** to decouple responsibilities.  
 - Writing cleaner Python with **logging, type hints, and tests**.  
@@ -82,6 +90,7 @@ Through this project I practiced:
 ---
 
 ## 7. What’s Next
+
 - Add more plugins.  
 - Improve test coverage.  
 - Deploy this demo site to show the generator in action.  

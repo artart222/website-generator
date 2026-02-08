@@ -9,11 +9,11 @@ type: index
 
 I'm a passionate programmer/softwere engineering undergraduate student specializing in python and cli apps. This is my digital space to showcase my work and share my blogs.
 
-### 🚀 Featured Projects
+## 🚀 Featured Projects
 
 Here are a few projects I'm particularly proud of. Each one represents my skills in problem-solving and creating elegant solutions.
 
-#### **Project 1: static website generator**
+### **Project 1: static website generator**
 
 A modular **Python** website generator with a pluggable architecture, theming via templates, and simple YAML configuration.
 

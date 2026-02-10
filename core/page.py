@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from slugify import slugify
 from processor.base_processor import ContentProcessor
 from utils.fs_manager import FileSystemManager
@@ -26,7 +27,7 @@ class Page:
         """
         self.logger = logging.getLogger(__name__)
         self.config: Config = config
-        self.source_filepath: str = source_filepath
+        self.source_filepath: Path = source_filepath
         self.fs_manager: FileSystemManager | None = fs_manager
 
         # Attributes to be populated by loading methods
@@ -40,7 +41,7 @@ class Page:
         self.keywords: str | list | None = ""
         self.image: str = ""
 
-        self.output_path: str = ""
+        self.output_path: Path = None  # type: ignore
         self.abs_url: str = ""
         self.root_rel_url: str = ""
 
@@ -155,18 +156,18 @@ class Page:
 
         self._populate_attributes()
 
-    def get_output_path_without_output_dir(self, output_dir: str) -> str:
+    def get_output_path_without_output_dir(self, output_dir: Path) -> Path:
         """
         Returns the output path without the base output directory.
 
         Args:
-            output_dir (str): The base output directory from the config.
+            output_dir (Path): The base output directory from the config.
 
         Returns:
-            str: The output path without the base directory.
+            Path: The output path without the base directory.
         """
-        if self.output_path.startswith(output_dir):
-            return self.output_path[len(output_dir) :].lstrip(os.sep)
+        if self.output_path.is_relative_to(output_dir):
+            return self.output_path.relative_to(output_dir)
         return self.output_path
 
     def generate_abs_url(self) -> str:
@@ -214,8 +215,10 @@ class Page:
 
         # self.root_rel_url = f"/{relative_path}"
 
-        self.root_rel_url = self.get_output_path_without_output_dir(
-            self.config.get("output_directory", "")
+        self.root_rel_url = str(
+            self.get_output_path_without_output_dir(
+                self.config.get("output_directory", "")
+            )
         )
         self.root_rel_url = self.root_rel_url.replace(os.sep, "/")
         # self.root_rel_url = "/" + self.root_rel_url
@@ -244,32 +247,30 @@ class Page:
             f"Final attributes for page '{self.title}': Slug='{self.slug}', Type='{self.page_type}', Author='{self.author}', Keywords='{self.keywords}'"
         )
 
-    def calculate_output_path(self, output_dir: str) -> str:
+    def calculate_output_path(self, output_dir: Path) -> Path:
         """
         Determines the final output path for the rendered HTML file.
 
         Args:
-            output_dir (str): The base output directory from the config.
+            output_dir (Path): The base output directory from the config.
 
         Returns:
-            str: The full path for the output file.
+            Path: The full path for the output file.
         """
         if not self.fs_manager:
             raise RuntimeError("FileSystemManager is required to create output paths")
 
         # Build slugified folder path
-        parts = [output_dir]
+        folder_path = output_dir
         if self.page_type:
-            parts.append(slugify(self.page_type))
-        parts.append(slugify(self.slug))
-
-        folder_path = os.path.join(*parts)
+            folder_path = folder_path / slugify(self.page_type)
+        folder_path = folder_path / slugify(self.slug)
 
         # Ensure folder exists via fs_manager
-        # self.fs_manager.create_directory(folder_path)
+        self.fs_manager.create_directory(folder_path)
 
         # Set output path to 'index.html' inside folder
-        self.output_path = os.path.join(folder_path, "index.html")
+        self.output_path = folder_path / "index.html"
         return self.output_path
 
     def set_raw_content(self, content: str) -> None:
@@ -316,7 +317,7 @@ class Page:
         """
         self.page_type = page_type
 
-    def set_output_path(self, output_path: str) -> None:
+    def set_output_path(self, output_path: Path) -> None:
         """Sets the output path for the page."""
         self.output_path = output_path
 
@@ -393,7 +394,7 @@ class Page:
         else:
             return [self.page_type]
 
-    def get_source_filepath(self) -> str:
+    def get_source_filepath(self) -> Path:
         """
         Returns the source file path of the page.
 
@@ -411,7 +412,7 @@ class Page:
         """
         return self.slug
 
-    def get_output_path(self) -> str:
+    def get_output_path(self) -> Path:
         """
         Returns the output path of the rendered HTML file.
 

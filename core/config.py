@@ -1,3 +1,4 @@
+from pathlib import Path
 import yaml
 import logging
 from typing import Any, Optional, Dict
@@ -45,7 +46,7 @@ class Config:
         for key in self.settings:
             setattr(self, key, self.settings[key])
 
-    def load(self, filepath: str = "./config.yaml") -> None:
+    def load(self, filepath: Path = Path("./config.yaml")) -> None:
         """
         Loads configuration from a YAML file and updates settings.
 

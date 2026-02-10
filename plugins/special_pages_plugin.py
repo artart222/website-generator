@@ -1,4 +1,5 @@
 from pathlib import Path
+from core.page import Page
 from core.site import Site
 from .base_plugin import BasePlugin
 
@@ -25,41 +26,46 @@ class SpecialPagesPlugin(BasePlugin):
         site: Site = kwargs["site"]
         output_dir = Path(site.config.get("output_directory", "output"))
         base_url = site.config.get("base_url", "").rstrip("/")
+        page: Page = kwargs["page"]
 
-        for page in site.pages:
-            page_types = page.get_page_type()
-            if not page_types:
+        # for page in site.pages:
+        #     page_types = page.get_page_type()
+        #     if not page_types:
+        #         continue
+
+        page_types = page.get_page_type()
+        if not page_types:
+            return
+
+        # Check if page has a special type
+        for ptype in page_types:
+            if ptype not in self.special_types:
                 continue
 
-            # Check if page has a special type
-            for ptype in page_types:
-                if ptype not in self.special_types:
-                    continue
+            # Handle home/index page
+            if ptype in ["index", "home"]:
+                page.set_output_path(output_dir / "index.html")
+                page.set_rel_url("/")
+                page.abs_url = f"{base_url}/" if base_url else "/"
 
-                # Handle home/index page
-                if ptype in ["index", "home"]:
-                    page.set_output_path(str(output_dir / "index.html"))
-                    page.set_rel_url("/")
-                    page.abs_url = f"{base_url}/" if base_url else "/"
+            # Handle blog index page
+            # elif ptype == "blog-indexer":
+            #     page.set_output_path(output_dir / "blog-indexer" / "index.html")
+            #     page.set_rel_url("/blog-indexer/")
+            #     page.abs_url = (
+            #         f"{base_url}/blog-indexer/" if base_url else "/blog-indexer/"
+            #     )
 
-                # Handle blog index page
-                elif ptype == "blog-indexer":
-                    page.set_output_path(str(output_dir / "blog-indexer" / "index.html"))
-                    page.set_rel_url("/blog-indexer/")
-                    page.abs_url = (
-                        f"{base_url}/blog-indexer/" if base_url else "/blog-indexer/"
-                    )
+            # Future special types can be added here
+            # else:
+            #     # Default behavior: use page_type + slug
+            #     page.set_output_path(
+            #         output_dir / ptype / page.get_slug() / "index.html"
+            #     )
+            #     page.generate_abs_url()
+            #     page.generate_root_rel_url()
 
-                # Future special types can be added here
-                else:
-                    # Default behavior: use page_type + slug
-                    page.set_output_path(
-                        str(output_dir / ptype / page.get_slug() / "index.html")
-                    )
-                    page.generate_abs_url()
-                    page.generate_root_rel_url()
-
-                self.logger.info(
-                    f"Special page handled: {page.title} -> "
-                    f"{page.get_output_path()} -> {page.get_abs_url()}"
-                )
+            self.logger.info(
+                f"Special page handled: {page.title} -> "
+                f"{page.get_output_path()} -> {page.get_abs_url()}"
+            )

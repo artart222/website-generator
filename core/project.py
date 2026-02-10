@@ -7,6 +7,7 @@ from processor.factory import create_content_processor
 from utils.fs_manager import FileSystemManager
 from .plugin_manager import PluginManager
 import os
+from pathlib import Path
 
 from processor.factory import _PROCESSOR_MAP
 
@@ -80,10 +81,10 @@ class Project:
         """Finds content files, creates Page objects, and loads their data."""
         self.logger.info("Discovering and loading site content...")
 
-        content_path = self.config.get("source_directory")
+        content_path = Path(self.config.get("source_directory"))
         page_filepaths = self.fs_manager.list_files(content_path, recursive=True)
 
-        output_dir = self.config.get("output_directory")
+        output_dir = Path(self.config.get("output_directory"))
 
         for path in page_filepaths:
             ext = os.path.splitext(path)[1].lstrip(".").lower()
@@ -92,13 +93,25 @@ class Project:
                 processor = create_content_processor(ext)
                 page.load(processor)
 
-                # Compute output path if not set
-                output_path = (
-                    page.get_output_path()
-                    if page.get_output_path() != ""
-                    else page.calculate_output_path(output_dir)
+                self.plugin_manager.run_hook(
+                    "before_page_parsed",
+                    site=self.site,
+                    config=self.config,
+                    fs_manager=self.fs_manager,
+                    page=page,
                 )
-                page.set_output_path(output_path)
+
+                # Compute output path if not set
+                # output_path = (
+                #     page.get_output_path()
+                #     if page.get_output_path() != ""
+                #     else page.calculate_output_path(output_dir)
+                # )
+                # page.calculate_output_path(output_dir)
+                output_path = page.get_output_path()
+                if not output_path:
+                    page.calculate_output_path(output_dir)
+                # page.set_output_path(output_path)
                 page.generate_abs_url()
                 page.generate_root_rel_url()
                 self.site.add_page(page)
@@ -107,13 +120,13 @@ class Project:
         """Renders all loaded pages to their output files."""
         self.logger.info("Rendering pages...")
         for page in self.site.pages:
-            self.plugin_manager.run_hook(
-                "before_page_parsed",
-                site=self.site,
-                config=self.config,
-                fs_manager=self.fs_manager,
-                page=page,
-            )
+            # self.plugin_manager.run_hook(
+            #     "before_page_parsed",
+            #     site=self.site,
+            #     config=self.config,
+            #     fs_manager=self.fs_manager,
+            #     page=page,
+            # )
 
             # 2. Page provides its own rendering context
             context = page.get_context(self.site.populate_header())
@@ -153,7 +166,7 @@ class Project:
         Always includes './styles' as default CSS template.
         Additional asset directories can be specified in config under 'asset_dirs'.
         """
-        output_dir: str = self.config.get("output_directory")
+        output_dir: Path = Path(self.config.get("output_directory"))
 
         # Get asset directories from config, always include './styles'
         asset_dirs = self.config.get("asset_dirs", [])
@@ -161,8 +174,9 @@ class Project:
             asset_dirs.insert(0, "./styles")
 
         for asset_dir in asset_dirs:
+            asset_dir = Path(asset_dir)
             if os.path.exists(asset_dir):
-                dest_dir = os.path.join(output_dir, os.path.basename(asset_dir))
+                dest_dir = output_dir / asset_dir.name
                 try:
                     self.fs_manager.copy_directory(asset_dir, dest_dir)
                     self.logger.info(

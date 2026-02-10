@@ -1,3 +1,4 @@
+from pathlib import Path
 import shutil
 import subprocess
 import sys
@@ -11,9 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def clean(config: Config, fs: FileSystemManager) -> None:
-    if fs.path_exists(config.get("output_directory")):
+    output_path = Path(config.get("output_directory"))
+    if fs.path_exists(output_path):
         logger.info("🧹 Cleaning output directory...")
-        shutil.rmtree(config.get("output_directory"))
+        shutil.rmtree(output_path)
         logger.info("🧹 Output directory cleaned.")
 
 

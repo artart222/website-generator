@@ -2,6 +2,7 @@ from .django_engine import DjangoTemplateEngine
 from .base_engine import TemplateEngine
 import logging
 
+logger = logging.getLogger(__name__)
 
 _TEMPLATE_ENGINES = {
     "django": DjangoTemplateEngine,
@@ -22,13 +23,13 @@ def create_template_engine(name: str, template_dirs: list[str]) -> TemplateEngin
     Raises:
         ValueError: If no template engine is found for the given name.
     """
-    logging.info(f"Attempting to create '{name}' template engine.")
+    logger.info(f"Attempting to create '{name}' template engine.")
     engine_class = _TEMPLATE_ENGINES.get(name)
 
     if not engine_class:
         msg = f"Unknown template engine: '{name}'"
-        logging.error(msg)
+        logger.error(msg)
         raise ValueError(msg)
 
-    logging.info(f"Successfully created '{name}' template engine.")
+    logger.info(f"Successfully created '{name}' template engine.")
     return engine_class(template_dirs)

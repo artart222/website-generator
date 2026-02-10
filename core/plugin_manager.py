@@ -108,7 +108,7 @@ class PluginManager:
                 try:
                     method(*args, **kwargs)
                 except Exception as e:
-                    logging.error(
+                    self.logger.error(
                         f"Plugin '{plugin.__class__.__name__}' failed on hook '{hook_name}': {e}",
                         exc_info=True,
                     )

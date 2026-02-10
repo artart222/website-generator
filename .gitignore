@@ -9,6 +9,7 @@ __pycache__/
 
 # IDE items:
 .idea
+website-generator.code-workspace
 
 # Output items
 output/

@@ -267,7 +267,7 @@ class Page:
         folder_path = folder_path / slugify(self.slug)
 
         # Ensure folder exists via fs_manager
-        self.fs_manager.create_directory(folder_path)
+        # self.fs_manager.create_directory(folder_path)
 
         # Set output path to 'index.html' inside folder
         self.output_path = folder_path / "index.html"

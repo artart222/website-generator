@@ -64,11 +64,12 @@ class BasePlugin(ABC):
                 in [
                     "after_config_loaded",
                     "before_build",
-                    "after_pages_discovered",
-                    "before_page_rendered",
+                    "before_page_parsed",
                     "after_page_parsed",
                     "after_page_rendered",
+                    "before_page_rendered",
                     "after_build",
+                    "after_pages_discovered",
                 ]
             ):
                 setattr(cls, attr, cls.log_hook(val))

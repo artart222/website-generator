@@ -19,7 +19,7 @@ class SpecialPagesPlugin(BasePlugin):
         super().__init__()
         self.special_types = special_types or ["index", "blog-indexer"]
 
-    def before_page_parsed(self, **kwargs):
+    def after_page_parsed(self, **kwargs):
         """
         Modify output paths and URLs for pages of special types.
         """

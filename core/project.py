@@ -38,9 +38,16 @@ class Project:
 
         self.config: Config = config
         # self.config.load(config_path)
+        self.fs_manager: FileSystemManager = FileSystemManager()
         self.site: Site = Site(self.config)
         self.plugin_manager: PluginManager = PluginManager(self.config, self.site)
-        self.fs_manager: FileSystemManager = FileSystemManager()
+        self.plugin_manager.detect_and_load_plugins()
+        self.plugin_manager.run_hook(
+            "after_config_loaded",
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+        )
         self.template_engine: TemplateEngine = create_template_engine(
             self.config.settings["template_engine"],
             self.config.settings["template_dirs"],
@@ -48,9 +55,15 @@ class Project:
 
     def build(self) -> None:
         """Orchestrates the entire site generation process."""
+        self.plugin_manager.run_hook(
+            "before_build",
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+        )
+
         self.logger.info("Build process started.")
 
-        self.plugin_manager.detect_and_load_plugins()
         self._discover_and_load_pages()
         self.plugin_manager.run_hook(
             "after_pages_discovered",
@@ -60,13 +73,14 @@ class Project:
         )
         self._render_pages()
         self._copy_assets()
+        self.logger.info("Build process finished successfully.")
+
         self.plugin_manager.run_hook(
             "after_build",
             site=self.site,
             config=self.config,
             fs_manager=self.fs_manager,
         )
-        self.logger.info("Build process finished successfully.")
 
     def get_template_engine(self) -> TemplateEngine:
         """
@@ -90,9 +104,6 @@ class Project:
             ext = os.path.splitext(path)[1].lstrip(".").lower()
             if ext in supported_extensions:
                 page = Page(path, self.config, self.fs_manager)
-                processor = create_content_processor(ext)
-                page.load(processor)
-
                 self.plugin_manager.run_hook(
                     "before_page_parsed",
                     site=self.site,
@@ -100,6 +111,16 @@ class Project:
                     fs_manager=self.fs_manager,
                     page=page,
                 )
+                processor = create_content_processor(ext)
+                page.load(processor)
+
+                # self.plugin_manager.run_hook(
+                #     "before_page_parsed",
+                #     site=self.site,
+                #     config=self.config,
+                #     fs_manager=self.fs_manager,
+                #     page=page,
+                # )
 
                 # Compute output path if not set
                 # output_path = (
@@ -115,6 +136,13 @@ class Project:
                 page.generate_abs_url()
                 page.generate_root_rel_url()
                 self.site.add_page(page)
+                self.plugin_manager.run_hook(
+                    "after_page_parsed",
+                    site=self.site,
+                    config=self.config,
+                    fs_manager=self.fs_manager,
+                    page=page,
+                )
 
     def _render_pages(self) -> None:
         """Renders all loaded pages to their output files."""
@@ -131,13 +159,13 @@ class Project:
             # 2. Page provides its own rendering context
             context = page.get_context(self.site.populate_header())
 
-            self.plugin_manager.run_hook(
-                "after_page_parsed",
-                site=self.site,
-                config=self.config,
-                fs_manager=self.fs_manager,
-                page=page,
-            )
+            # self.plugin_manager.run_hook(
+            #     "after_page_parsed",
+            #     site=self.site,
+            #     config=self.config,
+            #     fs_manager=self.fs_manager,
+            #     page=page,
+            # )
 
             # 3. Template is determined by page metadata (with a fallback)
             # template_name = page.metadata.get("template", ["default.html"])[0]
@@ -156,6 +184,14 @@ class Project:
             self.fs_manager.write_file(page.get_output_path(), rendered_html)
             self.logger.debug(
                 f"Rendered page: {page.source_filepath} -> {page.get_output_path()}"
+            )
+
+            self.plugin_manager.run_hook(
+                "before_page_rendered",
+                site=self.site,
+                config=self.config,
+                fs_manager=self.fs_manager,
+                page=page,
             )
 
     def _copy_assets(self) -> None:

@@ -25,6 +25,11 @@ I wanted to learn how static site generators work internally and design one myse
 
 This project also serves as a **portfolio project for my resume**, to show my understanding of design patterns and architecture.
 
+``` python
+for i in range(0, 100):
+    print(i**i)
+```
+
 ---
 
 ## 2. The Core Abstractions

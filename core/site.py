@@ -18,6 +18,7 @@ class Site:
         self.base_url: str = config.get("base_url", "/")
         self.pages: list[Page] = []
         self.header = ""
+        self.data: dict = {}
 
         self.logger.debug(f"Site object created for '{self.name}'.")
 
@@ -30,6 +31,15 @@ class Site:
         """
         self.pages.append(page)
         self.logger.debug(f"Page '{page.source_filepath}' added to site.")
+
+    def set_data(self, data: dict) -> None:
+        """
+        Sets structured data for use in templates.
+
+        Args:
+            data: Parsed data dictionary.
+        """
+        self.data = data
 
     def get_pages(self) -> list[Page]:
         """

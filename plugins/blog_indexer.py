@@ -10,6 +10,8 @@ class BlogIndexerPlugin(BasePlugin):
     """
     Plugin that generates a blog index page listing all pages
     whose type contains 'blog'. Adds the index page to the site after build.
+
+    Deprecated: prefer CollectionIndexerPlugin with collections config.
     """
 
     def __init__(self) -> None:

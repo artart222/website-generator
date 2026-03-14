@@ -10,6 +10,7 @@ from .plugin_manager import PluginManager
 import json
 import os
 from pathlib import Path
+import yaml
 
 from processor.factory import _PROCESSOR_MAP
 
@@ -67,6 +68,7 @@ class Project:
         self.logger.info("Build process started.")
 
         self._discover_and_load_pages()
+        self._load_site_data()
         self.plugin_manager.run_hook(
             "after_pages_discovered",
             site=self.site,
@@ -99,54 +101,116 @@ class Project:
         """Finds content files, creates Page objects, and loads their data."""
         self.logger.info("Discovering and loading site content...")
 
-        content_path = Path(self.config.get("source_directory"))
-        page_filepaths = self.fs_manager.list_files(content_path, recursive=True)
-
         output_dir = Path(self.config.get("output_directory"))
+        collections = self.config.get("collections")
+        if isinstance(collections, dict) and collections:
+            collection_items: list[tuple[str, dict, Path]] = []
+            for name, cfg in collections.items():
+                if not isinstance(cfg, dict):
+                    continue
+                path_value = cfg.get("path")
+                if not path_value:
+                    continue
+                collection_items.append((name, cfg, Path(path_value)))
 
-        for path in page_filepaths:
-            ext = os.path.splitext(path)[1].lstrip(".").lower()
-            if ext in supported_extensions:
-                page = Page(path, self.config, self.fs_manager)
-                self.plugin_manager.run_hook(
-                    "before_page_parsed",
-                    site=self.site,
-                    config=self.config,
-                    fs_manager=self.fs_manager,
-                    page=page,
-                )
-                processor = create_content_processor(ext)
-                page.load(processor)
+            collection_items.sort(
+                key=lambda item: len(item[2].resolve().parts), reverse=True
+            )
 
-                # self.plugin_manager.run_hook(
-                #     "before_page_parsed",
-                #     site=self.site,
-                #     config=self.config,
-                #     fs_manager=self.fs_manager,
-                #     page=page,
-                # )
+            seen_paths: set[Path] = set()
+            for name, cfg, collection_path in collection_items:
+                if not collection_path.exists():
+                    self.logger.warning(
+                        f"Collection path does not exist: {collection_path}"
+                    )
+                    continue
 
-                # Compute output path if not set
-                # output_path = (
-                #     page.get_output_path()
-                #     if page.get_output_path() != ""
-                #     else page.calculate_output_path(output_dir)
-                # )
-                # page.calculate_output_path(output_dir)
-                output_path = page.get_output_path()
-                if not output_path:
-                    page.calculate_output_path(output_dir)
-                # page.set_output_path(output_path)
-                page.generate_abs_url()
-                page.generate_root_rel_url()
-                self.site.add_page(page)
-                self.plugin_manager.run_hook(
-                    "after_page_parsed",
-                    site=self.site,
-                    config=self.config,
-                    fs_manager=self.fs_manager,
-                    page=page,
-                )
+                try:
+                    page_filepaths = self.fs_manager.list_files(
+                        collection_path, recursive=True
+                    )
+                except Exception as exc:
+                    self.logger.error(
+                        f"Failed to list files for collection '{name}': {exc}",
+                        exc_info=True,
+                    )
+                    continue
+
+                for path in page_filepaths:
+                    if path in seen_paths:
+                        continue
+                    seen_paths.add(path)
+
+                    ext = os.path.splitext(path)[1].lstrip(".").lower()
+                    if ext not in supported_extensions:
+                        continue
+
+                    page = Page(path, self.config, self.fs_manager)
+                    page.collection = name
+                    page.collection_config = cfg
+                    self.plugin_manager.run_hook(
+                        "before_page_parsed",
+                        site=self.site,
+                        config=self.config,
+                        fs_manager=self.fs_manager,
+                        page=page,
+                    )
+                    processor = create_content_processor(ext)
+                    page.load(processor)
+
+                    if not page.page_type:
+                        collection_type = cfg.get("type")
+                        if collection_type:
+                            page.set_page_type(collection_type)
+
+                    output_path = page.get_output_path()
+                    if not output_path:
+                        page.calculate_output_path(
+                            output_dir, url_prefix=cfg.get("url_prefix")
+                        )
+
+                    page.generate_abs_url()
+                    page.generate_root_rel_url()
+                    self.site.add_page(page)
+                    self.plugin_manager.run_hook(
+                        "after_page_parsed",
+                        site=self.site,
+                        config=self.config,
+                        fs_manager=self.fs_manager,
+                        page=page,
+                    )
+        else:
+            content_path = Path(self.config.get("source_directory"))
+            page_filepaths = self.fs_manager.list_files(content_path, recursive=True)
+
+            for path in page_filepaths:
+                ext = os.path.splitext(path)[1].lstrip(".").lower()
+                if ext in supported_extensions:
+                    page = Page(path, self.config, self.fs_manager)
+                    self.plugin_manager.run_hook(
+                        "before_page_parsed",
+                        site=self.site,
+                        config=self.config,
+                        fs_manager=self.fs_manager,
+                        page=page,
+                    )
+                    processor = create_content_processor(ext)
+                    page.load(processor)
+
+                    output_path = page.get_output_path()
+                    if not output_path:
+                        page.calculate_output_path(output_dir)
+
+                    page.generate_abs_url()
+                    page.generate_root_rel_url()
+                    self.site.add_page(page)
+                    self.plugin_manager.run_hook(
+                        "after_page_parsed",
+                        site=self.site,
+                        config=self.config,
+                        fs_manager=self.fs_manager,
+                        page=page,
+                    )
 
     def _render_pages(self) -> None:
         """Renders all loaded pages to their output files."""
@@ -175,11 +239,7 @@ class Project:
             # 3. Template is determined by page metadata (with a fallback)
             # template_name = page.metadata.get("template", ["default.html"])[0]
             # TODO: Fix default template.
-            template_value = page.metadata.get("template", "post.html")
-            if isinstance(template_value, list):
-                template_name = template_value[0] if template_value else "post.html"
-            else:
-                template_name = template_value
+            template_name = self._resolve_template_name(page)
 
             self.plugin_manager.run_hook(
                 "before_page_rendered",
@@ -257,12 +317,68 @@ class Project:
 
         return context
 
+    def _resolve_template_name(self, page: Page) -> str:
+        template_value = page.metadata.get("template")
+        template_name = None
+
+        if template_value:
+            if isinstance(template_value, list):
+                template_name = template_value[0] if template_value else None
+            else:
+                template_name = template_value
+
+        if not template_name and page.collection_config:
+            template_name = page.collection_config.get("template")
+
+        if not template_name:
+            templates_by_type = self.config.get("templates_by_type", {})
+            if isinstance(templates_by_type, dict):
+                template_name = templates_by_type.get(page.page_type)
+
+        return template_name or "post.html"
+
     def _build_tailwind(self) -> None:
         try:
             build_tailwind(self.config)
         except RuntimeError as exc:
             self.logger.error(str(exc), exc_info=True)
             raise
+
+    def _load_site_data(self) -> None:
+        data_dir_value = self.config.get("data_dir")
+        if not data_dir_value:
+            return
+
+        data_dir = Path(data_dir_value)
+        if not data_dir.exists():
+            self.logger.info(f"Data directory does not exist: {data_dir}")
+            return
+
+        data_files = self.fs_manager.list_files(
+            data_dir, recursive=True, extensions=[".json", ".yaml", ".yml"]
+        )
+
+        data: dict = {}
+        for data_file in data_files:
+            try:
+                raw_content = self.fs_manager.read_file(data_file)
+                if data_file.suffix.lower() == ".json":
+                    parsed = json.loads(raw_content)
+                else:
+                    parsed = yaml.safe_load(raw_content)
+
+                rel_path = data_file.relative_to(data_dir).with_suffix("")
+                parts = rel_path.parts
+                cursor = data
+                for part in parts[:-1]:
+                    cursor = cursor.setdefault(part, {})
+                cursor[parts[-1]] = parsed
+            except Exception as exc:
+                self.logger.error(
+                    f"Failed to load data file {data_file}: {exc}", exc_info=True
+                )
+
+        self.site.set_data(data)
 
     def _export_json_data(self) -> None:
         frontend = self.config.get("frontend", {})

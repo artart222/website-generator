@@ -45,6 +45,8 @@ class Page:
         self.author: str | list | None = ""
         self.keywords: str | list | None = ""
         self.image: str = ""
+        self.collection: str | None = None
+        self.collection_config: dict | None = None
 
         self.output_path: Path = None  # type: ignore
         self.abs_url: str = ""
@@ -252,12 +254,15 @@ class Page:
             f"Final attributes for page '{self.title}': Slug='{self.slug}', Type='{self.page_type}', Author='{self.author}', Keywords='{self.keywords}'"
         )
 
-    def calculate_output_path(self, output_dir: Path) -> Path:
+    def calculate_output_path(
+        self, output_dir: Path, url_prefix: str | None = None
+    ) -> Path:
         """
         Determines the final output path for the rendered HTML file.
 
         Args:
             output_dir (Path): The base output directory from the config.
+            url_prefix (str | None): Optional URL prefix override (e.g., collection prefix).
 
         Returns:
             Path: The full path for the output file.
@@ -267,8 +272,9 @@ class Page:
 
         # Build slugified folder path
         folder_path = output_dir
-        if self.page_type:
-            folder_path = folder_path / slugify(self.page_type)
+        prefix = url_prefix if url_prefix is not None else self.page_type
+        if prefix:
+            folder_path = folder_path / slugify(prefix)
         folder_path = folder_path / slugify(self.slug)
 
         # Ensure folder exists via fs_manager
@@ -364,6 +370,9 @@ class Page:
             "theme": frontend.get("theme") if isinstance(frontend, dict) else None,
             "stylesheets": stylesheets,
             "scripts": scripts,
+            "collection": self.collection,
+            "collection_config": self.collection_config,
+            "site_data": site.data if site else {},
         }
 
     def set_rel_url(self, rel_url: str) -> None:

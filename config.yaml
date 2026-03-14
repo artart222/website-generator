@@ -9,6 +9,7 @@ asset_dirs:
 
 # Output Paths
 source_directory: ./source
+data_dir: ./source/data
 output_directory: ./output
 
 template_dirs:
@@ -16,6 +17,27 @@ template_dirs:
 
 # Template Engine
 template_engine: django # or jinja2, etc.
+
+templates_by_type:
+  blog: post.html
+  page: post.html
+  index: post.html
+
+collections:
+  blog:
+    path: ./source/blogs
+    type: blog
+    template: post.html
+    url_prefix: blog
+    index:
+      enabled: true
+      template: blog-indexer.html
+      output_path: blog-indexer/index.html
+      title: Blog
+  pages:
+    path: ./source
+    type: page
+    template: post.html
 
 frontend:
   theme: blog-theme
@@ -35,7 +57,7 @@ frontend:
     output_dir: ./output/data
 
 plugins:
-  - BlogIndexerPlugin
+  - CollectionIndexerPlugin
   - SpecialPagesPlugin
   - PageKeyWordExtractor
   - SitemapPlugin
@@ -53,4 +75,4 @@ navigation:
   - title: Home
     type: index
   - title: Blog
-    type: blog-indexer
+    type: blog-index

@@ -32,10 +32,13 @@ class Config:
         # Defaults for known keys as attributes.
         self.settings: Dict[str, Any] = {
             "source_directory": "./source",
+            "data_dir": None,
             "output_directory": "./output",
             # TODO: Add default.html template
             "template_dirs": [f"./templates/{default_theme}/"],
             "template_engine": "django",
+            "templates_by_type": {},
+            "collections": {},
             "frontend": {
                 "theme": default_theme,
                 "assets": {

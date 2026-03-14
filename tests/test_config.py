@@ -315,3 +315,18 @@ def test_real_world_config_structure():
     assert config.get("asset_dirs") == ["./source/assets"]
     assert config.get("plugins") == ["BlogIndexerPlugin", "SpecialPagesPlugin"]
     assert config.get("log_level") == 10
+
+
+def test_config_loads_collections():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    collections:
+      blog:
+        path: ./source/blogs
+        type: blog
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+
+    assert config.get("collections")["blog"]["type"] == "blog"

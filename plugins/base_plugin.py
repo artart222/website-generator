@@ -70,6 +70,9 @@ class BasePlugin(ABC):
                     "before_page_rendered",
                     "after_build",
                     "after_pages_discovered",
+                    "modify_template_context",
+                    "inject_css",
+                    "inject_js",
                 ]
             ):
                 setattr(cls, attr, cls.log_hook(val))
@@ -126,4 +129,25 @@ class BasePlugin(ABC):
     @log_hook
     def after_pages_discovered(self, *args, **kwargs) -> Any:
         """Called after all pages are loaded but before rendering."""
+        pass
+
+    @log_hook
+    def modify_template_context(self, *args, **kwargs) -> Any:
+        """
+        Allows plugins to modify or extend the template context.
+        """
+        pass
+
+    @log_hook
+    def inject_css(self, *args, **kwargs) -> Any:
+        """
+        Allows plugins to inject additional CSS assets.
+        """
+        pass
+
+    @log_hook
+    def inject_js(self, *args, **kwargs) -> Any:
+        """
+        Allows plugins to inject additional JavaScript assets.
+        """
         pass

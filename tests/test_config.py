@@ -84,7 +84,7 @@ def test_config_initialization_with_defaults():
     assert config.settings["source_directory"] == "./source"
     assert config.settings["output_directory"] == "./output"
     assert config.settings["template_engine"] == "django"
-    assert config.settings["template_dirs"] == ["./templates/blog-template/"]
+    assert config.settings["template_dirs"] == ["./templates/blog-theme/"]
 
 
 def test_default_keys_are_synced_as_attributes():
@@ -93,7 +93,7 @@ def test_default_keys_are_synced_as_attributes():
     assert config.source_directory == "./source"  # type: ignore
     assert config.output_directory == "./output"  # type: ignore
     assert config.template_engine == "django"  # type: ignore
-    assert config.template_dirs == ["./templates/blog-template/"]  # type: ignore
+    assert config.template_dirs == ["./templates/blog-theme/"]  # type: ignore
 
 
 def test_config_load_from_file_overrides_defaults():
@@ -134,6 +134,37 @@ def test_config_load_merges_with_existing_settings():
 
     # Defaults preserved
     assert config.settings["source_directory"] == "./source"
+
+
+def test_config_deep_merge_preserves_frontend_defaults():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    frontend:
+      tailwind:
+        enabled: false
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+
+    assert config.settings["frontend"]["tailwind"]["enabled"] is False
+    assert config.settings["frontend"]["assets"]["css"] == [
+        "/styles/tailwind.css",
+        "/styles/code.css",
+    ]
+
+
+def test_template_dirs_derived_from_frontend_theme_when_not_set():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    frontend:
+      theme: shop-theme
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+
+    assert config.settings["template_dirs"] == ["./templates/shop-theme/"]
 
 
 def test_known_keys_are_resynced_as_attributes_after_load():

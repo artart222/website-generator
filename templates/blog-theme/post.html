@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article class="space-y-6">
+  <div class="text-sm uppercase tracking-[0.3em] text-slate-400">
+    {{ page_type|default:"article" }}
+  </div>
+  <div class="space-y-6 text-base leading-8 text-slate-100">
+    {{ content|safe }}
+  </div>
+</article>
+{% endblock %}

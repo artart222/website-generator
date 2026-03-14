@@ -66,18 +66,21 @@ class PluginManager:
                     f"Failed to import module {module_name}: {e}", exc_info=True
                 )
 
-        plugins_to_load = []
+        discovered_plugins: dict[str, type[BasePlugin]] = {}
         for module in plugin_modules:
-            for name, obj in inspect.getmembers(module):
+            for _, obj in inspect.getmembers(module):
                 # Check if it's a class
                 if inspect.isclass(obj):
                     # Check if it inherits from BasePlugin and isn't the base class itself
                     if issubclass(obj, BasePlugin) and obj is not BasePlugin:
-                        if obj.__name__ in plugins_list:
-                            plugins_to_load.append(obj())
+                        discovered_plugins[obj.__name__] = obj
 
+        plugins_to_load: list[BasePlugin] = []
         for plugin_name in plugins_list:
-            if not any(p.__class__.__name__ == plugin_name for p in plugins_to_load):
+            plugin_class = discovered_plugins.get(plugin_name)
+            if plugin_class:
+                plugins_to_load.append(plugin_class())
+            else:
                 self.logger.warning(
                     f"Plugin '{plugin_name}' was listed in config but not found."
                 )
@@ -112,3 +115,30 @@ class PluginManager:
                         f"Plugin '{plugin.__class__.__name__}' failed on hook '{hook_name}': {e}",
                         exc_info=True,
                     )
+
+    def run_hook_collect(self, hook_name: str, *args, **kwargs) -> list:
+        """
+        Executes a named hook method on all loaded plugins and collects results.
+
+        Args:
+            hook_name: The name of the hook/method to call on plugins.
+            *args: Positional arguments passed to the hook method.
+            **kwargs: Keyword arguments passed to the hook method.
+
+        Returns:
+            List of non-None results returned by plugins, in plugin order.
+        """
+        results: list = []
+        for plugin in self.plugins:
+            method = getattr(plugin, hook_name, None)
+            if method and callable(method):
+                try:
+                    result = method(*args, **kwargs)
+                    if result is not None:
+                        results.append(result)
+                except Exception as e:
+                    self.logger.error(
+                        f"Plugin '{plugin.__class__.__name__}' failed on hook '{hook_name}': {e}",
+                        exc_info=True,
+                    )
+        return results

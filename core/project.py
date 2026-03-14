@@ -4,8 +4,10 @@ from .page import Page
 from engines.base_engine import TemplateEngine
 from engines.factory import create_template_engine
 from processor.factory import create_content_processor
+from processor.tailwind_processor import build_tailwind
 from utils.fs_manager import FileSystemManager
 from .plugin_manager import PluginManager
+import json
 import os
 from pathlib import Path
 
@@ -72,6 +74,8 @@ class Project:
             fs_manager=self.fs_manager,
         )
         self._render_pages()
+        self._export_json_data()
+        self._build_tailwind()
         self._copy_assets()
         self.logger.info("Build process finished successfully.")
 
@@ -147,6 +151,7 @@ class Project:
     def _render_pages(self) -> None:
         """Renders all loaded pages to their output files."""
         self.logger.info("Rendering pages...")
+        header = self.site.populate_header()
         for page in self.site.pages:
             # self.plugin_manager.run_hook(
             #     "before_page_parsed",
@@ -156,8 +161,8 @@ class Project:
             #     page=page,
             # )
 
-            # 2. Page provides its own rendering context
-            context = page.get_context(self.site.populate_header())
+            # 2. Build rendering context
+            context = self._build_page_context(page, header)
 
             # self.plugin_manager.run_hook(
             #     "after_page_parsed",
@@ -170,7 +175,11 @@ class Project:
             # 3. Template is determined by page metadata (with a fallback)
             # template_name = page.metadata.get("template", ["default.html"])[0]
             # TODO: Fix default template.
-            template_name = page.metadata.get("template", "post.html")
+            template_value = page.metadata.get("template", "post.html")
+            if isinstance(template_value, list):
+                template_name = template_value[0] if template_value else "post.html"
+            else:
+                template_name = template_value
 
             self.plugin_manager.run_hook(
                 "before_page_rendered",
@@ -187,12 +196,143 @@ class Project:
             )
 
             self.plugin_manager.run_hook(
-                "before_page_rendered",
+                "after_page_rendered",
                 site=self.site,
                 config=self.config,
                 fs_manager=self.fs_manager,
                 page=page,
             )
+
+    def _build_page_context(self, page: Page, header: str) -> dict:
+        frontend = self.config.get("frontend", {})
+        assets = frontend.get("assets", {}) if isinstance(frontend, dict) else {}
+
+        stylesheets = list(assets.get("css") or [])
+        scripts = list(assets.get("js") or [])
+
+        css_injections = self.plugin_manager.run_hook_collect(
+            "inject_css",
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+            page=page,
+        )
+        for injected in css_injections:
+            if isinstance(injected, str):
+                stylesheets.append(injected)
+            elif isinstance(injected, (list, tuple)):
+                stylesheets.extend(injected)
+
+        js_injections = self.plugin_manager.run_hook_collect(
+            "inject_js",
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+            page=page,
+        )
+        for injected in js_injections:
+            if isinstance(injected, str):
+                scripts.append(injected)
+            elif isinstance(injected, (list, tuple)):
+                scripts.extend(injected)
+
+        context = page.get_context(
+            header=header,
+            site=self.site,
+            stylesheets=stylesheets,
+            scripts=scripts,
+        )
+
+        context_updates = self.plugin_manager.run_hook_collect(
+            "modify_template_context",
+            context=context,
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+            page=page,
+        )
+        for update in context_updates:
+            if isinstance(update, dict):
+                context.update(update)
+
+        return context
+
+    def _build_tailwind(self) -> None:
+        try:
+            build_tailwind(self.config)
+        except RuntimeError as exc:
+            self.logger.error(str(exc), exc_info=True)
+            raise
+
+    def _export_json_data(self) -> None:
+        frontend = self.config.get("frontend", {})
+        if not isinstance(frontend, dict):
+            return
+
+        export_data = frontend.get("export_data", {})
+        if not isinstance(export_data, dict) or not export_data.get("enabled", False):
+            return
+
+        output_dir = Path(self.config.get("output_directory"))
+        data_dir = Path(export_data.get("output_dir", "./output/data"))
+
+        site_payload: dict = {
+            "site": {
+                "name": self.config.get("site_name", ""),
+                "description": self.config.get("site_description", ""),
+                "base_url": self.config.get("base_url", ""),
+            },
+            "pages": [],
+        }
+
+        for page in self.site.pages:
+            output_path = page.get_output_path()
+            if not output_path:
+                continue
+
+            try:
+                rel_output_path = output_path.relative_to(output_dir)
+            except ValueError:
+                rel_output_path = Path(output_path.name)
+
+            json_rel_path = rel_output_path.with_suffix(".json")
+            json_output_path = data_dir / json_rel_path
+
+            page_payload = {
+                "title": page.title,
+                "slug": page.slug,
+                "type": page.page_type,
+                "abs_url": page.abs_url,
+                "root_rel_url": page.root_rel_url,
+                "metadata": page.metadata,
+                "content_html": page.processed_content,
+            }
+
+            self.fs_manager.write_file(
+                json_output_path, json.dumps(page_payload, ensure_ascii=False, indent=2)
+            )
+
+            try:
+                data_rel_dir = data_dir.relative_to(output_dir)
+                json_path = data_rel_dir / json_rel_path
+            except ValueError:
+                json_path = json_output_path
+
+            site_payload["pages"].append(
+                {
+                    "title": page.title,
+                    "slug": page.slug,
+                    "type": page.page_type,
+                    "url": page.abs_url,
+                    "root_rel_url": page.root_rel_url,
+                    "json_path": str(json_path).replace(os.sep, "/"),
+                }
+            )
+
+        site_index_path = data_dir / "site.json"
+        self.fs_manager.write_file(
+            site_index_path, json.dumps(site_payload, ensure_ascii=False, indent=2)
+        )
 
     def _copy_assets(self) -> None:
         """

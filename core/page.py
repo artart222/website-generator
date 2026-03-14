@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
@@ -5,7 +7,10 @@ from slugify import slugify
 from processor.base_processor import ContentProcessor
 from utils.fs_manager import FileSystemManager
 from .config import Config
-from typing import Optional, Any
+from typing import Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .site import Site
 
 
 class Page:
@@ -321,13 +326,26 @@ class Page:
         """Sets the output path for the page."""
         self.output_path = output_path
 
-    def get_context(self, header: str) -> dict:
+    def get_context(
+        self,
+        header: str,
+        site: Site | None = None,
+        stylesheets: Optional[list[str]] = None,
+        scripts: Optional[list[str]] = None,
+    ) -> dict:
         """
         Returns the context dictionary to be passed to templates.
 
         Returns:
             Context which have at least `content` and `page_title`.
         """
+        frontend = self.config.get("frontend", {}) if self.config is not None else {}
+        assets = frontend.get("assets", {}) if isinstance(frontend, dict) else {}
+        stylesheets = (
+            stylesheets if stylesheets is not None else assets.get("css") or []
+        )
+        scripts = scripts if scripts is not None else assets.get("js") or []
+
         return {
             "content": self.processed_content,
             "page_title": self.get_title(),
@@ -338,6 +356,14 @@ class Page:
             "site_name": self.config.get("site_name", "Default Site Name"),
             "page_url": self.get_abs_url(),
             "page_image": self.metadata.get("image", "/assets/default-share.png"),
+            "page_type": self.page_type,
+            "page_meta": self.metadata,
+            "page": self,
+            "site": site,
+            "frontend": frontend,
+            "theme": frontend.get("theme") if isinstance(frontend, dict) else None,
+            "stylesheets": stylesheets,
+            "scripts": scripts,
         }
 
     def set_rel_url(self, rel_url: str) -> None:

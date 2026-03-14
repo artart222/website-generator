@@ -27,13 +27,33 @@ class Config:
         self.logger = logging.getLogger(__name__)
         self.fs_manager = fs_manager or FileSystemManager()
 
+        default_theme = "blog-theme"
+
         # Defaults for known keys as attributes.
         self.settings: Dict[str, Any] = {
             "source_directory": "./source",
             "output_directory": "./output",
             # TODO: Add default.html template
-            "template_dirs": ["./templates/blog-template/"],
+            "template_dirs": [f"./templates/{default_theme}/"],
             "template_engine": "django",
+            "frontend": {
+                "theme": default_theme,
+                "assets": {
+                    "css": ["/styles/tailwind.css", "/styles/code.css"],
+                    "js": [],
+                },
+                "tailwind": {
+                    "enabled": True,
+                    "input": "./styles/tailwind.input.css",
+                    "output": "./styles/tailwind.css",
+                    "config": "./tailwind.config.js",
+                    "minify": False,
+                },
+                "export_data": {
+                    "enabled": False,
+                    "output_dir": "./output/data",
+                },
+            },
         }
 
         # Sync attributes for known keys for easy access
@@ -71,7 +91,14 @@ class Config:
                 raise yaml.YAMLError("Config root element must be a dictionary")
 
             # Update settings dict with loaded keys (overrides defaults if keys overlap)
-            self.settings.update(loaded_settings)
+            self.settings = self._deep_merge_dicts(self.settings, loaded_settings)
+
+            if "template_dirs" not in loaded_settings:
+                frontend = self.settings.get("frontend", {})
+                if isinstance(frontend, dict):
+                    theme = frontend.get("theme")
+                    if theme:
+                        self.settings["template_dirs"] = [f"./templates/{theme}/"]
 
             # Sync known keys as attributes again to reflect overrides
             self._sync_attributes_from_settings()
@@ -99,6 +126,26 @@ class Config:
             The setting value or default.
         """
         return self.settings.get(key, default)
+
+    def _deep_merge_dicts(
+        self, base: Dict[str, Any], updates: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Deeply merges two dictionaries, preferring values from updates.
+
+        Args:
+            base: The base dictionary.
+            updates: The dictionary containing overriding values.
+
+        Returns:
+            The merged dictionary.
+        """
+        for key, value in updates.items():
+            if isinstance(value, dict) and isinstance(base.get(key), dict):
+                base[key] = self._deep_merge_dicts(base[key], value)
+            else:
+                base[key] = value
+        return base
 
     def set(self, key: str, value: Any) -> None:
         """

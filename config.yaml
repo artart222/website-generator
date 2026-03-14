@@ -12,10 +12,27 @@ source_directory: ./source
 output_directory: ./output
 
 template_dirs:
-  - "./templates/blog-template/"
+  - "./templates/blog-theme/"
 
 # Template Engine
 template_engine: django # or jinja2, etc.
+
+frontend:
+  theme: blog-theme
+  assets:
+    css:
+      - /styles/tailwind.css
+      - /styles/code.css
+    js: []
+  tailwind:
+    enabled: true
+    input: ./styles/tailwind.input.css
+    output: ./styles/tailwind.css
+    config: ./tailwind.config.js
+    minify: false
+  export_data:
+    enabled: false
+    output_dir: ./output/data
 
 plugins:
   - BlogIndexerPlugin

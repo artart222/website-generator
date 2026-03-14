@@ -5,13 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="/styles/styles.css">
-  <link rel="stylesheet" href="/styles/code.css">
+  {% for css_path in stylesheets %}
+  <link rel="stylesheet" href="{{ css_path }}">
+  {% endfor %}
 
   <!-- Canonical -->
   <link rel="canonical" href="{{ page_url }}">
 
-  <title>{{page_title|capfirst}}</title>
+  <title>{{ page_title|capfirst }}</title>
 
   <meta name="description"
     content="{% if page_description %}{{ page_description }}{% else %}{{ page_title }}{% endif %}">
@@ -37,32 +38,15 @@
   <meta name="twitter:site" content="@YourTwitterHandle">
 </head>
 
-<body>
-  <header class="navbar">
-    <a href="/" class="logo">{{site_name|safe}}</a>
-    <!-- The hamburger menu checkbox and icon (only visible on mobile) -->
-    <input type="checkbox" id="menu-toggle" title="Toggle navigation menu">
-    <label for="menu-toggle" class="menu-icon">
-      <span></span>
-      <span></span>
-    </label>
-
-    <!-- THE SINGLE navigation list for both mobile and desktop -->
-    <ul class="nav-menu">
-      {{header|safe}}
-    </ul>
-  </header>
-  <main class="content">
-    {{content|safe}}
+<body class="bg-slate-50 text-slate-900 {{ body_class|default:'' }}">
+  {% include "partials/header.html" %}
+  <main class="mx-auto w-full max-w-6xl px-6 py-10 {{ container_class|default:'' }}">
+    {% block content %}{% endblock %}
   </main>
-  <script>
-    // This small script toggles a class on the body to prevent scrolling when the menu is open.
-    // The menu's open/close logic itself remains pure CSS.
-    const menuToggle = document.getElementById('menu-toggle');
-    menuToggle.addEventListener('change', function () {
-      document.body.classList.toggle('menu-open', this.checked);
-    });
-  </script>
+
+  {% for js_path in scripts %}
+  <script src="{{ js_path }}" defer></script>
+  {% endfor %}
 </body>
 
 </html>

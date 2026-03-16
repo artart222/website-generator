@@ -10,6 +10,8 @@ from .plugin_manager import PluginManager
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import yaml
 
 from processor.factory import _PROCESSOR_MAP
@@ -77,6 +79,7 @@ class Project:
         )
         self._render_pages()
         self._export_json_data()
+        self._build_react_section()
         self._build_tailwind()
         self._copy_assets()
         self.logger.info("Build process finished successfully.")
@@ -344,6 +347,86 @@ class Project:
             self.logger.error(str(exc), exc_info=True)
             raise
 
+    def _build_react_section(self) -> None:
+        react_cfg = self.config.get("react", {})
+        if not isinstance(react_cfg, dict) or not react_cfg.get("enabled", False):
+            return
+
+        collection = react_cfg.get("collection")
+        if not collection:
+            self.logger.error("React build is enabled but no collection is set.")
+            return
+
+        app_dir = Path(react_cfg.get("app_dir", "./react-app"))
+        if not app_dir.exists():
+            self.logger.error(f"React app directory not found: {app_dir}")
+            return
+
+        export_subdir = react_cfg.get("export_subdir") or collection
+        export_subdir = export_subdir.strip("/\\")
+        base_path = react_cfg.get("base_path") or f"/{export_subdir}"
+        if base_path and not str(base_path).startswith("/"):
+            base_path = f"/{base_path}"
+        asset_prefix = react_cfg.get("asset_prefix") or base_path
+        if asset_prefix and not str(asset_prefix).startswith("/"):
+            asset_prefix = f"/{asset_prefix}"
+
+        frontend = self.config.get("frontend", {})
+        export_data = (
+            frontend.get("export_data", {}) if isinstance(frontend, dict) else {}
+        )
+        if not export_data.get("enabled", False):
+            self.logger.error(
+                "React build requires frontend.export_data.enabled = true."
+            )
+            return
+        data_dir = Path(export_data.get("output_dir", "./output/data"))
+        if not data_dir.exists():
+            self.logger.error(
+                f"React build requires JSON data at {data_dir}. "
+                "Enable frontend.export_data and run build."
+            )
+            return
+
+        public_data_dir = app_dir / "public" / "data"
+        if public_data_dir.exists():
+            shutil.rmtree(public_data_dir)
+        self.fs_manager.copy_directory(data_dir, public_data_dir, exist_ok=True)
+
+        env = os.environ.copy()
+        env["NEXT_PUBLIC_BASE_PATH"] = base_path
+        env["NEXT_PUBLIC_ASSET_PREFIX"] = asset_prefix
+        env["NEXT_PUBLIC_COLLECTION"] = collection
+        env["NEXT_PUBLIC_DATA_URL"] = "/data"
+
+        try:
+            npm = shutil.which("npm")
+            if npm is None:
+                raise RuntimeError("npm not found. Please install Node.js.")
+            subprocess.run(
+                [npm, "run", "build"],
+                cwd=str(app_dir),
+                env=env,
+                check=True,
+            )
+        except FileNotFoundError as exc:
+            self.logger.error("npm not found; React build skipped.", exc_info=True)
+            raise RuntimeError("npm not found on PATH.") from exc
+        except subprocess.CalledProcessError as exc:
+            self.logger.error("React build failed.", exc_info=True)
+            raise RuntimeError("React build failed.") from exc
+
+        export_dir = app_dir / "out"
+        if not export_dir.exists():
+            self.logger.error(f"React export directory not found: {export_dir}")
+            return
+
+        output_dir = Path(self.config.get("output_directory"))
+        dest_dir = output_dir / export_subdir
+        if dest_dir.exists():
+            shutil.rmtree(dest_dir)
+        self.fs_manager.copy_directory(export_dir, dest_dir, exist_ok=True)
+
     def _load_site_data(self) -> None:
         data_dir_value = self.config.get("data_dir")
         if not data_dir_value:
@@ -391,6 +474,10 @@ class Project:
 
         output_dir = Path(self.config.get("output_directory"))
         data_dir = Path(export_data.get("output_dir", "./output/data"))
+        include_collections = export_data.get("include_collections")
+        filter_collections = (
+            isinstance(include_collections, list) and len(include_collections) > 0
+        )
 
         site_payload: dict = {
             "site": {
@@ -402,6 +489,9 @@ class Project:
         }
 
         for page in self.site.pages:
+            if filter_collections and page.collection not in include_collections:
+                continue
+
             output_path = page.get_output_path()
             if not output_path:
                 continue
@@ -411,13 +501,17 @@ class Project:
             except ValueError:
                 rel_output_path = Path(output_path.name)
 
-            json_rel_path = rel_output_path.with_suffix(".json")
+            if rel_output_path.name == "index.html":
+                json_rel_path = rel_output_path.parent / "page.json"
+            else:
+                json_rel_path = rel_output_path.with_suffix(".json")
             json_output_path = data_dir / json_rel_path
 
             page_payload = {
                 "title": page.title,
                 "slug": page.slug,
                 "type": page.page_type,
+                "collection": page.collection,
                 "abs_url": page.abs_url,
                 "root_rel_url": page.root_rel_url,
                 "metadata": page.metadata,
@@ -439,6 +533,7 @@ class Project:
                     "title": page.title,
                     "slug": page.slug,
                     "type": page.page_type,
+                    "collection": page.collection,
                     "url": page.abs_url,
                     "root_rel_url": page.root_rel_url,
                     "json_path": str(json_path).replace(os.sep, "/"),

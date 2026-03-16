@@ -1,0 +1,26 @@
+{
+  "title": "Sample Product",
+  "slug": "sample-product",
+  "type": "shop",
+  "collection": "shop",
+  "abs_url": "https://artart.dev/shop/sample-product/",
+  "root_rel_url": "/shop/sample-product/",
+  "metadata": {
+    "title": [
+      "Sample Product"
+    ],
+    "summary": [
+      "Example shop item rendered by the React section."
+    ],
+    "price": [
+      "49.00"
+    ],
+    "currency": [
+      "USD"
+    ],
+    "type": [
+      "shop"
+    ]
+  },
+  "content_html": "<h1>Sample Product</h1>\n<p>This is a placeholder product to demonstrate the <code>shop</code> collection.</p>\n<ul>\n<li><strong>Price:</strong> $49.00</li>\n<li><strong>Availability:</strong> In stock</li>\n</ul>"
+}

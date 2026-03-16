@@ -67,6 +67,7 @@ def test_export_json_per_page(tmp_path):
     page.set_title()
     page.set_slug()
     page.set_page_type("blog")
+    page.collection = "blog"
     page.calculate_output_path(Path(config.get("output_directory")))
     page.generate_abs_url()
     page.generate_root_rel_url()
@@ -75,7 +76,7 @@ def test_export_json_per_page(tmp_path):
     project._export_json_data()
 
     rel_output_path = page.get_output_path().relative_to(output_dir)
-    page_json_path = data_dir / rel_output_path.with_suffix(".json")
+    page_json_path = data_dir / rel_output_path.parent / "page.json"
     site_json_path = data_dir / "site.json"
 
     assert page_json_path.exists()
@@ -86,3 +87,48 @@ def test_export_json_per_page(tmp_path):
     assert site_payload["pages"][0]["json_path"].endswith(
         str(page_json_path.relative_to(output_dir)).replace(os.sep, "/")
     )
+    assert site_payload["pages"][0]["collection"] == "blog"
+
+
+def test_export_json_filters_collections(tmp_path):
+    output_dir = tmp_path / "output"
+    data_dir = output_dir / "data"
+
+    config = Config()
+    config.settings["output_directory"] = str(output_dir)
+    config.settings["navigation"] = []
+    config.settings["frontend"]["export_data"]["enabled"] = True
+    config.settings["frontend"]["export_data"]["output_dir"] = str(data_dir)
+    config.settings["frontend"]["export_data"]["include_collections"] = ["docs"]
+
+    project = Project(config)
+    blog_page = Page(Path("blog.md"), config, project.fs_manager)
+    blog_page.set_processed_content("<p>Blog</p>")
+    blog_page.add_metadata({"title": ["Blog"], "type": "blog"})
+    blog_page.set_title()
+    blog_page.set_slug()
+    blog_page.set_page_type("blog")
+    blog_page.collection = "blog"
+    blog_page.calculate_output_path(Path(config.get("output_directory")))
+    blog_page.generate_abs_url()
+    blog_page.generate_root_rel_url()
+
+    docs_page = Page(Path("docs.md"), config, project.fs_manager)
+    docs_page.set_processed_content("<p>Docs</p>")
+    docs_page.add_metadata({"title": ["Docs"], "type": "docs"})
+    docs_page.set_title()
+    docs_page.set_slug()
+    docs_page.set_page_type("docs")
+    docs_page.collection = "docs"
+    docs_page.calculate_output_path(Path(config.get("output_directory")))
+    docs_page.generate_abs_url()
+    docs_page.generate_root_rel_url()
+
+    project.site.add_page(blog_page)
+    project.site.add_page(docs_page)
+
+    project._export_json_data()
+
+    site_payload = json.loads((data_dir / "site.json").read_text(encoding="utf-8"))
+    collections = [entry["collection"] for entry in site_payload["pages"]]
+    assert collections == ["docs"]

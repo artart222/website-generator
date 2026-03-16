@@ -39,6 +39,14 @@ class Config:
             "template_engine": "django",
             "templates_by_type": {},
             "collections": {},
+            "react": {
+                "enabled": False,
+                "collection": "",
+                "app_dir": "./react-app",
+                "export_subdir": "",
+                "base_path": "",
+                "asset_prefix": "",
+            },
             "frontend": {
                 "theme": default_theme,
                 "assets": {
@@ -55,6 +63,7 @@ class Config:
                 "export_data": {
                     "enabled": False,
                     "output_dir": "./output/data",
+                    "include_collections": [],
                 },
             },
         }

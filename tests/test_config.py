@@ -330,3 +330,19 @@ def test_config_loads_collections():
     config.load(Path("config.yaml"))
 
     assert config.get("collections")["blog"]["type"] == "blog"
+
+
+def test_config_loads_react_section():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    react:
+      enabled: true
+      collection: shop
+      app_dir: ./react-app
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+
+    assert config.get("react")["enabled"] is True
+    assert config.get("react")["collection"] == "shop"

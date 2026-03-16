@@ -1,0 +1,29 @@
+{
+  "title": "Home",
+  "slug": "home",
+  "type": "index",
+  "collection": "pages",
+  "abs_url": "https://artart.dev/",
+  "root_rel_url": "/",
+  "metadata": {
+    "title": [
+      "Home"
+    ],
+    "summary": [
+      "My portfolio."
+    ],
+    "authors": [
+      "Artin Mobasher"
+    ],
+    "date": [
+      "9/1/2025"
+    ],
+    "base_url": [
+      "https://artart.dev"
+    ],
+    "type": [
+      "index"
+    ]
+  },
+  "content_html": "<h1>Artin Mobasher(artart222) - Portfolio &amp; Blog</h1>\n<p>I'm a passionate programmer/softwere engineering undergraduate student specializing in python and cli apps. This is my digital space to showcase my work and share my blogs.</p>\n<h2>🚀 Featured Projects</h2>\n<p>Here are a few projects I'm particularly proud of. Each one represents my skills in problem-solving and creating elegant solutions.</p>\n<h3><strong>Project 1: static website generator</strong></h3>\n<p>A modular <strong>Python</strong> website generator with a pluggable architecture, theming via templates, and simple YAML configuration.</p>\n<ul>\n<li>\n<p><strong>Technologies Used:</strong> Python, Django, YAML</p>\n</li>\n<li>\n<p><a href=\".\"><strong>Link to Project Demo(This blog is a demo 😏)</strong></a></p>\n</li>\n<li>\n<p><a href=\"https://github.com/artart222/website-generator\"><strong>GitHub Repository</strong></a></p>\n</li>\n</ul>\n<h4><strong>Project 2: CodeArt</strong></h4>\n<p>This is a NeoVim config which let you use NeoVim as general purpose IDE</p>\n<ul>\n<li>\n<p><strong>Technologies Used:</strong> Lua, <a href=\"https://github.com/folke/lazy.nvim\">lazy.nvim</a>, and many plugins.</p>\n</li>\n<li>\n<p><a href=\"https://github.com/artart222/CodeArt?tab=readme-ov-file#camera_flash-screenshots\"><strong>Link to Project Demo</strong></a></p>\n</li>\n<li>\n<p><a href=\"https://github.com/artart222/CodeArt\"><strong>GitHub Repository</strong></a></p>\n</li>\n</ul>\n<h3>✍️ Latest from the Blog</h3>\n<p>Welcome to my blog! I write about the things I'm learning and the challenges I'm solving..</p>\n<p>🚧 Under construction 👷‍♂️ </p>\n<p><a href=\"/blog-indexer/\">Read all posts →</a></p>\n<h3>📫 Get in Touch</h3>\n<p>You can find me on these platforms. Feel free to connect or say hi!</p>\n<ul>\n<li>\n<p><a href=\"mailto:mobasherartin.icm@gmail.com\"><strong>Email</strong></a></p>\n</li>\n<li>\n<p><a href=\"https://github.com/artart222\"><strong>GitHub</strong></a></p>\n</li>\n<li>\n<p><a href=\"http://discordapp.com/users/602794632258256896\"><strong>Discord</strong></a></p>\n</li>\n</ul>"
+}

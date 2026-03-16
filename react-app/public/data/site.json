@@ -1,0 +1,45 @@
+{
+  "site": {
+    "name": "artart222 Portfolio/Blog",
+    "description": "Portfolio and blog.",
+    "base_url": "https://artart.dev"
+  },
+  "pages": [
+    {
+      "title": "Project Design",
+      "slug": "project-design",
+      "type": "blog",
+      "collection": "blog",
+      "url": "https://artart.dev/blog/project-design/",
+      "root_rel_url": "/blog/project-design/",
+      "json_path": "data/blog/project-design/page.json"
+    },
+    {
+      "title": "Sample Product",
+      "slug": "sample-product",
+      "type": "shop",
+      "collection": "shop",
+      "url": "https://artart.dev/shop/sample-product/",
+      "root_rel_url": "/shop/sample-product/",
+      "json_path": "data/shop/sample-product/page.json"
+    },
+    {
+      "title": "Home",
+      "slug": "home",
+      "type": "index",
+      "collection": "pages",
+      "url": "https://artart.dev/",
+      "root_rel_url": "/",
+      "json_path": "data/page.json"
+    },
+    {
+      "title": "Blog",
+      "slug": "blog",
+      "type": "blog-index",
+      "collection": "blog",
+      "url": "https://artart.dev/blog-indexer/",
+      "root_rel_url": "/blog-indexer/",
+      "json_path": "data/blog-indexer/page.json"
+    }
+  ]
+}

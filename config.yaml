@@ -22,6 +22,7 @@ templates_by_type:
   blog: post.html
   page: post.html
   index: post.html
+  shop: post.html
 
 collections:
   blog:
@@ -38,6 +39,13 @@ collections:
     path: ./source
     type: page
     template: post.html
+  shop:
+    path: ./source/shop
+    type: shop
+    template: post.html
+    url_prefix: shop
+    index:
+      enabled: false
 
 frontend:
   theme: blog-theme
@@ -53,8 +61,17 @@ frontend:
     config: ./tailwind.config.js
     minify: false
   export_data:
-    enabled: false
+    enabled: true
     output_dir: ./output/data
+    include_collections: []
+
+react:
+  enabled: true
+  collection: shop
+  app_dir: ./react-app
+  export_subdir: shop
+  base_path: /shop
+  asset_prefix: /shop
 
 plugins:
   - CollectionIndexerPlugin
@@ -76,3 +93,5 @@ navigation:
     type: index
   - title: Blog
     type: blog-index
+  - title: Shop
+    url: /shop/

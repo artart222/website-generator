@@ -1,0 +1,16 @@
+{
+  "title": "Blog",
+  "slug": "blog",
+  "type": "blog-index",
+  "collection": "blog",
+  "abs_url": "https://artart.dev/blog-indexer/",
+  "root_rel_url": "/blog-indexer/",
+  "metadata": {
+    "template": "blog-indexer.html",
+    "title": [
+      "Blog"
+    ],
+    "type": "blog-index"
+  },
+  "content_html": "<ul><li><article><a href='/blog/project-design/'>Project Design</a></article></li></ul>"
+}

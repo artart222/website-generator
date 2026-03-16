@@ -213,24 +213,18 @@ class Page:
         Returns:
             str: The root-relative page URL.
         """
-        # Build relative path
-        # parts = []
-        # if self.page_type:
-        #     parts.append(self.page_type)
-        # parts.append(self.slug)
-        # relative_path = "/".join(parts) + "/"
-
-        # self.root_rel_url = f"/{relative_path}"
-
-        self.root_rel_url = str(
-            self.get_output_path_without_output_dir(
-                self.config.get("output_directory", "")
-            )
+        rel_path = self.get_output_path_without_output_dir(
+            self.config.get("output_directory", "")
         )
-        self.root_rel_url = self.root_rel_url.replace(os.sep, "/")
-        # self.root_rel_url = "/" + self.root_rel_url
-        if not self.root_rel_url.startswith("/"):
-            self.root_rel_url = "/" + self.root_rel_url
+        rel_path_str = str(rel_path).replace(os.sep, "/")
+
+        if rel_path_str.endswith("index.html"):
+            rel_path_str = rel_path_str[: -len("index.html")]
+
+        if not rel_path_str.startswith("/"):
+            rel_path_str = "/" + rel_path_str
+
+        self.root_rel_url = rel_path_str or "/"
 
         return self.root_rel_url
 

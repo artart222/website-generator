@@ -1,0 +1,15 @@
+{
+  "name": "website-generator-react-section",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "next": "^14.2.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^4.2.1"
+  }
+}

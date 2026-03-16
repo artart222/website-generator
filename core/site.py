@@ -86,6 +86,13 @@ class Site:
         header_config: list[dict] = self.config.get("navigation", "")
         header_str = ""
         for header_item in header_config:
+            if header_item.get("url"):
+                header_str = (
+                    header_str
+                    + "\n"
+                    + f"<li><a href='{header_item.get('url')}'>{header_item.get('title')}</a></li>"
+                )
+                continue
             for page in self.get_pages():
                 if header_item.get("type") in page.get_page_type():
                     header_str = (

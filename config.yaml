@@ -3,7 +3,7 @@ version: 1
 site:
   name: artart222 Portfolio/Blog
   description: Portfolio and blog.
-  base_url: https://artart.dev
+  base_url: artart222.github.io
   author: Artin Mobasher
   navigation:
     - title: Home
@@ -53,11 +53,11 @@ content:
     #     title: Shop
 
 theme:
-  # name: minimal-blog
+  name: minimal-blog
   # name: editorial-ledger
   # name: docs-basic
   # name: sunlit-notes
-  name: midnight-zine
+  # name: midnight-zine
   settings: ./theme.settings.yaml
   site_theme_dir: ./site-theme
   extra_css_urls:

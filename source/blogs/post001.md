@@ -3,7 +3,7 @@ title: Project Design
 summary: This blog post is about why I chose my current design pattern for writing my website generator.
 authors:
   - Artin Mobasher
-date: 2025-09-02
+date: 2026-03-22
 description: A deep dive into the design choices behind my Python static website generator, including its architecture, plugins, and content processing.
 type: blog
 layout: document

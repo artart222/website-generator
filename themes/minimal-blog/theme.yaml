@@ -13,13 +13,14 @@ assets:
     - assets
 tokens:
   colors:
-    bg: "#1e2127"             # استخراج شده از background-color در body
-    surface: "#282c34"        # استخراج شده از پس‌زمینه منو (nav-menu)
-    text: "#abb2bf"           # استخراج شده از color در body
-    muted: "#5c6370"          # استخراج شده از secondary-link و footer
-    accent: "#61afef"         # استخراج شده از رنگ لینک‌ها (a)
-    accent-contrast: "#282c34" # استخراج شده از رنگ متن دکمه (a.button)
-    border: "#373c43"         # استخراج شده از رنگ navbar
+    bg: "#1e2127"
+    surface: "#282c34"
+    text: "#abb2bf"
+    muted: "#5c6370"
+    # accent: "#61afef"
+    accent: "#d19a66"
+    accent-contrast: "#282c34"
+    border: "#373c43"
   typography:
     body-family: "'Segoe UI', sans-serif"
     heading-family: "'Georgia', serif"

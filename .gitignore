@@ -12,7 +12,7 @@ __pycache__/
 website-generator.code-workspace
 
 # Output items
-output/
+# output/
 output.zip
 
 # React app artifacts

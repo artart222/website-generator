@@ -1,0 +1,14 @@
+<footer class="docs-footer">
+  <div class="docs-header__inner docs-footer__inner">
+    <div class="docs-footer__brand">
+      <p class="docs-footer__label">Build</p>
+      <p>{{ site_name }}</p>
+    </div>
+    <p class="docs-footer__copy">Theme: docs-basic. Built for developer blogs that want a crisp manual-like structure.</p>
+    <div class="docs-footer__links">
+      {% for item in navigation_items %}
+      <a href="{{ item.url }}" class="docs-footer__link">{{ item.title }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</footer>

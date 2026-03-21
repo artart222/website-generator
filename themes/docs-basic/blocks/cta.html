@@ -1,0 +1,12 @@
+<section class="docs-card docs-command">
+  <div class="docs-command__body">
+    <p class="docs-command__label">Next command</p>
+    <div>
+  <h2 class="block__title">{{ block.content.title }}</h2>
+  <p>{{ block.content.text }}</p>
+    </div>
+  </div>
+  {% if block.content.action %}
+  <a href="{{ block.content.action.url }}" class="button docs-command__button">{{ block.content.action.label }}</a>
+  {% endif %}
+</section>

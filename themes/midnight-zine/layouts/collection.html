@@ -1,0 +1,22 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<section class="zine-index page page--collection">
+  <header class="zine-index__header">
+    <p class="zine-index__eyebrow">{{ collection|default:"dispatches" }}</p>
+    <h1 class="zine-index__title">{{ page_title }}</h1>
+    {% if page_description %}
+    <p class="zine-index__summary">{{ page_description }}</p>
+    {% endif %}
+  </header>
+  <div class="zine-index__grid">
+    <aside class="zine-index__lead">
+      <p class="zine-index__lead-label">Fresh signal</p>
+      <p class="zine-index__lead-copy">Launch notes, experiments, and essays arranged like a magazine issue board.</p>
+    </aside>
+    <div class="zine-index__body zine-index__body--{{ theme_component_presets.blog_index|default:'tiles' }}">
+      {{ content|safe }}
+    </div>
+  </div>
+</section>
+{% endblock %}

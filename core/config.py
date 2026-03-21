@@ -1,98 +1,101 @@
+from __future__ import annotations
+
+from copy import deepcopy
 from pathlib import Path
-import yaml
 import logging
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
+
+import yaml
+
 from utils.fs_manager import FileSystemManager
+
+
+DEFAULT_SETTINGS: dict[str, Any] = {
+    "version": 1,
+    "site": {
+        "name": "Website Generator",
+        "description": "",
+        "base_url": "",
+        "author": "",
+        "navigation": [],
+    },
+    "content": {
+        "source_directory": "./source",
+        "data_dir": "./source/data",
+        "collections": {},
+    },
+    "theme": {
+        "name": "minimal-blog",
+        "settings": "./theme.settings.yaml",
+        "site_theme_dir": "./site-theme",
+        "extra_css_urls": [],
+        "extra_js_urls": [],
+        "customizer": {},
+    },
+    "build": {
+        "output_directory": "./output",
+        "asset_dirs": ["./source/assets"],
+        "template_engine": "django",
+        "template_dirs": [],
+        "log_level": 20,
+    },
+    "plugins": [],
+    "experimental": {
+        "react": {
+            "enabled": False,
+            "collection": "",
+            "app_dir": "./react-app",
+            "export_subdir": "",
+            "base_path": "",
+            "asset_prefix": "",
+        },
+        "export_data": {
+            "enabled": False,
+            "output_dir": "./output/data",
+            "include_collections": [],
+        },
+        "tailwind": {
+            "enabled": False,
+            "input": "./styles/tailwind.input.css",
+            "output": "./styles/tailwind.css",
+            "config": "./tailwind.config.js",
+            "minify": False,
+        },
+    },
+}
 
 
 class Config:
     """
-    Loads, stores, and provides access to project settings
-    from a configuration file (YAML).
+    Loads, stores, and provides access to project settings.
 
-    Supports default known keys as attributes,
-    but also allows arbitrary extra keys.
+    The public v1 config uses nested sections (`site`, `content`, `theme`,
+    `build`, `plugins`, `experimental`). Legacy flat keys are still normalized
+    into the v1 shape so the existing repository can migrate gradually.
     """
 
     def __init__(
         self,
         fs_manager: Optional[FileSystemManager] = None,
     ) -> None:
-        """
-        Initializes the configuration manager with default settings.
-
-        Args:
-            fs_manager (FileSystemManager, optional): Custom file system manager. Defaults to a new FileSystemManager instance.
-        """
         self.logger = logging.getLogger(__name__)
         self.fs_manager = fs_manager or FileSystemManager()
-
-        default_theme = "blog-theme"
-
-        # Defaults for known keys as attributes.
-        self.settings: Dict[str, Any] = {
-            "source_directory": "./source",
-            "data_dir": None,
-            "output_directory": "./output",
-            # TODO: Add default.html template
-            "template_dirs": [f"./templates/{default_theme}/"],
-            "template_engine": "django",
-            "templates_by_type": {},
-            "collections": {},
-            "react": {
-                "enabled": False,
-                "collection": "",
-                "app_dir": "./react-app",
-                "export_subdir": "",
-                "base_path": "",
-                "asset_prefix": "",
-            },
-            "frontend": {
-                "theme": default_theme,
-                "assets": {
-                    "css": ["/styles/tailwind.css", "/styles/code.css"],
-                    "js": [],
-                },
-                "tailwind": {
-                    "enabled": True,
-                    "input": "./styles/tailwind.input.css",
-                    "output": "./styles/tailwind.css",
-                    "config": "./tailwind.config.js",
-                    "minify": False,
-                },
-                "export_data": {
-                    "enabled": False,
-                    "output_dir": "./output/data",
-                    "include_collections": [],
-                },
-            },
-        }
-
-        # Sync attributes for known keys for easy access
+        self.settings: Dict[str, Any] = deepcopy(DEFAULT_SETTINGS)
+        self.warnings: list[str] = []
+        self._apply_compat_aliases()
         self._sync_attributes_from_settings()
 
-    def _sync_attributes_from_settings(self):
-        """
-        Sync known keys from the settings dict to instance attributes.
-        """
-        for key in self.settings:
-            setattr(self, key, self.settings[key])
+    def _sync_attributes_from_settings(self) -> None:
+        """Expose all current top-level settings as attributes."""
+        for key, value in self.settings.items():
+            setattr(self, key, value)
 
     def load(self, filepath: Path = Path("./config.yaml")) -> None:
         """
-        Loads configuration from a YAML file and updates settings.
-
-        Overrides defaults if keys exist in file,
-        adds any unknown keys as well.
-
-        Args:
-            filepath: Path to the YAML config file.
-
-        Raises:
-            FileNotFoundError: If the file does not exist.
-            yaml.YAMLError: If YAML parsing fails.
+        Loads configuration from YAML and normalizes it into the v1 schema.
         """
-        self.logger.debug(f"Loading config from '{filepath}'")
+        self.logger.debug("Loading config from '%s'", filepath)
+        self.warnings = []
         try:
             file_content = self.fs_manager.read_file(filepath)
             loaded_settings: Optional[dict[str, Any]] = (
@@ -102,83 +105,337 @@ class Config:
             if not isinstance(loaded_settings, dict):
                 raise yaml.YAMLError("Config root element must be a dictionary")
 
-            # Update settings dict with loaded keys (overrides defaults if keys overlap)
-            self.settings = self._deep_merge_dicts(self.settings, loaded_settings)
-
-            if "template_dirs" not in loaded_settings:
-                frontend = self.settings.get("frontend", {})
-                if isinstance(frontend, dict):
-                    theme = frontend.get("theme")
-                    if theme:
-                        self.settings["template_dirs"] = [f"./templates/{theme}/"]
-
-            # Sync known keys as attributes again to reflect overrides
+            self.settings = deepcopy(DEFAULT_SETTINGS)
+            normalized_settings = self._normalize_settings(loaded_settings)
+            self.settings = self._deep_merge_dicts(
+                deepcopy(self.settings), normalized_settings
+            )
+            self._apply_compat_aliases()
             self._sync_attributes_from_settings()
 
             self.logger.info(
-                f"Config loaded from '{filepath}' with keys: {list(self.settings.keys())}"
+                "Config loaded from '%s' with keys: %s",
+                filepath,
+                list(self.settings.keys()),
             )
+            for warning in self.warnings:
+                self.logger.warning(warning)
 
         except FileNotFoundError:
-            self.logger.error(f"Config file not found: {filepath}")
+            self.logger.error("Config file not found: %s", filepath)
             self.logger.warning("Using default settings")
+            self._apply_compat_aliases()
+            self._sync_attributes_from_settings()
         except yaml.YAMLError:
-            self.logger.error(f"YAML parsing error in config file '{filepath}'")
+            self.logger.error("YAML parsing error in config file '%s'", filepath)
             self.logger.warning("Using default settings")
+            self._apply_compat_aliases()
+            self._sync_attributes_from_settings()
 
     def get(self, key: str, default: Any = None) -> Any:
         """
-        Retrieves a configuration setting by key.
+        Retrieves a configuration value.
 
-        Args:
-            key: The configuration key.
-            default: Value to return if key not found.
-
-        Returns:
-            The setting value or default.
+        Supports dotted-path lookups such as `theme.name`.
         """
-        return self.settings.get(key, default)
+        if "." not in key:
+            return self.settings.get(key, default)
+
+        cursor: Any = self.settings
+        for part in key.split("."):
+            if not isinstance(cursor, dict) or part not in cursor:
+                return default
+            cursor = cursor[part]
+        return cursor
+
+    def set(self, key: str, value: Any) -> None:
+        """
+        Sets or updates a top-level configuration setting.
+        """
+        self.settings[key] = value
+        if hasattr(self, key):
+            setattr(self, key, value)
+        self.logger.debug("Config setting updated: %s = %s", key, value)
+
+    def get_keys(self) -> list[str]:
+        """Returns all top-level configuration keys."""
+        return list(self.settings.keys())
+
+    def _normalize_settings(self, loaded_settings: dict[str, Any]) -> dict[str, Any]:
+        if self._looks_like_v1(loaded_settings):
+            normalized = deepcopy(loaded_settings)
+        else:
+            normalized = self._normalize_legacy_settings(loaded_settings)
+
+        self._finalize_v1_shape(normalized)
+        return normalized
+
+    def _looks_like_v1(self, loaded_settings: dict[str, Any]) -> bool:
+        if loaded_settings.get("version") == 1:
+            return True
+
+        v1_sections = {"site", "content", "theme", "build", "experimental"}
+        return any(section in loaded_settings for section in v1_sections)
+
+    def _normalize_legacy_settings(
+        self, loaded_settings: dict[str, Any]
+    ) -> dict[str, Any]:
+        self.warnings.append(
+            "Legacy config keys were detected and normalized into the v1 config shape."
+        )
+
+        frontend = loaded_settings.get("frontend", {})
+        if not isinstance(frontend, dict):
+            frontend = {}
+
+        frontend_assets = frontend.get("assets", {})
+        if not isinstance(frontend_assets, dict):
+            frontend_assets = {}
+
+        normalized: dict[str, Any] = {
+            "version": 1,
+            "site": {
+                "name": loaded_settings.get("site_name", DEFAULT_SETTINGS["site"]["name"]),
+                "description": loaded_settings.get(
+                    "site_description", DEFAULT_SETTINGS["site"]["description"]
+                ),
+                "base_url": loaded_settings.get(
+                    "base_url", DEFAULT_SETTINGS["site"]["base_url"]
+                ),
+                "author": loaded_settings.get(
+                    "author", DEFAULT_SETTINGS["site"]["author"]
+                ),
+                "navigation": loaded_settings.get("navigation", []),
+            },
+            "content": {
+                "source_directory": loaded_settings.get(
+                    "source_directory", DEFAULT_SETTINGS["content"]["source_directory"]
+                ),
+                "data_dir": loaded_settings.get(
+                    "data_dir", DEFAULT_SETTINGS["content"]["data_dir"]
+                ),
+                "collections": deepcopy(loaded_settings.get("collections", {})),
+            },
+            "theme": {
+                "name": frontend.get("theme", DEFAULT_SETTINGS["theme"]["name"]),
+                "settings": "./theme.settings.yaml",
+                "site_theme_dir": "./site-theme",
+                "extra_css_urls": list(frontend_assets.get("css") or []),
+                "extra_js_urls": list(frontend_assets.get("js") or []),
+                "customizer": deepcopy(frontend.get("customizer", {})),
+            },
+            "build": {
+                "output_directory": loaded_settings.get(
+                    "output_directory", DEFAULT_SETTINGS["build"]["output_directory"]
+                ),
+                "asset_dirs": deepcopy(
+                    loaded_settings.get("asset_dirs", DEFAULT_SETTINGS["build"]["asset_dirs"])
+                ),
+                "template_engine": loaded_settings.get(
+                    "template_engine", DEFAULT_SETTINGS["build"]["template_engine"]
+                ),
+                "template_dirs": deepcopy(loaded_settings.get("template_dirs", [])),
+                "log_level": loaded_settings.get(
+                    "log_level", DEFAULT_SETTINGS["build"]["log_level"]
+                ),
+            },
+            "plugins": deepcopy(loaded_settings.get("plugins", [])),
+            "experimental": {
+                "react": deepcopy(
+                    loaded_settings.get(
+                        "react", DEFAULT_SETTINGS["experimental"]["react"]
+                    )
+                ),
+                "export_data": deepcopy(
+                    frontend.get(
+                        "export_data", DEFAULT_SETTINGS["experimental"]["export_data"]
+                    )
+                ),
+                "tailwind": deepcopy(
+                    frontend.get(
+                        "tailwind", DEFAULT_SETTINGS["experimental"]["tailwind"]
+                    )
+                ),
+            },
+        }
+
+        templates_by_type = loaded_settings.get("templates_by_type")
+        if isinstance(templates_by_type, dict):
+            normalized["content"]["templates_by_type"] = deepcopy(templates_by_type)
+            self.warnings.append(
+                "Legacy 'templates_by_type' is deprecated; prefer collection/layout mappings."
+            )
+
+        handled_keys = {
+            "site_name",
+            "site_description",
+            "base_url",
+            "author",
+            "navigation",
+            "source_directory",
+            "data_dir",
+            "collections",
+            "frontend",
+            "output_directory",
+            "asset_dirs",
+            "template_engine",
+            "template_dirs",
+            "log_level",
+            "plugins",
+            "react",
+            "templates_by_type",
+        }
+        for key, value in loaded_settings.items():
+            if key not in handled_keys:
+                normalized[key] = deepcopy(value)
+
+        return normalized
+
+    def _finalize_v1_shape(self, normalized: dict[str, Any]) -> None:
+        normalized.setdefault("version", 1)
+        normalized.setdefault("site", {})
+        normalized.setdefault("content", {})
+        normalized.setdefault("theme", {})
+        normalized.setdefault("build", {})
+        normalized.setdefault("plugins", [])
+        normalized.setdefault("experimental", {})
+
+        site = normalized["site"]
+        content = normalized["content"]
+        theme = normalized["theme"]
+        build = normalized["build"]
+        experimental = normalized["experimental"]
+
+        if not isinstance(site, dict):
+            normalized["site"] = deepcopy(DEFAULT_SETTINGS["site"])
+            site = normalized["site"]
+        if not isinstance(content, dict):
+            normalized["content"] = deepcopy(DEFAULT_SETTINGS["content"])
+            content = normalized["content"]
+        if not isinstance(theme, dict):
+            normalized["theme"] = deepcopy(DEFAULT_SETTINGS["theme"])
+            theme = normalized["theme"]
+        if not isinstance(build, dict):
+            normalized["build"] = deepcopy(DEFAULT_SETTINGS["build"])
+            build = normalized["build"]
+        if not isinstance(experimental, dict):
+            normalized["experimental"] = deepcopy(DEFAULT_SETTINGS["experimental"])
+            experimental = normalized["experimental"]
+
+        site.setdefault("navigation", [])
+        content.setdefault(
+            "source_directory", DEFAULT_SETTINGS["content"]["source_directory"]
+        )
+        content.setdefault("data_dir", DEFAULT_SETTINGS["content"]["data_dir"])
+        theme.setdefault("name", DEFAULT_SETTINGS["theme"]["name"])
+        theme.setdefault("settings", DEFAULT_SETTINGS["theme"]["settings"])
+        theme.setdefault("site_theme_dir", DEFAULT_SETTINGS["theme"]["site_theme_dir"])
+        theme.setdefault("extra_css_urls", [])
+        theme.setdefault("extra_js_urls", [])
+        theme.setdefault("customizer", {})
+        build.setdefault(
+            "output_directory", DEFAULT_SETTINGS["build"]["output_directory"]
+        )
+        build.setdefault("asset_dirs", deepcopy(DEFAULT_SETTINGS["build"]["asset_dirs"]))
+        build.setdefault(
+            "template_engine", DEFAULT_SETTINGS["build"]["template_engine"]
+        )
+        build.setdefault("template_dirs", [])
+        build.setdefault("log_level", DEFAULT_SETTINGS["build"]["log_level"])
+        experimental.setdefault(
+            "react", deepcopy(DEFAULT_SETTINGS["experimental"]["react"])
+        )
+        experimental.setdefault(
+            "export_data", deepcopy(DEFAULT_SETTINGS["experimental"]["export_data"])
+        )
+        experimental.setdefault(
+            "tailwind", deepcopy(DEFAULT_SETTINGS["experimental"]["tailwind"])
+        )
+
+        collections = content.get("collections", {})
+        if not isinstance(collections, dict):
+            collections = {}
+            content["collections"] = collections
+
+        for name, raw_cfg in list(collections.items()):
+            if not isinstance(raw_cfg, dict):
+                collections[name] = {"path": str(raw_cfg)}
+                raw_cfg = collections[name]
+
+            route = raw_cfg.get("route", {})
+            if not isinstance(route, dict):
+                route = {}
+
+            legacy_prefix = raw_cfg.get("url_prefix")
+            if legacy_prefix and "prefix" not in route:
+                route["prefix"] = legacy_prefix
+                self.warnings.append(
+                    f"Collection '{name}' uses deprecated 'url_prefix'; normalized to 'route.prefix'."
+                )
+
+            if "prefix" not in route:
+                default_prefix = "" if name == "pages" else raw_cfg.get("type", name)
+                route["prefix"] = default_prefix
+
+            raw_cfg["route"] = route
+            raw_cfg.setdefault("type", name)
+            raw_cfg.setdefault("layout", raw_cfg.get("template", "document"))
+
+            defaults = raw_cfg.get("defaults", {})
+            if not isinstance(defaults, dict):
+                defaults = {}
+            defaults.setdefault("layout", raw_cfg.get("layout", "document"))
+            raw_cfg["defaults"] = defaults
+
+            index_cfg = raw_cfg.get("index", {})
+            if not isinstance(index_cfg, dict):
+                index_cfg = {}
+            if index_cfg.get("enabled", False):
+                index_cfg.setdefault("layout", "collection")
+                index_cfg.setdefault("title", name.replace("-", " ").title())
+            raw_cfg["index"] = index_cfg
+
+    def _apply_compat_aliases(self) -> None:
+        """Keep legacy callers working during the migration."""
+        theme_name = self.get("theme.name", DEFAULT_SETTINGS["theme"]["name"])
+        template_dirs = list(self.get("build.template_dirs", []))
+
+        if not template_dirs:
+            template_dirs = [f"./templates/{theme_name}/"]
+
+        legacy_frontend = {
+            "theme": theme_name,
+            "assets": {
+                "css": list(self.get("theme.extra_css_urls", [])),
+                "js": list(self.get("theme.extra_js_urls", [])),
+            },
+            "tailwind": deepcopy(self.get("experimental.tailwind", {})),
+            "export_data": deepcopy(self.get("experimental.export_data", {})),
+            "customizer": deepcopy(self.get("theme.customizer", {})),
+        }
+
+        self.settings["site_name"] = self.get("site.name")
+        self.settings["site_description"] = self.get("site.description")
+        self.settings["base_url"] = self.get("site.base_url")
+        self.settings["author"] = self.get("site.author")
+        self.settings["source_directory"] = self.get("content.source_directory")
+        self.settings["data_dir"] = self.get("content.data_dir")
+        self.settings["collections"] = deepcopy(self.get("content.collections", {}))
+        self.settings["output_directory"] = self.get("build.output_directory")
+        self.settings["template_engine"] = self.get("build.template_engine")
+        self.settings["template_dirs"] = template_dirs
+        self.settings["asset_dirs"] = deepcopy(self.get("build.asset_dirs", []))
+        self.settings["log_level"] = self.get("build.log_level")
+        self.settings["navigation"] = deepcopy(self.get("site.navigation", []))
+        self.settings["react"] = deepcopy(self.get("experimental.react", {}))
+        self.settings["frontend"] = legacy_frontend
 
     def _deep_merge_dicts(
         self, base: Dict[str, Any], updates: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """
-        Deeply merges two dictionaries, preferring values from updates.
-
-        Args:
-            base: The base dictionary.
-            updates: The dictionary containing overriding values.
-
-        Returns:
-            The merged dictionary.
-        """
         for key, value in updates.items():
             if isinstance(value, dict) and isinstance(base.get(key), dict):
                 base[key] = self._deep_merge_dicts(base[key], value)
             else:
                 base[key] = value
         return base
-
-    def set(self, key: str, value: Any) -> None:
-        """
-        Sets or updates a configuration setting.
-
-        Updates attribute if it's one of the known default keys.
-
-        Args:
-            key: The configuration key to set.
-            value: The value to assign.
-        """
-        self.settings[key] = value
-        if hasattr(self, key):
-            setattr(self, key, value)
-        self.logger.debug(f"Config setting updated: {key} = {value}")
-
-    def get_keys(self) -> list[str]:
-        """
-        Returns all configuration keys currently stored.
-
-        Returns:
-            List of all configuration keys.
-        """
-        return list(self.settings.keys())

@@ -1,0 +1,20 @@
+<section class="block block--cta ledger-cta">
+  <div class="cta-card ledger-cta__card">
+    <div class="ledger-cta__body">
+      <p class="ledger-cta__eyebrow">Classified placement</p>
+      <div>
+    {% if block.content.title %}
+    <h2 class="block__title">{{ block.content.title }}</h2>
+    {% endif %}
+    {% if block.content.text %}
+    <p class="block__text">{{ block.content.text }}</p>
+    {% endif %}
+      </div>
+    </div>
+    {% if block.content.action %}
+    <div class="ledger-cta__action">
+      <a href="{{ block.content.action.url }}" class="button">{{ block.content.action.label }}</a>
+    </div>
+    {% endif %}
+  </div>
+</section>

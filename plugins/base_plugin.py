@@ -63,6 +63,9 @@ class BasePlugin(ABC):
                 and attr
                 in [
                     "after_config_loaded",
+                    "after_collections_loaded",
+                    "after_document_loaded",
+                    "after_routes_built",
                     "before_build",
                     "before_page_parsed",
                     "after_page_parsed",
@@ -70,6 +73,7 @@ class BasePlugin(ABC):
                     "before_page_rendered",
                     "after_build",
                     "after_pages_discovered",
+                    "modify_context",
                     "modify_template_context",
                     "inject_css",
                     "inject_js",
@@ -92,6 +96,13 @@ class BasePlugin(ABC):
         pass
 
     @log_hook
+    def after_collections_loaded(self, *args, **kwargs) -> Any:
+        """
+        Called after all collections/documents are discovered.
+        """
+        pass
+
+    @log_hook
     def before_page_parsed(self, *args, **kwargs) -> Any:
         """
         Called before a Page object is created and parsed.
@@ -102,6 +113,20 @@ class BasePlugin(ABC):
     def after_page_parsed(self, *args, **kwargs) -> Any:
         """
         Called after a Page object is created and parsed.
+        """
+        pass
+
+    @log_hook
+    def after_document_loaded(self, *args, **kwargs) -> Any:
+        """
+        v1 hook called after a source document is parsed.
+        """
+        pass
+
+    @log_hook
+    def after_routes_built(self, *args, **kwargs) -> Any:
+        """
+        Called after output paths and public URLs are assigned.
         """
         pass
 
@@ -135,6 +160,13 @@ class BasePlugin(ABC):
     def modify_template_context(self, *args, **kwargs) -> Any:
         """
         Allows plugins to modify or extend the template context.
+        """
+        pass
+
+    @log_hook
+    def modify_context(self, *args, **kwargs) -> Any:
+        """
+        v1 alias for modifying render context.
         """
         pass
 

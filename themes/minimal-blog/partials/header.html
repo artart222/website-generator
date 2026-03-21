@@ -1,0 +1,14 @@
+<header class="site-header site-header--{{ theme_component_presets.header|default:'default' }}">
+  <div class="site-header__inner">
+    <a href="/" class="site-brand">{{ site_name }}</a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <ul class="site-nav__list">
+        {% for item in navigation_items %}
+        <li class="site-nav__item">
+          <a href="{{ item.url }}" class="site-nav__link">{{ item.title }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+</header>

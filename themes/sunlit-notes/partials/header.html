@@ -1,0 +1,22 @@
+<header class="notes-header notes-header--{{ theme_component_presets.header|default:'tabs' }}">
+  <div class="notes-header__tabs">
+    <span class="notes-header__tab notes-header__tab--active">Journal</span>
+    <span class="notes-header__tab">Projects</span>
+    <span class="notes-header__tab">Archive</span>
+  </div>
+  <div class="notes-header__inner">
+    <div class="notes-header__stack">
+      <a href="/" class="notes-brand">{{ site_name }}</a>
+      <p class="notes-header__subtitle">Pinned notes, build logs, and gentle experiments</p>
+    </div>
+    <nav class="notes-nav" aria-label="Primary navigation">
+      <ul class="notes-nav__list">
+        {% for item in navigation_items %}
+        <li class="notes-nav__item">
+          <a href="{{ item.url }}" class="notes-nav__link">{{ item.title }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+</header>

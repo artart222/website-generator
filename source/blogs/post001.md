@@ -1,10 +1,17 @@
-Title:   Project Design
-Summary: This blog post is about why I chose my current design pattern for writing my website-generator.
-Authors: Artin Mobasher
-Date:    9/2/2025
-base_url: https://artart.dev
+---
+title: Project Design
+summary: This blog post is about why I chose my current design pattern for writing my website generator.
+authors:
+  - Artin Mobasher
+date: 2025-09-02
 description: A deep dive into the design choices behind my Python static website generator, including its architecture, plugins, and content processing.
 type: blog
+layout: document
+tags:
+  - architecture
+  - static-site-generators
+  - python
+---
 
 # My Design Choices For Websites Generator
 
@@ -19,16 +26,12 @@ It is also a demonstration of the project itself, since this blog post (and the 
 
 I wanted to learn how static site generators work internally and design one myself, with a focus on:
 
-- **Flexibility** → supporting different site types like blogs, shops, portfolios.  
-- **Extensibility** → making it easy to add new features through plugins.  
-- **Clarity** → keeping the codebase small but structured enough to be maintainable.  
+- **Flexibility** -> supporting different site types like blogs, shops, portfolios.
+- **Extensibility** -> making it easy to add new features through plugins.
+- **Clarity** -> keeping the codebase small but structured enough to be maintainable.
 
 This project also serves as a **portfolio project for my resume**, to show my understanding of design patterns and architecture.
 
-``` python
-for i in range(0, 100):
-    print(i**i)
-```
 
 ---
 
@@ -42,7 +45,7 @@ I designed three main building blocks:
 
 - **Site**  
   Holds all pages, global metadata, and exposes methods like `get_pages()`.  
-  This makes it easy to query pages (for example, a plugin can find all pages with type `blog`).
+  This makes it easy to query pages (for example, a plugin can find all pages with `type: blog`).
 
 - **Project**  
   Orchestrates everything: configuration, loading pages, running plugins, and rendering.  
@@ -55,31 +58,31 @@ I designed three main building blocks:
 Instead of hardcoding features like a blog index or RSS feed, I added a **plugin system**.  
 Plugins can hook into lifecycle events:
 
-- `on_config_loaded`
-- `on_before_build`
-- `on_page_parsed`
-- `on_after_build`
+- `after_config_loaded`
+- `before_build`
+- `after_document_loaded`
+- `after_build`
 
-For example, my **BlogIndexerPlugin** searches for all pages with `type: blog` and automatically generates a blog index page.
+For example, my **CollectionIndexerPlugin** searches for all pages in a collection and automatically generates an index page.
 
-This pattern is common in real-world projects (like Jekyll, Hugo, and MkDocs) because it balances **simplicity** with **extensibility**.
+This pattern is common in real-world projects because it balances **simplicity** with **extensibility**.
 
 ---
 
 ## 4. Content Processors and Template Engine
 
 To process different input formats (Markdown, HTML, etc.), I added a **ContentProcessor factory**.  
-This way, supporting new formats in the future (e.g., reStructuredText or AsciiDoc) will be as simple as writing a new processor class.
+This way, supporting new formats in the future will be as simple as writing a new processor class.
 
-Rendering is done through a **Template Engine factory**, which abstracts away the underlying templating engine (like Jinja2).  
-This allows swapping or upgrading templating logic without changing the rest of the system.
+Rendering is done through a **Template Engine factory**, which abstracts away the underlying templating engine.  
+This allows swapping templating logic later without changing the rest of the system.
 
 ---
 
 ## 5. Tradeoffs I Made
 
-- **Focused on clarity over optimization** → since this is a learning project and a resume showcase, readability was more important than micro-optimizations.  
-- **YAML config** → I chose YAML for config files because it’s widely used in static site generators and is more readable than JSON for non-developers.  
+- **Focused on clarity over optimization** -> readability mattered more than micro-optimizations.
+- **YAML config** -> I chose YAML because it is widely used in static site generators and is more readable than JSON for non-developers.
 
 ---
 
@@ -87,20 +90,15 @@ This allows swapping or upgrading templating logic without changing the rest of 
 
 Through this project I practiced:
 
-- Designing **modular, extensible systems**.  
-- Using **factories and plugins** to decouple responsibilities.  
-- Writing cleaner Python with **logging, type hints, and tests**.  
-- Building something practical enough to showcase.  
+- Designing **modular, extensible systems**.
+- Using **factories and plugins** to decouple responsibilities.
+- Writing cleaner Python with **logging, type hints, and tests**.
+- Building something practical enough to showcase.
 
 ---
 
-## 7. What’s Next
+## 7. What's Next
 
-- Add more plugins.  
-- Improve test coverage.  
-- Deploy this demo site to show the generator in action.  
-
----
-
-This project is not just code, but also a **learning journey**.  
-By writing it this way, I can confidently put it on my resume and talk about my design reasoning in interviews.
+- Add more plugins.
+- Improve test coverage.
+- Deploy this demo site to show the generator in action.

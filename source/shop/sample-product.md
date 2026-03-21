@@ -1,8 +1,12 @@
-Title: Sample Product
-Summary: Example shop item rendered by the React section.
-Price: 49.00
-Currency: USD
+---
+title: Sample Product
+summary: Example shop item rendered by the static collection system.
+price: 49.00
+currency: USD
 type: shop
+layout: document
+date: 2026-03-19
+---
 
 # Sample Product
 

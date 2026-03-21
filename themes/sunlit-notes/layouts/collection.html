@@ -1,0 +1,22 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<section class="notes-index page page--collection">
+  <header class="notes-index__header">
+    <p class="notes-index__eyebrow">{{ collection|default:"archive" }}</p>
+    <h1 class="notes-index__title">{{ page_title }}</h1>
+    {% if page_description %}
+    <p class="notes-index__summary">{{ page_description }}</p>
+    {% endif %}
+  </header>
+  <div class="notes-index__layout">
+    <aside class="notes-index__aside">
+      <p class="notes-index__aside-label">Archive tab</p>
+      <p class="notes-index__aside-copy">Small reflections, project writeups, and longer entries stacked like a notebook index.</p>
+    </aside>
+    <div class="notes-index__body notes-index__body--{{ theme_component_presets.blog_index|default:'stack' }}">
+      {{ content|safe }}
+    </div>
+  </div>
+</section>
+{% endblock %}

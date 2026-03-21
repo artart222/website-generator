@@ -1,0 +1,33 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<article class="docs-page docs-page--document">
+  <aside class="docs-page__meta">
+    <section class="docs-rail-card">
+      <div class="page__eyebrow">{{ collection|default:"journal" }}</div>
+      <h1 class="page__title">{{ page_title }}</h1>
+      {% if page_summary %}<p class="page__summary">{{ page_summary }}</p>{% endif %}
+    </section>
+    <section class="docs-rail-card">
+      <p class="docs-rail-card__label">Entry</p>
+      <div class="docs-meta-list">
+        {% if page_date %}<span>{{ page_date }}</span>{% endif %}
+        {% if page_type %}<span>{{ page_type }}</span>{% endif %}
+        {% if collection %}<span>{{ collection }}</span>{% endif %}
+      </div>
+    </section>
+  </aside>
+  <div class="docs-page__main">
+    {% if rendered_blocks %}
+    <section class="docs-page__blocks">
+      {{ rendered_blocks|safe }}
+    </section>
+    {% endif %}
+    {% if content %}
+    <section class="docs-page__content docs-prose">
+      {{ content|safe }}
+    </section>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

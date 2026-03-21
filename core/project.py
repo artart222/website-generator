@@ -1,64 +1,55 @@
-from .site import Site
-from .config import Config
-from .page import Page
-from engines.base_engine import TemplateEngine
-from engines.factory import create_template_engine
-from processor.factory import create_content_processor
-from processor.tailwind_processor import build_tailwind
-from processor.react_processor import build_react_section
-from utils.fs_manager import FileSystemManager
-from .plugin_manager import PluginManager
+from __future__ import annotations
+
 import json
+import logging
 import os
+from copy import deepcopy
 from pathlib import Path
+
 import yaml
 
-from processor.factory import _PROCESSOR_MAP
-
-import logging
+from engines.base_engine import TemplateEngine
+from engines.factory import create_template_engine
+from processor.factory import _PROCESSOR_MAP, create_content_processor
+from processor.react_processor import build_react_section
+from processor.tailwind_processor import build_tailwind
+from utils.fs_manager import FileSystemManager
+from .config import Config
+from .page import Page
+from .plugin_manager import PluginManager
+from .router import Router
+from .site import Site
+from .theme_manager import ThemeManager
 
 supported_extensions = list(_PROCESSOR_MAP.keys())
 
 
-# TODO: Complete hooks.
-# TODO: Complete header navigation.
-
-
 class Project:
-    """
-    Represents the entire website generation project.
-    Manages global settings, source and output paths, and
-    Orchestrates the build process.
-    """
+    """Main build orchestrator."""
 
     def __init__(self, config: Config):
-        """
-        Initializes the project by loading configuration and setting up components.
-
-        Args:
-            config_path: Path to the YAML configuration file.
-        """
         self.logger = logging.getLogger(__name__)
-
         self.config: Config = config
-        # self.config.load(config_path)
         self.fs_manager: FileSystemManager = FileSystemManager()
         self.site: Site = Site(self.config)
+        self.router = Router(self.config)
+        self.theme_manager = ThemeManager(self.config, self.fs_manager)
         self.plugin_manager: PluginManager = PluginManager(self.config, self.site)
         self.plugin_manager.detect_and_load_plugins()
+
         self.plugin_manager.run_hook(
             "after_config_loaded",
             site=self.site,
             config=self.config,
             fs_manager=self.fs_manager,
         )
+
         self.template_engine: TemplateEngine = create_template_engine(
-            self.config.settings["template_engine"],
-            self.config.settings["template_dirs"],
+            self.config.get("build.template_engine", self.config.get("template_engine")),
+            self.theme_manager.get_template_dirs(),
         )
 
     def build(self) -> None:
-        """Orchestrates the entire site generation process."""
         self.plugin_manager.run_hook(
             "before_build",
             site=self.site,
@@ -70,18 +61,34 @@ class Project:
 
         self._discover_and_load_pages()
         self._load_site_data()
+        self._assign_routes()
+
+        self.plugin_manager.run_hook(
+            "after_collections_loaded",
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+        )
         self.plugin_manager.run_hook(
             "after_pages_discovered",
             site=self.site,
             config=self.config,
             fs_manager=self.fs_manager,
         )
+
+        self._assign_routes()
+        self.plugin_manager.run_hook(
+            "after_routes_built",
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+        )
+
         self._render_pages()
         self._export_json_data()
         build_react_section(self.config, self.fs_manager, self.logger)
         self._build_tailwind()
         self._copy_assets()
-        self.logger.info("Build process finished successfully.")
 
         self.plugin_manager.run_hook(
             "after_build",
@@ -90,21 +97,19 @@ class Project:
             fs_manager=self.fs_manager,
         )
 
-    def get_template_engine(self) -> TemplateEngine:
-        """
-        Returns the template engine instance used for rendering pages.
+        self.logger.info("Build process finished successfully.")
 
-        Returns:
-            TemplateEngine: The configured template engine.
-        """
+    def get_template_engine(self) -> TemplateEngine:
         return self.template_engine
 
     def _discover_and_load_pages(self) -> None:
-        """Finds content files, creates Page objects, and loads their data."""
         self.logger.info("Discovering and loading site content...")
 
-        output_dir = Path(self.config.get("output_directory"))
-        collections = self.config.get("collections")
+        collections = self.config.get("content.collections", self.config.get("collections"))
+        output_dir = Path(
+            self.config.get("build.output_directory", self.config.get("output_directory"))
+        )
+
         if isinstance(collections, dict) and collections:
             collection_items: list[tuple[str, dict, Path]] = []
             for name, cfg in collections.items():
@@ -122,22 +127,10 @@ class Project:
             seen_paths: set[Path] = set()
             for name, cfg, collection_path in collection_items:
                 if not collection_path.exists():
-                    self.logger.warning(
-                        f"Collection path does not exist: {collection_path}"
-                    )
+                    self.logger.warning("Collection path does not exist: %s", collection_path)
                     continue
 
-                try:
-                    page_filepaths = self.fs_manager.list_files(
-                        collection_path, recursive=True
-                    )
-                except Exception as exc:
-                    self.logger.error(
-                        f"Failed to list files for collection '{name}': {exc}",
-                        exc_info=True,
-                    )
-                    continue
-
+                page_filepaths = self.fs_manager.list_files(collection_path, recursive=True)
                 for path in page_filepaths:
                     if path in seen_paths:
                         continue
@@ -150,6 +143,8 @@ class Project:
                     page = Page(path, self.config, self.fs_manager)
                     page.collection = name
                     page.collection_config = cfg
+                    page.set_route_prefix(cfg.get("route", {}).get("prefix", ""))
+
                     self.plugin_manager.run_hook(
                         "before_page_parsed",
                         site=self.site,
@@ -157,23 +152,24 @@ class Project:
                         fs_manager=self.fs_manager,
                         page=page,
                     )
+
                     processor = create_content_processor(ext)
                     page.load(processor)
+                    self._apply_collection_defaults(page, cfg)
 
-                    if not page.page_type:
-                        collection_type = cfg.get("type")
-                        if collection_type:
-                            page.set_page_type(collection_type)
+                    if page.draft:
+                        self.logger.info("Skipping draft page: %s", page.source_filepath)
+                        continue
 
-                    output_path = page.get_output_path()
-                    if not output_path:
-                        page.calculate_output_path(
-                            output_dir, url_prefix=cfg.get("url_prefix")
-                        )
-
-                    page.generate_abs_url()
-                    page.generate_root_rel_url()
                     self.site.add_page(page)
+
+                    self.plugin_manager.run_hook(
+                        "after_document_loaded",
+                        site=self.site,
+                        config=self.config,
+                        fs_manager=self.fs_manager,
+                        page=page,
+                    )
                     self.plugin_manager.run_hook(
                         "after_page_parsed",
                         site=self.site,
@@ -182,67 +178,87 @@ class Project:
                         page=page,
                     )
         else:
-            content_path = Path(self.config.get("source_directory"))
-            page_filepaths = self.fs_manager.list_files(content_path, recursive=True)
+            content_path = Path(
+                self.config.get("content.source_directory", self.config.get("source_directory"))
+            )
+            if not content_path.exists():
+                self.logger.warning("Source directory does not exist: %s", content_path)
+                return
 
+            page_filepaths = self.fs_manager.list_files(content_path, recursive=True)
             for path in page_filepaths:
                 ext = os.path.splitext(path)[1].lstrip(".").lower()
-                if ext in supported_extensions:
-                    page = Page(path, self.config, self.fs_manager)
-                    self.plugin_manager.run_hook(
-                        "before_page_parsed",
-                        site=self.site,
-                        config=self.config,
-                        fs_manager=self.fs_manager,
-                        page=page,
-                    )
-                    processor = create_content_processor(ext)
-                    page.load(processor)
+                if ext not in supported_extensions:
+                    continue
 
-                    output_path = page.get_output_path()
-                    if not output_path:
-                        page.calculate_output_path(output_dir)
+                page = Page(path, self.config, self.fs_manager)
+                self.plugin_manager.run_hook(
+                    "before_page_parsed",
+                    site=self.site,
+                    config=self.config,
+                    fs_manager=self.fs_manager,
+                    page=page,
+                )
 
-                    page.generate_abs_url()
-                    page.generate_root_rel_url()
-                    self.site.add_page(page)
-                    self.plugin_manager.run_hook(
-                        "after_page_parsed",
-                        site=self.site,
-                        config=self.config,
-                        fs_manager=self.fs_manager,
-                        page=page,
-                    )
+                processor = create_content_processor(ext)
+                page.load(processor)
+                if page.draft:
+                    continue
+
+                if not page.get_output_path():
+                    page.calculate_output_path(output_dir)
+
+                self.site.add_page(page)
+                self.plugin_manager.run_hook(
+                    "after_document_loaded",
+                    site=self.site,
+                    config=self.config,
+                    fs_manager=self.fs_manager,
+                    page=page,
+                )
+                self.plugin_manager.run_hook(
+                    "after_page_parsed",
+                    site=self.site,
+                    config=self.config,
+                    fs_manager=self.fs_manager,
+                    page=page,
+                )
+
+    def _apply_collection_defaults(self, page: Page, collection_cfg: dict) -> None:
+        page.set_route_prefix(collection_cfg.get("route", {}).get("prefix", ""))
+
+        defaults = collection_cfg.get("defaults", {})
+        if not isinstance(defaults, dict):
+            defaults = {}
+
+        if not page.page_type:
+            collection_type = collection_cfg.get("type") or defaults.get("type")
+            if collection_type:
+                page.set_page_type(str(collection_type))
+
+        if not page.layout:
+            layout = (
+                page.metadata.get("layout")
+                or collection_cfg.get("layout")
+                or defaults.get("layout")
+                or page.metadata.get("template")
+            )
+            if layout:
+                page.layout = str(layout[0] if isinstance(layout, list) else layout)
+
+        if not page.layout_options and isinstance(defaults.get("layout_options"), dict):
+            page.layout_options = deepcopy(defaults.get("layout_options", {}))
+
+    def _assign_routes(self) -> None:
+        for page in self.site.pages:
+            self.router.assign(page)
 
     def _render_pages(self) -> None:
-        """Renders all loaded pages to their output files."""
         self.logger.info("Rendering pages...")
+        navigation_items = self.site.build_navigation()
         header = self.site.populate_header()
+
         for page in self.site.pages:
-            # self.plugin_manager.run_hook(
-            #     "before_page_parsed",
-            #     site=self.site,
-            #     config=self.config,
-            #     fs_manager=self.fs_manager,
-            #     page=page,
-            # )
-
-            # 2. Build rendering context
-            context = self._build_page_context(page, header)
-
-            # self.plugin_manager.run_hook(
-            #     "after_page_parsed",
-            #     site=self.site,
-            #     config=self.config,
-            #     fs_manager=self.fs_manager,
-            #     page=page,
-            # )
-
-            # 3. Template is determined by page metadata (with a fallback)
-            # template_name = page.metadata.get("template", ["default.html"])[0]
-            # TODO: Fix default template.
-            template_name = self._resolve_template_name(page)
-
             self.plugin_manager.run_hook(
                 "before_page_rendered",
                 site=self.site,
@@ -251,10 +267,16 @@ class Project:
                 page=page,
             )
 
+            context = self._build_page_context(page, header, navigation_items)
+            template_name = self._resolve_template_name(page)
             rendered_html = self.template_engine.render(template_name, context)
-            self.fs_manager.write_file(page.get_output_path(), rendered_html)
+            output_path = page.get_output_path()
+            if output_path is None:
+                raise RuntimeError(f"No output path assigned for page '{page.title}'")
+
+            self.fs_manager.write_file(output_path, rendered_html)
             self.logger.debug(
-                f"Rendered page: {page.source_filepath} -> {page.get_output_path()}"
+                "Rendered page: %s -> %s", page.source_filepath, page.get_output_path()
             )
 
             self.plugin_manager.run_hook(
@@ -265,12 +287,13 @@ class Project:
                 page=page,
             )
 
-    def _build_page_context(self, page: Page, header: str) -> dict:
-        frontend = self.config.get("frontend", {})
-        assets = frontend.get("assets", {}) if isinstance(frontend, dict) else {}
-
-        stylesheets = list(assets.get("css") or [])
-        scripts = list(assets.get("js") or [])
+    def _build_page_context(
+        self, page: Page, header: str, navigation_items: list[dict]
+    ) -> dict:
+        stylesheets = self.theme_manager.get_stylesheets()
+        scripts = self.theme_manager.get_scripts()
+        layout_options = self.theme_manager.get_layout_options(page)
+        theme_context = self.theme_manager.get_theme_context()
 
         css_injections = self.plugin_manager.run_hook_collect(
             "inject_css",
@@ -298,62 +321,87 @@ class Project:
             elif isinstance(injected, (list, tuple)):
                 scripts.extend(injected)
 
+        base_context = page.get_context(
+            header=header,
+            site=self.site,
+            stylesheets=stylesheets,
+            scripts=scripts,
+            navigation_items=navigation_items,
+            theme_context=theme_context,
+            layout_options=layout_options,
+        )
+        rendered_blocks = self.theme_manager.render_blocks(
+            page.blocks, self.template_engine, base_context
+        )
         context = page.get_context(
             header=header,
             site=self.site,
             stylesheets=stylesheets,
             scripts=scripts,
+            navigation_items=navigation_items,
+            theme_context=theme_context,
+            rendered_blocks=rendered_blocks,
+            layout_options=layout_options,
         )
 
-        context_updates = self.plugin_manager.run_hook_collect(
+        for update in self.plugin_manager.run_hook_collect(
+            "modify_context",
+            context=context,
+            site=self.site,
+            config=self.config,
+            fs_manager=self.fs_manager,
+            page=page,
+        ):
+            if isinstance(update, dict):
+                context.update(update)
+
+        for update in self.plugin_manager.run_hook_collect(
             "modify_template_context",
             context=context,
             site=self.site,
             config=self.config,
             fs_manager=self.fs_manager,
             page=page,
-        )
-        for update in context_updates:
+        ):
             if isinstance(update, dict):
                 context.update(update)
 
         return context
 
     def _resolve_template_name(self, page: Page) -> str:
-        template_value = page.metadata.get("template")
-        template_name = None
+        requested_layout = page.layout
+        if not requested_layout and isinstance(page.collection_config, dict):
+            requested_layout = (
+                page.collection_config.get("layout")
+                or page.collection_config.get("defaults", {}).get("layout")
+            )
 
-        if template_value:
-            if isinstance(template_value, list):
-                template_name = template_value[0] if template_value else None
-            else:
-                template_name = template_value
+        if page.is_not_found_page():
+            requested_layout = "not_found"
+        elif page.is_collection_index and not requested_layout:
+            requested_layout = "collection"
 
-        if not template_name and page.collection_config:
-            template_name = page.collection_config.get("template")
-
-        if not template_name:
-            templates_by_type = self.config.get("templates_by_type", {})
+        if not requested_layout:
+            templates_by_type = self.config.get("content.templates_by_type", {})
             if isinstance(templates_by_type, dict):
-                template_name = templates_by_type.get(page.page_type)
+                requested_layout = templates_by_type.get(page.page_type)
 
-        return template_name or "post.html"
+        if not requested_layout:
+            requested_layout = "document"
+
+        return self.theme_manager.resolve_layout(str(requested_layout), page)
 
     def _build_tailwind(self) -> None:
-        try:
-            build_tailwind(self.config)
-        except RuntimeError as exc:
-            self.logger.error(str(exc), exc_info=True)
-            raise
+        build_tailwind(self.config)
 
     def _load_site_data(self) -> None:
-        data_dir_value = self.config.get("data_dir")
+        data_dir_value = self.config.get("content.data_dir", self.config.get("data_dir"))
         if not data_dir_value:
             return
 
         data_dir = Path(data_dir_value)
         if not data_dir.exists():
-            self.logger.info(f"Data directory does not exist: {data_dir}")
+            self.logger.info("Data directory does not exist: %s", data_dir)
             return
 
         data_files = self.fs_manager.list_files(
@@ -377,21 +425,22 @@ class Project:
                 cursor[parts[-1]] = parsed
             except Exception as exc:
                 self.logger.error(
-                    f"Failed to load data file {data_file}: {exc}", exc_info=True
+                    "Failed to load data file %s: %s", data_file, exc, exc_info=True
                 )
 
         self.site.set_data(data)
 
     def _export_json_data(self) -> None:
-        frontend = self.config.get("frontend", {})
-        if not isinstance(frontend, dict):
-            return
-
-        export_data = frontend.get("export_data", {})
+        export_data = self.config.get(
+            "experimental.export_data",
+            self.config.get("frontend", {}).get("export_data", {}),
+        )
         if not isinstance(export_data, dict) or not export_data.get("enabled", False):
             return
 
-        output_dir = Path(self.config.get("output_directory"))
+        output_dir = Path(
+            self.config.get("build.output_directory", self.config.get("output_directory"))
+        )
         data_dir = Path(export_data.get("output_dir", "./output/data"))
         include_collections = export_data.get("include_collections")
         filter_collections = (
@@ -400,9 +449,9 @@ class Project:
 
         site_payload: dict = {
             "site": {
-                "name": self.config.get("site_name", ""),
-                "description": self.config.get("site_description", ""),
-                "base_url": self.config.get("base_url", ""),
+                "name": self.config.get("site.name", ""),
+                "description": self.config.get("site.description", ""),
+                "base_url": self.config.get("site.base_url", ""),
             },
             "pages": [],
         }
@@ -435,6 +484,8 @@ class Project:
                 "root_rel_url": page.root_rel_url,
                 "metadata": page.metadata,
                 "content_html": page.processed_content,
+                "blocks": page.blocks,
+                "layout": page.layout,
             }
 
             self.fs_manager.write_file(
@@ -465,33 +516,21 @@ class Project:
         )
 
     def _copy_assets(self) -> None:
-        """
-        Copies global site assets (e.g., CSS, JS, images) from source directories
-        to the output directory.
+        output_dir = Path(
+            self.config.get("build.output_directory", self.config.get("output_directory"))
+        )
+        self.theme_manager.prepare_theme_output(output_dir)
 
-        Always includes './styles' as default CSS template.
-        Additional asset directories can be specified in config under 'asset_dirs'.
-        """
-        output_dir: Path = Path(self.config.get("output_directory"))
-
-        # Get asset directories from config, always include './styles'
-        asset_dirs = self.config.get("asset_dirs", [])
+        asset_dirs = list(self.config.get("build.asset_dirs", self.config.get("asset_dirs", [])))
         if "./styles" not in asset_dirs:
             asset_dirs.insert(0, "./styles")
 
-        for asset_dir in asset_dirs:
-            asset_dir = Path(asset_dir)
-            if os.path.exists(asset_dir):
-                dest_dir = output_dir / asset_dir.name
-                try:
-                    self.fs_manager.copy_directory(asset_dir, dest_dir)
-                    self.logger.info(
-                        f"Copied asset directory: {asset_dir} -> {dest_dir}"
-                    )
-                except Exception as e:
-                    self.logger.error(
-                        f"Failed to copy asset directory {asset_dir}: {e}",
-                        exc_info=True,
-                    )
+        for asset_dir_value in asset_dirs:
+            asset_dir = Path(asset_dir_value)
+            if asset_dir.exists():
+                self.fs_manager.copy_directory(
+                    asset_dir, output_dir / asset_dir.name, exist_ok=True
+                )
+                self.logger.info("Copied asset directory: %s", asset_dir)
             else:
-                self.logger.warning(f"Asset directory does not exist: {asset_dir}")
+                self.logger.warning("Asset directory does not exist: %s", asset_dir)

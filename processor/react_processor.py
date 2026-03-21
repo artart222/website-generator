@@ -25,7 +25,7 @@ def build_react_section(
     """
     log = log or logger
 
-    react_cfg = config.get("react", {})
+    react_cfg = config.get("experimental.react", config.get("react", {}))
     if not isinstance(react_cfg, dict) or not react_cfg.get("enabled", False):
         return
 
@@ -48,16 +48,18 @@ def build_react_section(
     if asset_prefix and not str(asset_prefix).startswith("/"):
         asset_prefix = f"/{asset_prefix}"
 
-    frontend = config.get("frontend", {})
-    export_data = frontend.get("export_data", {}) if isinstance(frontend, dict) else {}
+    export_data = config.get(
+        "experimental.export_data",
+        config.get("frontend", {}).get("export_data", {}),
+    )
     if not export_data.get("enabled", False):
-        log.error("React build requires frontend.export_data.enabled = true.")
+        log.error("React build requires experimental.export_data.enabled = true.")
         return
 
     data_dir = Path(export_data.get("output_dir", "./output/data"))
     if not data_dir.exists():
         log.error(
-            "React build requires JSON data at %s. Enable frontend.export_data and run build.",
+            "React build requires JSON data at %s. Enable experimental.export_data and run build.",
             data_dir,
         )
         return

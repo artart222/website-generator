@@ -1,0 +1,30 @@
+<section class="block block--hero ledger-hero block--{{ block.variant|default:'default' }}">
+  <div class="ledger-hero__banner">
+    <span class="ledger-hero__banner-label">Lead story</span>
+    {% if block.content.eyebrow %}
+    <span class="ledger-hero__eyebrow">{{ block.content.eyebrow }}</span>
+    {% endif %}
+  </div>
+  <div class="ledger-hero__grid">
+    <div class="ledger-hero__main">
+      {% if block.content.title %}
+      <h2 class="block__title ledger-hero__title">{{ block.content.title }}</h2>
+      {% endif %}
+      {% if block.content.text %}
+      <p class="block__text ledger-hero__text">{{ block.content.text }}</p>
+      {% endif %}
+    </div>
+    <aside class="ledger-hero__actions">
+      <p class="ledger-hero__actions-label">Edition briefing</p>
+      {% if block.content.actions %}
+      <div class="block__actions ledger-hero__action-list">
+        {% for action in block.content.actions %}
+        <a href="{{ action.url }}" class="button">{{ forloop.counter|stringformat:"02d" }} / {{ action.label }}</a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="ledger-hero__actions-copy">Start with the latest dispatch, browse the archive, or open the source.</p>
+      {% endif %}
+    </aside>
+  </div>
+</section>

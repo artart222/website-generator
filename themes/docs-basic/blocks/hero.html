@@ -1,0 +1,19 @@
+<section class="docs-card docs-hero">
+  <div class="docs-hero__main">
+    {% if block.content.eyebrow %}<div class="page__eyebrow">{{ block.content.eyebrow }}</div>{% endif %}
+    <h2 class="block__title">{{ block.content.title }}</h2>
+    <p class="docs-hero__text">{{ block.content.text }}</p>
+  </div>
+  <aside class="docs-hero__panel">
+    <p class="docs-hero__label">Quickstart</p>
+    {% if block.content.actions %}
+    <div class="docs-hero__actions">
+      {% for action in block.content.actions %}
+      <a href="{{ action.url }}" class="button docs-hero__button"><span>{{ forloop.counter|stringformat:"02d" }}</span>{{ action.label }}</a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="docs-hero__copy">Pick an entry point and move through the site like a clean reference manual.</p>
+    {% endif %}
+  </aside>
+</section>

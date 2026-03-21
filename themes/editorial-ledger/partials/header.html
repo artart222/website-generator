@@ -1,0 +1,23 @@
+<header class="ledger-header ledger-header--{{ theme_component_presets.header|default:'masthead' }}">
+  <div class="ledger-header__inner">
+    <div class="ledger-header__meta">
+      <p class="ledger-header__kicker">Independent dispatches from a personal build desk</p>
+      <p class="ledger-header__stamp">No. 01 / Digital edition / Essays and build notes</p>
+    </div>
+    <div class="ledger-header__bar">
+      <span class="ledger-header__section">Tools / Design / Writing</span>
+      <a href="/" class="ledger-brand">{{ site_name }}</a>
+      <span class="ledger-header__edition">Morning ledger</span>
+    </div>
+    <nav class="ledger-nav" aria-label="Primary navigation">
+      <ul class="ledger-nav__list">
+        {% for item in navigation_items %}
+        <li class="ledger-nav__item">
+          <span class="ledger-nav__index">{{ forloop.counter|stringformat:"02d" }}</span>
+          <a href="{{ item.url }}" class="ledger-nav__link">{{ item.title }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+</header>

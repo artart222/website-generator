@@ -1,0 +1,44 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<article class="ledger-article page page--document" data-layout="{{ page_layout|default:'document' }}">
+  <header class="ledger-article__header">
+    <div class="ledger-article__eyebrow">{{ page_type|default:"article" }}</div>
+    <h1 class="ledger-article__title">{{ page_title }}</h1>
+    {% if page_summary %}
+    <p class="ledger-article__deck">{{ page_summary }}</p>
+    {% endif %}
+  </header>
+  <div class="ledger-article__rail">
+    <aside class="ledger-article__sidebar">
+      <section class="ledger-sidebar-card">
+        <p class="ledger-sidebar-card__label">Filed</p>
+        <div class="ledger-article__meta">
+          {% if page_date %}<span>{{ page_date }}</span>{% endif %}
+          {% if collection %}<span>{{ collection }}</span>{% endif %}
+          {% if page_type %}<span>{{ page_type }}</span>{% endif %}
+        </div>
+      </section>
+      {% if page_summary %}
+      <section class="ledger-sidebar-card">
+        <p class="ledger-sidebar-card__label">Standfirst</p>
+        <p class="ledger-sidebar-card__text">{{ page_summary }}</p>
+      </section>
+      {% endif %}
+    </aside>
+    <div class="ledger-article__body">
+      {% if rendered_blocks %}
+      <section class="ledger-article__blocks">
+        {{ rendered_blocks|safe }}
+      </section>
+      {% endif %}
+
+      {% if content %}
+      <section class="ledger-article__content prose">
+        {{ content|safe }}
+      </section>
+      {% endif %}
+    </div>
+  </div>
+</article>
+{% endblock %}

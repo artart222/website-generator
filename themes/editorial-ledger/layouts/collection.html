@@ -1,0 +1,22 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<section class="ledger-index page page--collection">
+  <header class="ledger-index__header">
+    <div class="ledger-index__eyebrow">{{ collection|default:"archive" }}</div>
+    <h1 class="ledger-index__title">{{ page_title }}</h1>
+    {% if page_description %}
+    <p class="ledger-index__summary">{{ page_description }}</p>
+    {% endif %}
+  </header>
+  <div class="ledger-index__columns">
+    <aside class="ledger-index__aside">
+      <p class="ledger-index__aside-label">Edition notes</p>
+      <p class="ledger-index__aside-copy">Essays, project logs, and build notes arranged like a running front page.</p>
+    </aside>
+    <div class="ledger-index__body ledger-index__body--{{ theme_component_presets.blog_index|default:'columns' }}">
+      {{ content|safe }}
+    </div>
+  </div>
+</section>
+{% endblock %}

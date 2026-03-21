@@ -1,77 +1,80 @@
-# Site Metadata
-site_name: artart222 Portfolio/Blog
-site_description: Portfolio and blog.
-base_url: https://artart.dev
-author: Artin Mobasher
+version: 1
 
-asset_dirs:
-  - ./source/assets
+site:
+  name: artart222 Portfolio/Blog
+  description: Portfolio and blog.
+  base_url: https://artart.dev
+  author: Artin Mobasher
+  navigation:
+    - title: Home
+      type: index
+    - title: Blog
+      collection_index: blog
+    - title: Shop
+      collection_index: shop
 
-# Output Paths
-source_directory: ./source
-data_dir: ./source/data
-output_directory: ./output
+content:
+  source_directory: ./source
+  data_dir: ./source/data
+  collections:
+    blog:
+      path: ./source/blogs
+      type: blog
+      route:
+        prefix: blog
+      layout: document
+      defaults:
+        layout: document
+      index:
+        enabled: true
+        layout: collection
+        output_path: blog/index.html
+        title: Blog
+    pages:
+      path: ./source
+      type: page
+      route:
+        prefix: ""
+      layout: document
+      defaults:
+        layout: document
+    # shop:
+    #   path: ./source/shop
+    #   type: shop
+    #   route:
+    #     prefix: shop
+    #   layout: document
+    #   defaults:
+    #     layout: document
+    #   index:
+    #     enabled: true
+    #     layout: collection
+    #     output_path: shop/index.html
+    #     title: Shop
 
-template_dirs:
-  - "./templates/blog-theme/"
+theme:
+  # name: minimal-blog
+  # name: editorial-ledger
+  # name: docs-basic
+  # name: sunlit-notes
+  name: midnight-zine
+  settings: ./theme.settings.yaml
+  site_theme_dir: ./site-theme
+  extra_css_urls:
+    - /styles/code.css
+  # name: docs-basic
+  # settings: ./theme.settings.yaml
+  # site_theme_dir: ./site-theme
+  # extra_css_urls:
+  #   - /styles/code.css
 
-# Template Engine
-template_engine: django # or jinja2, etc.
 
-templates_by_type:
-  blog: post.html
-  page: post.html
-  index: post.html
-  shop: post.html
-
-collections:
-  blog:
-    path: ./source/blogs
-    type: blog
-    template: post.html
-    url_prefix: blog
-    index:
-      enabled: true
-      template: blog-indexer.html
-      output_path: blog-indexer/index.html
-      title: Blog
-  pages:
-    path: ./source
-    type: page
-    template: post.html
-  shop:
-    path: ./source/shop
-    type: shop
-    template: post.html
-    url_prefix: shop
-    index:
-      enabled: false
-
-frontend:
-  theme: blog-theme
-  assets:
-    css:
-      - /styles/tailwind.css
-      - /styles/code.css
-    js: []
-  tailwind:
-    enabled: true
-    input: ./styles/tailwind.input.css
-    output: ./styles/tailwind.css
-    config: ./tailwind.config.js
-    minify: false
-  export_data:
-    enabled: true
-    output_dir: ./output/data
-    include_collections: []
-
-react:
-  enabled: true
-  collection: shop
-  app_dir: ./react-app
-  export_subdir: shop
-  base_path: /shop
-  asset_prefix: /shop
+build:
+  output_directory: ./output
+  asset_dirs:
+    - ./source/assets
+  template_engine: django
+  log_level: 10
 
 plugins:
   - CollectionIndexerPlugin
@@ -79,19 +82,21 @@ plugins:
   - PageKeyWordExtractor
   - SitemapPlugin
 
-# Program log levels:
-# Debug = 10
-# Info = 20
-# Warning = 30
-# Error = 40
-# Critical = 50
-log_level: 10
-
-# Navigation (can also be in a separate data file)
-navigation:
-  - title: Home
-    type: index
-  - title: Blog
-    type: blog-index
-  - title: Shop
-    url: /shop/
+experimental:
+  export_data:
+    enabled: false
+    output_dir: ./output/data
+    include_collections: []
+  react:
+    enabled: false
+    collection: shop
+    app_dir: ./react-app
+    export_subdir: shop
+    base_path: /shop
+    asset_prefix: /shop
+  tailwind:
+    enabled: false
+    input: ./styles/tailwind.input.css
+    output: ./styles/tailwind.css
+    config: ./tailwind.config.js
+    minify: false

@@ -1,113 +1,117 @@
+from __future__ import annotations
+
 import logging
+from typing import Any, Iterator
+
+from slugify import slugify
+
 from .config import Config
 from .page import Page
-from typing import Iterator
 
 
 class Site:
-    """
-    Represents the website to be generated as a data model.
-    Contains all pages and site-wide metadata.
-    """
+    """In-memory site model used across the build."""
 
     def __init__(self, config: Config) -> None:
         self.logger = logging.getLogger(__name__)
         self.config: Config = config
 
-        self.name: str = config.get("site_name", "Default Site Name")
-        self.base_url: str = config.get("base_url", "/")
+        self.name: str = str(config.get("site.name", config.get("site_name", "Website Generator")))
+        self.base_url: str = str(config.get("site.base_url", config.get("base_url", "/")))
         self.pages: list[Page] = []
         self.header = ""
-        self.data: dict = {}
-
-        self.logger.debug(f"Site object created for '{self.name}'.")
+        self.data: dict[str, Any] = {}
+        self.navigation_items: list[dict[str, Any]] = []
 
     def add_page(self, page: Page) -> None:
-        """
-        Adds a fully loaded Page object to the site's collection.
-
-        Args:
-            page: A single Page object to add.
-        """
         self.pages.append(page)
-        self.logger.debug(f"Page '{page.source_filepath}' added to site.")
+        self.logger.debug("Page '%s' added to site.", page.source_filepath)
 
-    def set_data(self, data: dict) -> None:
-        """
-        Sets structured data for use in templates.
-
-        Args:
-            data: Parsed data dictionary.
-        """
+    def set_data(self, data: dict[str, Any]) -> None:
         self.data = data
 
     def get_pages(self) -> list[Page]:
-        """
-        Returns a list of website pages.
-
-        Returns:
-            List of website pages.
-        """
         return self.pages
 
     def get_page_by_url(self, url: str) -> Page | None:
-        """
-        Retrieve a page by its URL.
-
-        Args:
-            url: The URL of the page to find.
-
-        Returns:
-            The matching Page instance if found, otherwise None.
-        """
         for page in self.pages:
             if page.abs_url == url:
                 return page
         return None
 
-    def get_page_by_type(self, type: str) -> list[Page]:
-        """
-        Returns a a list of pages with given type.
+    def get_page_by_type(self, page_type: str) -> list[Page]:
+        return [page for page in self.pages if page_type in page.get_page_type()]
 
-        Args:
-            type: The type of the pages to find.
-
-        Returns:
-            The matching Page instances if found.
-        """
-        pages = []
+    def get_collection_index_page(self, collection_name: str) -> Page | None:
         for page in self.pages:
-            page_types = page.get_page_type()
-            if page_types and type in page_types:
-                pages.append(page)
-        return pages
+            if getattr(page, "is_collection_index", False) and page.collection == collection_name:
+                return page
+        return None
+
+    def build_navigation(self) -> list[dict[str, Any]]:
+        nav_config = self.config.get("site.navigation", self.config.get("navigation", []))
+        if not isinstance(nav_config, list):
+            nav_config = []
+
+        navigation_items: list[dict[str, Any]] = []
+        for raw_item in nav_config:
+            if not isinstance(raw_item, dict):
+                continue
+
+            title = str(raw_item.get("title", "")).strip()
+            url = self._resolve_navigation_url(raw_item)
+            if not title or not url:
+                continue
+
+            navigation_items.append(
+                {
+                    "title": title,
+                    "url": url,
+                    "key": slugify(title),
+                    "is_external": str(url).startswith(("http://", "https://")),
+                }
+            )
+
+        self.navigation_items = navigation_items
+        self.header = self.populate_header()
+        return navigation_items
+
+    def _resolve_navigation_url(self, raw_item: dict[str, Any]) -> str:
+        url = raw_item.get("url")
+        if url:
+            return str(url)
+
+        collection_index = raw_item.get("collection_index")
+        if collection_index:
+            page = self.get_collection_index_page(str(collection_index))
+            return page.get_root_rel_url() if page else ""
+
+        page_type = raw_item.get("type")
+        if page_type:
+            candidates = self.get_page_by_type(str(page_type))
+            if candidates:
+                return candidates[0].get_root_rel_url()
+
+        collection_name = raw_item.get("collection")
+        if collection_name:
+            page = self.get_collection_index_page(str(collection_name))
+            if page:
+                return page.get_root_rel_url()
+
+        return ""
 
     def populate_header(self) -> str:
-        header_config: list[dict] = self.config.get("navigation", "")
-        header_str = ""
-        for header_item in header_config:
-            if header_item.get("url"):
-                header_str = (
-                    header_str
-                    + "\n"
-                    + f"<li><a href='{header_item.get('url')}'>{header_item.get('title')}</a></li>"
-                )
-                continue
-            for page in self.get_pages():
-                if header_item.get("type") in page.get_page_type():
-                    header_str = (
-                        header_str
-                        + "\n"
-                        + f"<li><a href='{page.get_root_rel_url()}'>{header_item.get('title')}</a></li>"
-                    )
-        self.header = header_str
-        return header_str
+        if not self.navigation_items:
+            self.build_navigation()
 
-    # It seems this make page iterable.
+        return "\n".join(
+            f"<li><a href='{item['url']}'>{item['title']}</a></li>"
+            for item in self.navigation_items
+        )
+
     def __iter__(self) -> Iterator[Page]:
         return iter(self.pages)
 
-    # The repr() function makes string representation of an object.
     def __repr__(self) -> str:
         return f"<Site name='{self.name}' pages={len(self.pages)}>"
 

@@ -47,7 +47,7 @@ def bootstrap(config_path: str | Path) -> Config:
     config.load(config_path)
 
     # --- reconfigure logging using config ---
-    log_level = config.get("log_level", DEFAULT_LOG_LEVEL)
+    log_level = config.get("build.log_level", config.get("log_level", DEFAULT_LOG_LEVEL))
     setup_logging(log_level)
 
     logger.debug("Logging configured with level: %s", log_level)

@@ -1,0 +1,27 @@
+<section class="block block--grid zine-features">
+  {% if block.content.title %}
+  <div class="zine-features__header">
+    <p class="zine-features__label">Issue picks</p>
+    <h2 class="block__title">{{ block.content.title }}</h2>
+  </div>
+  {% endif %}
+  <div class="feature-grid zine-features__grid">
+    {% for item in block.items %}
+    <article class="feature-card zine-feature zine-feature--{% if forloop.first %}cover{% else %}track{% endif %} feature-card--{{ theme_component_presets.cards|default:'default' }}">
+      <p class="zine-feature__kicker">{% if forloop.first %}Cover story{% else %}Track {{ forloop.counter|stringformat:"02d" }}{% endif %}</p>
+      <p class="zine-feature__number">{{ forloop.counter|stringformat:"02d" }}</p>
+      <h3 class="zine-feature__title">
+        {% if item.url %}
+        <a href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.title }}</a>
+        {% else %}
+        {{ item.title }}
+        {% endif %}
+      </h3>
+      <p class="zine-feature__text">{{ item.text }}</p>
+      {% if item.url %}
+      <p class="zine-feature__link"><a href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.link_label|default:"Open project" }}</a></p>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>

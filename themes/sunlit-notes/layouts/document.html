@@ -1,0 +1,44 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<article class="notes-entry page page--document" data-layout="{{ page_layout|default:'document' }}">
+  <header class="notes-entry__header">
+    <p class="notes-entry__eyebrow">{{ page_type|default:"journal" }}</p>
+    <h1 class="notes-entry__title">{{ page_title }}</h1>
+    {% if page_summary %}
+    <p class="notes-entry__summary">{{ page_summary }}</p>
+    {% endif %}
+  </header>
+  <div class="notes-entry__body">
+    <aside class="notes-entry__aside">
+      <section class="notes-sidecard">
+        <p class="notes-sidecard__label">Pinned</p>
+        <div class="notes-entry__meta">
+          {% if page_date %}<span>{{ page_date }}</span>{% endif %}
+          {% if collection %}<span>{{ collection }}</span>{% endif %}
+          {% if page_type %}<span>{{ page_type }}</span>{% endif %}
+        </div>
+      </section>
+      {% if page_summary %}
+      <section class="notes-sidecard">
+        <p class="notes-sidecard__label">Quick note</p>
+        <p class="notes-sidecard__text">{{ page_summary }}</p>
+      </section>
+      {% endif %}
+    </aside>
+    <div class="notes-entry__main">
+      {% if rendered_blocks %}
+      <section class="notes-entry__blocks">
+        {{ rendered_blocks|safe }}
+      </section>
+      {% endif %}
+
+      {% if content %}
+      <section class="notes-entry__content prose">
+        {{ content|safe }}
+      </section>
+      {% endif %}
+    </div>
+  </div>
+</article>
+{% endblock %}

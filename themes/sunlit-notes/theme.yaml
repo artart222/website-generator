@@ -1,0 +1,60 @@
+name: sunlit-notes
+version: 1
+engine: django
+layouts:
+  base: layouts/base.html
+  document: layouts/document.html
+  collection: layouts/collection.html
+  not_found: layouts/404.html
+assets:
+  styles:
+    base: styles/base.css
+  static_dirs:
+    - assets
+tokens:
+  colors:
+    bg: "#f7f1e1"
+    surface: "#fffdf7"
+    text: "#2b2c30"
+    muted: "#6e6f73"
+    accent: "#c95c35"
+    accent-contrast: "#fff8f2"
+    border: "#e2d7be"
+  typography:
+    body-family: "'Trebuchet MS', sans-serif"
+    heading-family: "'Palatino Linotype', 'Book Antiqua', serif"
+    font-size: "17px"
+  spacing:
+    container: "70rem"
+    section: "3.5rem"
+  radius:
+    card: "20px"
+    button: "18px"
+  shadows:
+    card: "0 16px 32px rgba(86, 65, 38, 0.10)"
+presets:
+  default:
+    components:
+      header: tabs
+      footer: notebook
+      cards: scrapbook
+      blog_index: stack
+      post: journal
+      buttons: soft
+  forest:
+    tokens:
+      colors:
+        accent: "#2f6e5f"
+        accent-contrast: "#f1fbf7"
+supports:
+  blocks: true
+  collection_index: true
+blocks:
+  core:
+    - hero
+    - rich_text
+    - feature_grid
+    - gallery
+    - cta
+    - faq
+  custom: []

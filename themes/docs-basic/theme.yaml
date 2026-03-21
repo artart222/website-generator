@@ -1,0 +1,55 @@
+name: docs-basic
+version: 1
+engine: django
+layouts:
+  base: layouts/base.html
+  document: layouts/document.html
+  collection: layouts/collection.html
+  not_found: layouts/404.html
+assets:
+  styles:
+    base: styles/base.css
+  static_dirs:
+    - assets
+tokens:
+  colors:
+    bg: "#eef3fb"
+    surface: "#fbfdff"
+    text: "#132238"
+    muted: "#52637d"
+    accent: "#0f5bd5"
+    accent-contrast: "#eff6ff"
+    border: "#d4ddea"
+  typography:
+    body-family: "'Trebuchet MS', sans-serif"
+    heading-family: "'Bahnschrift', 'Arial Narrow', sans-serif"
+    font-size: "16px"
+  spacing:
+    container: "82rem"
+    section: "3rem"
+  radius:
+    card: "22px"
+    button: "14px"
+  shadows:
+    card: "0 20px 38px rgba(27, 45, 78, 0.09)"
+presets:
+  default:
+    components:
+      header: docs
+      footer: docs
+      cards: quiet
+      blog_index: outline
+      post: docs
+      buttons: squared
+blocks:
+  core:
+    - hero
+    - rich_text
+    - feature_grid
+    - gallery
+    - cta
+    - faq
+  custom: []
+supports:
+  blocks: true
+  collection_index: true

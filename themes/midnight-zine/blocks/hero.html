@@ -1,0 +1,30 @@
+<section class="block block--hero zine-cover block--{{ block.variant|default:'default' }}">
+  <div class="zine-cover__mast">
+    {% if block.content.eyebrow %}
+    <p class="zine-cover__eyebrow">{{ block.content.eyebrow }}</p>
+    {% endif %}
+    <p class="zine-cover__issue">Issue 01 / Cover feature</p>
+  </div>
+  <div class="zine-cover__grid">
+    <div class="zine-cover__main">
+      {% if block.content.title %}
+      <h2 class="block__title zine-cover__title">{{ block.content.title }}</h2>
+      {% endif %}
+      {% if block.content.text %}
+      <p class="block__text zine-cover__text">{{ block.content.text }}</p>
+      {% endif %}
+    </div>
+    <aside class="zine-cover__cta">
+      <p class="zine-cover__label">Tracklist</p>
+      {% if block.content.actions %}
+      <div class="block__actions zine-cover__actions">
+        {% for action in block.content.actions %}
+        <a href="{{ action.url }}" class="button"><span class="zine-cover__action-index">{{ forloop.counter|stringformat:"02d" }}</span>{{ action.label }}</a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="zine-cover__copy">Start with the cover story, jump to the archive, or explore the source notes.</p>
+      {% endif %}
+    </aside>
+  </div>
+</section>

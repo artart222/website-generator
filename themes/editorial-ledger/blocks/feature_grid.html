@@ -1,0 +1,27 @@
+<section class="block block--grid ledger-briefs">
+  {% if block.content.title %}
+  <div class="ledger-briefs__header">
+    <p class="ledger-briefs__label">Desk notes</p>
+    <h2 class="block__title">{{ block.content.title }}</h2>
+  </div>
+  {% endif %}
+  <div class="feature-grid ledger-briefs__grid">
+    {% for item in block.items %}
+    <article class="feature-card ledger-brief ledger-brief--{% if forloop.first %}lead{% else %}column{% endif %} feature-card--{{ theme_component_presets.cards|default:'default' }}">
+      <p class="ledger-brief__rubric">{% if forloop.first %}Front page{% else %}Column {{ forloop.counter|stringformat:"02d" }}{% endif %}</p>
+      <p class="ledger-brief__index">{{ forloop.counter|stringformat:"02d" }}</p>
+      <h3 class="ledger-brief__title">
+        {% if item.url %}
+        <a href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.title }}</a>
+        {% else %}
+        {{ item.title }}
+        {% endif %}
+      </h3>
+      <p class="ledger-brief__text">{{ item.text }}</p>
+      {% if item.url %}
+      <p class="ledger-brief__link"><a href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.link_label|default:"View project" }}</a></p>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>

@@ -1,6 +1,10 @@
 from core.site import Site
 from .base_plugin import BasePlugin
-from bs4 import BeautifulSoup
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:  # pragma: no cover - fallback when bs4 is absent
+    BeautifulSoup = None
 
 
 class PageKeyWordExtractor(BasePlugin):
@@ -13,6 +17,11 @@ class PageKeyWordExtractor(BasePlugin):
 
     def after_page_parsed(self, **kwargs):
         # TODO: Maybe in future do weighted extraction.
+        if BeautifulSoup is None:
+            self.logger.warning(
+                "BeautifulSoup is not installed; keyword extraction has been skipped."
+            )
+            return
 
         site: Site = kwargs["site"]
 

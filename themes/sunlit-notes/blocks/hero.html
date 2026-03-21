@@ -1,0 +1,27 @@
+<section class="block block--hero notes-hero block--{{ block.variant|default:'default' }}">
+  <div class="notes-hero__tape notes-hero__tape--left"></div>
+  <div class="notes-hero__tape notes-hero__tape--right"></div>
+  <div class="notes-hero__sheet">
+    <div class="notes-hero__pin"></div>
+    {% if block.content.eyebrow %}
+    <p class="notes-hero__eyebrow">{{ block.content.eyebrow }}</p>
+    {% endif %}
+    {% if block.content.title %}
+    <h2 class="block__title notes-hero__title">{{ block.content.title }}</h2>
+    {% endif %}
+    {% if block.content.text %}
+    <p class="block__text notes-hero__text">{{ block.content.text }}</p>
+    {% endif %}
+  </div>
+  {% if block.content.actions %}
+  <div class="notes-hero__actions">
+    {% for action in block.content.actions %}
+    <a href="{{ action.url }}" class="button notes-hero__chip">{{ action.label }}</a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="notes-hero__actions">
+    <p class="notes-hero__copy">Start with the latest note, open the blog archive, or explore the source.</p>
+  </div>
+  {% endif %}
+</section>

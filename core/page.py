@@ -3,18 +3,20 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from typing import Any, Optional, TYPE_CHECKING
+
 from slugify import slugify
+
 from processor.base_processor import ContentProcessor
 from utils.fs_manager import FileSystemManager
 from .config import Config
-from typing import Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .site import Site
 
 
 class Page:
-    """Represents a single page in the website."""
+    """Represents a source document or generated page in the build."""
 
     def __init__(
         self,
@@ -22,308 +24,228 @@ class Page:
         config: Config,
         fs_manager: Optional[FileSystemManager],
     ) -> None:
-        """
-        Initializes a new Page object with its source path and configuration.
-
-        Args:
-            source_filepath (str): The path to the page's source file.
-            config (Config): A reference to the global configuration object.
-            fs_manager (FileSystemManager): An instance of the file system manager.
-        """
         self.logger = logging.getLogger(__name__)
         self.config: Config = config
-        self.source_filepath: Path = source_filepath
+        self.source_filepath: Path = Path(source_filepath) if source_filepath else Path()
         self.fs_manager: FileSystemManager | None = fs_manager
 
-        # Attributes to be populated by loading methods
         self.raw_content: str = ""
         self.processed_content: str = ""
-        self.metadata: dict = {}
+        self.metadata: dict[str, Any] = {}
         self.title: str = ""
         self.slug: str = ""
         self.page_type: str | None = None
-        self.author: str | list | None = ""
-        self.keywords: str | list | None = ""
+        self.summary: str = ""
+        self.description: str = ""
+        self.author: list[str] = []
+        self.keywords: list[str] = []
+        self.tags: list[str] = []
+        self.categories: list[str] = []
+        self.date: str = ""
+        self.draft: bool = False
         self.image: str = ""
         self.collection: str | None = None
         self.collection_config: dict | None = None
+        self.layout: str | None = None
+        self.layout_options: dict[str, Any] = {}
+        self.blocks: list[dict[str, Any]] = []
+        self.route_prefix: str = ""
+        self.is_generated: bool = False
+        self.is_collection_index: bool = False
 
-        self.output_path: Path = None  # type: ignore
+        self.output_path: Path | None = None
         self.abs_url: str = ""
         self.root_rel_url: str = ""
 
-    # TODO:
-    # Will be DEPRECATED.
-    # Instead load method will be used.
     def read_source_file(self) -> None:
-        """
-        Reads the raw content from the source file using a FileSystemManager.
-        """
-        self.logger.debug(f"Reading source file: {self.source_filepath}")
-        if self.fs_manager is not None:
+        if self.fs_manager is not None and self.source_filepath.is_file():
             self.raw_content = self.fs_manager.read_file(self.source_filepath)
         else:
-            self.logger.debug(
-                "Reading source file was not successful because no FileSystemManager has been provided"
-            )
-            return
+            self.raw_content = ""
 
-    # TODO:
-    # Will be DEPRECATED.
-    # Instead load method will be used.
     def process_content(self, content_processor: ContentProcessor | None) -> None:
-        """
-        Processes the raw content using the provided content processor.
-
-        If no processor is provided, the raw content is assigned to the
-        processed_content attribute without modification.
-
-        Args:
-            content_processor (ContentProcessor | None): The processor to use.
-        """
         if content_processor:
             self.processed_content = content_processor.process(self.raw_content)
-            # TODO: Add plugin manager on_parse hook here in future.
         else:
             self.processed_content = self.raw_content
-            self.logger.warning(
-                f"No content processor provided for page: {self.source_filepath}"
-            )
 
-    # TODO:
-    # Will be DEPRECATED.
-    # Instead load method will be used.
     def process_metadata(self, content_processor: ContentProcessor | None) -> None:
-        """
-        Extracts metadata using a content processor and sets the page `title`.
-
-        Args:
-            content_processor (ContentProcessor | None): The processor that was used.
-        """
         if content_processor:
             self.metadata = content_processor.get_metadata()
         else:
             self.metadata = {}
-            self.logger.debug(
-                f"No metadata processor available for page: {self.source_filepath}"
-            )
-
-        title_value = self.metadata.get("title")
-
-        if not title_value:
-            self.logger.debug(
-                f"No 'title' found in metadata for {self.source_filepath}."
-            )
-            return
-
-        if isinstance(title_value, list):
-            if len(title_value) > 1:
-                self.logger.warning(
-                    f"Multiple titles found for page '{self.source_filepath}'. Concatenating them."
-                )
-                self.title = " ".join(map(str, title_value))
-            elif len(title_value) == 1:
-                self.title = str(title_value[0])
-        else:
-            # Handle the case where title is not a list
-            self.title = str(title_value)
-
-        if not self.title:
-            self.logger.debug(
-                f"No title was ultimately set from metadata for {self.source_filepath}."
-            )
-
-        self.image = self.ensure_image_url_is_safe()
+        self._populate_attributes()
 
     def load(self, content_processor: ContentProcessor | None) -> None:
-        """
-        Reads, processes, and extracts all data for the page from its source file.
-
-        Args:
-            content_processor: An optional processor for content and metadata.
-        """
-        self.logger.debug(f"Loading page from: {self.source_filepath}")
-        if self.fs_manager is not None:
+        self.logger.debug("Loading page from: %s", self.source_filepath)
+        if self.fs_manager is not None and self.source_filepath.is_file():
             self.raw_content = self.fs_manager.read_file(self.source_filepath)
         else:
-            self.logger.error(
-                "FileSystemManager is not provided. Cannot read source file."
-            )
             self.raw_content = ""
 
         if content_processor:
             self.processed_content = content_processor.process(self.raw_content)
-            self.metadata = content_processor.get_metadata()
-            self.logger.info(f"Processed content for: {self.source_filepath}")
+            metadata = content_processor.get_metadata()
+            self.metadata = metadata if isinstance(metadata, dict) else {}
         else:
             self.processed_content = self.raw_content
-            self.logger.warning(
-                f"No content processor provided for: {self.source_filepath}"
-            )
+            self.metadata = {}
 
         self._populate_attributes()
 
-    def get_output_path_without_output_dir(self, output_dir: Path) -> Path:
-        """
-        Returns the output path without the base output directory.
+    def _populate_attributes(self) -> None:
+        default_title = (
+            os.path.splitext(os.path.basename(self.source_filepath))[0]
+            if str(self.source_filepath)
+            else "Generated Page"
+        )
 
-        Args:
-            output_dir (Path): The base output directory from the config.
+        self.title = str(self._first_value("title", default_title))
+        self.summary = str(self._first_value("summary", ""))
+        self.description = str(
+            self._first_value("description", self._first_value("summary", ""))
+        )
+        self.slug = slugify(str(self._first_value("slug", self.title or default_title)))
 
-        Returns:
-            Path: The output path without the base directory.
-        """
-        if self.output_path.is_relative_to(output_dir):
-            return self.output_path.relative_to(output_dir)
-        return self.output_path
+        page_type_value = self._first_value("type", None)
+        self.page_type = str(page_type_value) if page_type_value else self.page_type
+
+        self.author = self._ensure_string_list(
+            self.metadata.get("authors", self.metadata.get("author", []))
+        )
+        self.keywords = self._ensure_string_list(self.metadata.get("keywords", []))
+        self.tags = self._ensure_string_list(self.metadata.get("tags", []))
+        self.categories = self._ensure_string_list(self.metadata.get("categories", []))
+        self.date = str(self._first_value("date", ""))
+        self.draft = self._ensure_bool(self._first_value("draft", False))
+        self.image = self.ensure_image_url_is_safe()
+
+        layout_value = self._first_value("layout", self._first_value("template", None))
+        self.layout = str(layout_value) if layout_value else self.layout
+
+        layout_options = self.metadata.get("layout_options", {})
+        self.layout_options = layout_options if isinstance(layout_options, dict) else {}
+
+        blocks = self.metadata.get("blocks", [])
+        self.blocks = blocks if isinstance(blocks, list) else []
+
+        self.logger.debug(
+            "Page attributes populated for '%s': slug=%s type=%s layout=%s",
+            self.title,
+            self.slug,
+            self.page_type,
+            self.layout,
+        )
+
+    def _first_value(self, key: str, default: Any = None) -> Any:
+        value = self.metadata.get(key, default)
+        if isinstance(value, list):
+            if len(value) == 1:
+                return value[0]
+            return value
+        return value
+
+    def _ensure_string_list(self, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(item) for item in value]
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return [str(value)]
+
+    def _ensure_bool(self, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in {"true", "1", "yes", "on"}
+        return bool(value)
+
+    def get_output_path_without_output_dir(self, output_dir: Path | str) -> Path:
+        output_root = Path(output_dir)
+        if self.output_path and self.output_path.is_relative_to(output_root):
+            return self.output_path.relative_to(output_root)
+        return self.output_path or Path()
 
     def generate_abs_url(self) -> str:
-        """
-        Generates the URL for the page based on slug and page type.
+        base_url = str(
+            self.config.get("site.base_url", self.config.get("base_url", ""))
+        ).rstrip("/")
+        if not self.root_rel_url:
+            self.generate_root_rel_url()
 
-        Args:
-            base_url (str, optional): The base URL of the website (e.g., "https://example.com").
-                                    If not provided, returns a relative URL.
-
-        Returns:
-            str: The page URL.
-        """
-        base_url = self.config.get("base_url", "") if self.config is not None else ""
-        # Build relative path
-        parts = []
-        if self.page_type:
-            parts.append(self.page_type)
-        parts.append(self.slug)
-        relative_path = "/".join(parts) + "/"
-
-        # Combine with base URL if provided
-        if base_url:
-            # Ensure base_url doesn't end with '/'
-            base_url = base_url.rstrip("/")
-            self.abs_url = f"{base_url}/{relative_path}"
-        else:
-            self.abs_url = f"/{relative_path}"
-
+        self.abs_url = f"{base_url}{self.root_rel_url}" if base_url else self.root_rel_url
         return self.abs_url
 
     def generate_root_rel_url(self) -> str:
-        """
-        Generates the root-relative URL for the page based on slug and page type.
+        if not self.output_path:
+            self.root_rel_url = "/"
+            return self.root_rel_url
 
-        Returns:
-            str: The root-relative page URL.
-        """
         rel_path = self.get_output_path_without_output_dir(
-            self.config.get("output_directory", "")
+            self.config.get("build.output_directory", self.config.get("output_directory", "./output"))
         )
         rel_path_str = str(rel_path).replace(os.sep, "/")
 
-        if rel_path_str.endswith("index.html"):
-            rel_path_str = rel_path_str[: -len("index.html")]
+        if rel_path_str == "index.html":
+            self.root_rel_url = "/"
+            return self.root_rel_url
 
-        if not rel_path_str.startswith("/"):
-            rel_path_str = "/" + rel_path_str
+        if rel_path_str.endswith("/index.html"):
+            self.root_rel_url = "/" + rel_path_str[: -len("index.html")]
+            return self.root_rel_url
 
-        self.root_rel_url = rel_path_str or "/"
-
+        self.root_rel_url = "/" + rel_path_str
         return self.root_rel_url
-
-    def _populate_attributes(self) -> None:
-        """Internal helper method to set page attributes based on extracted metadata."""
-        default_title = os.path.splitext(os.path.basename(self.source_filepath))[0]
-        self.title = str(self.metadata.get("title", [default_title])[0])
-
-        slug_source = str(self.metadata.get("slug", [self.title])[0])
-        self.slug = slugify(slug_source)
-
-        # TODO: In future change page_type to list of types
-        # Not a list with a type.
-        page_type_value = self.metadata.get("type", [None])[0]
-        self.page_type = str(page_type_value) if page_type_value else None
-
-        self.author = self.metadata.get("authors", [])
-        self.keywords = self.metadata.get("keywords", [])
-
-        self.logger.debug(
-            f"Final attributes for page '{self.title}': Slug='{self.slug}', Type='{self.page_type}', Author='{self.author}', Keywords='{self.keywords}'"
-        )
 
     def calculate_output_path(
         self, output_dir: Path, url_prefix: str | None = None
     ) -> Path:
-        """
-        Determines the final output path for the rendered HTML file.
+        prefix = url_prefix if url_prefix is not None else self.get_route_prefix()
 
-        Args:
-            output_dir (Path): The base output directory from the config.
-            url_prefix (str | None): Optional URL prefix override (e.g., collection prefix).
+        if self.is_home_page():
+            self.output_path = output_dir / "index.html"
+            return self.output_path
 
-        Returns:
-            Path: The full path for the output file.
-        """
-        if not self.fs_manager:
-            raise RuntimeError("FileSystemManager is required to create output paths")
+        if self.is_not_found_page():
+            self.output_path = output_dir / "404.html"
+            return self.output_path
 
-        # Build slugified folder path
         folder_path = output_dir
-        prefix = url_prefix if url_prefix is not None else self.page_type
         if prefix:
             folder_path = folder_path / slugify(prefix)
-        folder_path = folder_path / slugify(self.slug)
+        if self.slug:
+            folder_path = folder_path / slugify(self.slug)
 
-        # Ensure folder exists via fs_manager
-        # self.fs_manager.create_directory(folder_path)
-
-        # Set output path to 'index.html' inside folder
         self.output_path = folder_path / "index.html"
         return self.output_path
 
     def set_raw_content(self, content: str) -> None:
-        """Sets the page raw content.
-
-        Args:
-            content: Input content which will be set for raw_content.
-        """
         self.raw_content = content
 
     def set_processed_content(self, content: str) -> None:
-        """Sets the page processed content.
-
-        Args:
-            content: Input content which will be set for processed_content.
-        """
         self.processed_content = content
 
     def add_metadata(self, inp: dict[str, Any]) -> None:
-        """
-        Adds a metadata to page metadadas.
-
-        Args:
-            inp: a dictionary which it's items will be added to metadata.
-        """
         self.metadata.update(inp)
+        self._populate_attributes()
 
     def set_slug(self) -> None:
-        """Sets the page slug based on metadata or title."""
-        slug_source = self.metadata.get("slug", [self.title])[0]
+        slug_source = self._first_value("slug", self.title)
         self.slug = slugify(str(slug_source))
 
     def set_title(self) -> None:
-        """Sets the page title based on metadata or source filename."""
-        default_title = os.path.splitext(os.path.basename(self.source_filepath))[0]
-        self.title = str(self.metadata.get("title", [default_title])[0])
+        default_title = (
+            os.path.splitext(os.path.basename(self.source_filepath))[0]
+            if str(self.source_filepath)
+            else "Generated Page"
+        )
+        self.title = str(self._first_value("title", default_title))
 
     def set_page_type(self, page_type: str) -> None:
-        """
-        Sets the page type based on input.
-
-        Args:
-            page_type: The page type which user want to set.
-        """
         self.page_type = page_type
 
     def set_output_path(self, output_path: Path) -> None:
-        """Sets the output path for the page."""
         self.output_path = output_path
 
     def get_context(
@@ -332,141 +254,106 @@ class Page:
         site: Site | None = None,
         stylesheets: Optional[list[str]] = None,
         scripts: Optional[list[str]] = None,
+        navigation_items: Optional[list[dict[str, Any]]] = None,
+        theme_context: Optional[dict[str, Any]] = None,
+        rendered_blocks: str = "",
+        layout_options: Optional[dict[str, Any]] = None,
     ) -> dict:
-        """
-        Returns the context dictionary to be passed to templates.
-
-        Returns:
-            Context which have at least `content` and `page_title`.
-        """
-        frontend = self.config.get("frontend", {}) if self.config is not None else {}
-        assets = frontend.get("assets", {}) if isinstance(frontend, dict) else {}
-        stylesheets = (
-            stylesheets if stylesheets is not None else assets.get("css") or []
-        )
-        scripts = scripts if scripts is not None else assets.get("js") or []
+        theme_context = theme_context or {}
+        layout_options = layout_options or {}
 
         return {
             "content": self.processed_content,
+            "rendered_blocks": rendered_blocks,
             "page_title": self.get_title(),
-            "header": header,
+            "page_summary": self.summary,
             "page_description": self.get_page_description(),
             "page_keywords": self.keywords,
             "page_authors": self.author,
-            "site_name": self.config.get("site_name", "Default Site Name"),
+            "page_tags": self.tags,
+            "page_categories": self.categories,
+            "page_date": self.date,
+            "page_draft": self.draft,
+            "site_name": self.config.get("site.name", self.config.get("site_name", "Website Generator")),
             "page_url": self.get_abs_url(),
             "page_image": self.metadata.get("image", "/assets/default-share.png"),
             "page_type": self.page_type,
+            "page_layout": self.layout,
+            "page_layout_options": layout_options,
+            "page_blocks": self.blocks,
             "page_meta": self.metadata,
             "page": self,
             "site": site,
-            "frontend": frontend,
-            "theme": frontend.get("theme") if isinstance(frontend, dict) else None,
-            "stylesheets": stylesheets,
-            "scripts": scripts,
+            "site_data": site.data if site else {},
+            "header": header,
+            "navigation_items": navigation_items or [],
+            "stylesheets": stylesheets or [],
+            "scripts": scripts or [],
+            "body_class": "",
+            "container_class": "",
             "collection": self.collection,
             "collection_config": self.collection_config,
-            "site_data": site.data if site else {},
+            "theme": theme_context.get("theme_name"),
+            "theme_manifest": theme_context.get("theme_manifest", {}),
+            "theme_settings": theme_context.get("theme_settings", {}),
+            "theme_tokens": theme_context.get("theme_tokens", {}),
+            "theme_component_presets": theme_context.get(
+                "theme_component_presets", {}
+            ),
+            "core_blocks": theme_context.get("core_blocks", []),
         }
 
     def set_rel_url(self, rel_url: str) -> None:
-        """
-        Sets the root-relative URL for the page.
-
-        Args:
-            rel_url: The root-relative URL to set.
-        """
         self.root_rel_url = rel_url
 
     def get_title(self) -> str:
-        """
-        Returns the page title.
-
-        Returns:
-            The page title.
-        """
         return self.title
 
     def get_page_description(self) -> str:
-        """
-        Returns the page description from metadata if available.
-
-        Returns:
-            The page description or an empty string if not set.
-        """
-
-        description = self.metadata.get("description", "")
-        if isinstance(description, list):
-            return str(description[0]) if description else ""
-        return str(description)
+        return self.description
 
     def get_metadata(self) -> dict:
-        """
-        Returns the page metadata dictionary.
-
-        Returns:
-            The page metadata.
-        """
         return self.metadata
 
-    def get_page_type(self) -> list:
-        """
-        Returns the page type as a list.
-
-        Returns:
-            List containing the page type, or empty if None.
-        """
+    def get_page_type(self) -> list[str]:
         if isinstance(self.page_type, list):
             return self.page_type
-        elif self.page_type is None:
+        if self.page_type is None:
             return []
-        else:
-            return [self.page_type]
+        return [self.page_type]
 
     def get_source_filepath(self) -> Path:
-        """
-        Returns the source file path of the page.
-
-        Returns:
-            The path to source file.
-        """
         return self.source_filepath
 
     def get_slug(self) -> str:
-        """
-        Returns the page slug.
-
-        Returns:
-            The page slug.
-        """
         return self.slug
 
-    def get_output_path(self) -> Path:
-        """
-        Returns the output path of the rendered HTML file.
-
-        Returns:
-            The path to output file.
-        """
+    def get_output_path(self) -> Path | None:
         return self.output_path
 
     def get_abs_url(self) -> str:
-        """
-        Returns the absolute URL of HTML file.
-
-        Returns:
-            The absolute URL of HTML file.
-        """
         return self.abs_url
 
     def get_root_rel_url(self) -> str:
-        """
-        Returns the root-relative URL of HTML file.
-
-        Returns:
-            The root-relative URL of HTML file.
-        """
         return self.root_rel_url
+
+    def get_route_prefix(self) -> str:
+        if self.route_prefix:
+            return self.route_prefix
+        if isinstance(self.collection_config, dict):
+            route = self.collection_config.get("route", {})
+            if isinstance(route, dict):
+                return str(route.get("prefix", ""))
+        return ""
+
+    def set_route_prefix(self, route_prefix: str) -> None:
+        self.route_prefix = route_prefix
+
+    def is_home_page(self) -> bool:
+        return self.page_type in {"index", "home"} or self.slug in {"index", "home"}
+
+    def is_not_found_page(self) -> bool:
+        return self.page_type == "404" or self.slug == "404"
 
     def ensure_image_url_is_safe(self) -> str:
         image_addr: Any = self.metadata.get("image")

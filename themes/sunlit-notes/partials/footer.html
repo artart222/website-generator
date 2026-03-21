@@ -1,0 +1,14 @@
+<footer class="notes-footer notes-footer--{{ theme_component_presets.footer|default:'notebook' }}">
+  <div class="notes-footer__inner">
+    <div class="notes-footer__signoff">
+      <p class="notes-footer__eyebrow">Signed off</p>
+      <p class="notes-footer__name">{{ site_name }}</p>
+    </div>
+    <p class="notes-footer__note">Notebook-style theme for reflective blog posts and personal archives.</p>
+    <div class="notes-footer__links">
+      {% for item in navigation_items %}
+      <a href="{{ item.url }}" class="notes-footer__link">{{ item.title }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</footer>

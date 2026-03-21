@@ -1,0 +1,11 @@
+<footer class="zine-footer zine-footer--{{ theme_component_presets.footer|default:'signal' }}">
+  <div class="zine-footer__inner">
+    <p class="zine-footer__brand">{{ site_name }}</p>
+    <p class="zine-footer__copy">Magazine-style theme for product updates, essays, and launch posts.</p>
+    <div class="zine-footer__ticker">
+      {% for item in navigation_items %}
+      <span class="zine-footer__tick">{{ item.title }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</footer>

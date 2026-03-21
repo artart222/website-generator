@@ -1,0 +1,16 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<section class="page page--collection">
+  <header class="page__header">
+    <div class="page__eyebrow">{{ collection|default:"collection" }}</div>
+    <h1 class="page__title">{{ page_title }}</h1>
+    {% if page_description %}
+    <p class="page__summary">{{ page_description }}</p>
+    {% endif %}
+  </header>
+  <div class="collection-shell collection-shell--{{ theme_component_presets.blog_index|default:'default' }}">
+    {{ content|safe }}
+  </div>
+</section>
+{% endblock %}

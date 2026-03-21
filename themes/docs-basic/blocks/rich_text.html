@@ -1,0 +1,6 @@
+<section class="docs-card docs-rich-text">
+  {% if block.content.title %}<h2 class="block__title">{{ block.content.title }}</h2>{% endif %}
+  <div class="docs-prose">
+    {% if block.content.html %}{{ block.content.html|safe }}{% else %}<p>{{ block.content.text }}</p>{% endif %}
+  </div>
+</section>

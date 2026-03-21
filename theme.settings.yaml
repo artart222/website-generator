@@ -1,0 +1,14 @@
+preset: default
+
+presets: {}
+
+# tokens:
+#   colors:
+#     accent: "#d19a66"
+#     accent-contrast: "#ecfeff"
+#   typography:
+#     body-family: "'Segoe UI', sans-serif"
+#     heading-family: "'Georgia', serif"
+
+stylesheets: []
+scripts: []

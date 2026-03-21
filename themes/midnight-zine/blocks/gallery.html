@@ -1,0 +1,13 @@
+<section class="block block--gallery">
+  {% if block.content.title %}
+  <h2 class="block__title">{{ block.content.title }}</h2>
+  {% endif %}
+  <div class="gallery-grid">
+    {% for item in block.items %}
+    <figure class="gallery-card">
+      <img src="{{ item.image }}" alt="{{ item.alt|default:item.title }}">
+      {% if item.title %}<figcaption>{{ item.title }}</figcaption>{% endif %}
+    </figure>
+    {% endfor %}
+  </div>
+</section>

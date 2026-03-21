@@ -16,11 +16,10 @@ def build_tailwind(config: Config) -> None:
     Args:
         config: The project configuration object.
     """
-    frontend = config.get("frontend", {})
-    if not isinstance(frontend, dict):
-        return
-
-    tailwind = frontend.get("tailwind", {})
+    tailwind = config.get(
+        "experimental.tailwind",
+        config.get("frontend", {}).get("tailwind", {}),
+    )
     if not isinstance(tailwind, dict) or not tailwind.get("enabled", False):
         logger.info("Tailwind build is disabled.")
         return

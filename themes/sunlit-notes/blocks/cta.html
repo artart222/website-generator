@@ -1,0 +1,20 @@
+<section class="block block--cta notes-cta">
+  <div class="cta-card notes-cta__card">
+    <div class="notes-cta__body">
+      <p class="notes-cta__eyebrow">Postcard</p>
+      <div>
+    {% if block.content.title %}
+    <h2 class="block__title">{{ block.content.title }}</h2>
+    {% endif %}
+    {% if block.content.text %}
+    <p class="block__text">{{ block.content.text }}</p>
+    {% endif %}
+      </div>
+    </div>
+    {% if block.content.action %}
+    <div class="notes-cta__action">
+      <a href="{{ block.content.action.url }}" class="button">{{ block.content.action.label }}</a>
+    </div>
+    {% endif %}
+  </div>
+</section>

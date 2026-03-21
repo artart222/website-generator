@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% for css_path in stylesheets %}
+  <link rel="stylesheet" href="{{ css_path }}">
+  {% endfor %}
+  <link rel="canonical" href="{{ page_url }}">
+  <title>{{ page_title }}</title>
+  <meta name="description" content="{{ page_description }}">
+</head>
+<body class="zine-shell {{ body_class|default:'' }}">
+  <div class="zine-shell__halo"></div>
+  {% include "partials/header.html" %}
+  <main class="zine-main {{ container_class|default:'' }}">
+    {% block content %}{% endblock %}
+  </main>
+  {% include "partials/footer.html" %}
+  {% for js_path in scripts %}
+  <script src="{{ js_path }}" defer></script>
+  {% endfor %}
+</body>
+</html>

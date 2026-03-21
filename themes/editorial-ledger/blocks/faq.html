@@ -1,0 +1,13 @@
+<section class="block block--faq">
+  {% if block.content.title %}
+  <h2 class="block__title">{{ block.content.title }}</h2>
+  {% endif %}
+  <div class="faq-list">
+    {% for item in block.items %}
+    <article class="faq-item">
+      <h3>{{ item.question }}</h3>
+      <p>{{ item.answer }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>

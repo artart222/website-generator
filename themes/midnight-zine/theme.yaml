@@ -1,0 +1,60 @@
+name: midnight-zine
+version: 1
+engine: django
+layouts:
+  base: layouts/base.html
+  document: layouts/document.html
+  collection: layouts/collection.html
+  not_found: layouts/404.html
+assets:
+  styles:
+    base: styles/base.css
+  static_dirs:
+    - assets
+tokens:
+  colors:
+    bg: "#090d16"
+    surface: "#10182a"
+    text: "#f6f6f2"
+    muted: "#96a3bc"
+    accent: "#ff5da2"
+    accent-contrast: "#1a0b16"
+    border: "#28324a"
+  typography:
+    body-family: "'Franklin Gothic Book', 'Arial Narrow', sans-serif"
+    heading-family: "'Impact', 'Arial Black', sans-serif"
+    font-size: "17px"
+  spacing:
+    container: "82rem"
+    section: "4rem"
+  radius:
+    card: "28px"
+    button: "999px"
+  shadows:
+    card: "0 24px 60px rgba(0, 0, 0, 0.45)"
+presets:
+  default:
+    components:
+      header: signal
+      footer: signal
+      cards: loud
+      blog_index: tiles
+      post: spotlight
+      buttons: loud
+  dawn:
+    tokens:
+      colors:
+        accent: "#58e1ff"
+        accent-contrast: "#04141a"
+supports:
+  blocks: true
+  collection_index: true
+blocks:
+  core:
+    - hero
+    - rich_text
+    - feature_grid
+    - gallery
+    - cta
+    - faq
+  custom: []

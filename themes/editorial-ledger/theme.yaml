@@ -1,0 +1,62 @@
+name: editorial-ledger
+version: 1
+engine: django
+layouts:
+  base: layouts/base.html
+  document: layouts/document.html
+  collection: layouts/collection.html
+  not_found: layouts/404.html
+assets:
+  styles:
+    base: styles/base.css
+  static_dirs:
+    - assets
+tokens:
+  colors:
+    bg: "#efe5d6"
+    surface: "#fffaf1"
+    text: "#2d2418"
+    muted: "#7a6a58"
+    accent: "#8f3b2e"
+    accent-contrast: "#fff9f2"
+    border: "#d7c6ae"
+  typography:
+    body-family: "'Palatino Linotype', 'Book Antiqua', serif"
+    heading-family: "'Baskerville Old Face', 'Times New Roman', serif"
+    font-size: "18px"
+  spacing:
+    container: "78rem"
+    section: "4rem"
+  radius:
+    card: "6px"
+    button: "999px"
+  shadows:
+    card: "0 18px 30px rgba(59, 35, 16, 0.08)"
+presets:
+  default:
+    components:
+      header: masthead
+      footer: edition
+      cards: paper
+      blog_index: columns
+      post: editorial
+      buttons: ink
+  weekend:
+    tokens:
+      colors:
+        bg: "#f8f1e8"
+        surface: "#fffdf8"
+        accent: "#305f72"
+        accent-contrast: "#f8fcff"
+supports:
+  blocks: true
+  collection_index: true
+blocks:
+  core:
+    - hero
+    - rich_text
+    - feature_grid
+    - gallery
+    - cta
+    - faq
+  custom: []

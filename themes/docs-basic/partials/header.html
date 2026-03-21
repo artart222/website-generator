@@ -1,0 +1,19 @@
+<header class="docs-header">
+  <div class="docs-header__bar">
+    <span class="docs-header__status">Stable build</span>
+    <span class="docs-header__status-line">Technical journal theme for changelogs, notes, and documentation-style posts</span>
+  </div>
+  <div class="docs-header__inner">
+    <div class="docs-branding">
+      <a href="/" class="docs-brand">{{ site_name }}</a>
+      <p class="docs-brand__caption">Field manual for projects, essays, and implementation notes</p>
+    </div>
+    <nav aria-label="Primary navigation">
+      <ul class="docs-nav">
+        {% for item in navigation_items %}
+        <li><a href="{{ item.url }}"><span class="docs-nav__index">{{ forloop.counter|stringformat:"02d" }}</span>{{ item.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+</header>

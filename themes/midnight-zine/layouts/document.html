@@ -1,0 +1,48 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<article class="zine-article page page--document" data-layout="{{ page_layout|default:'document' }}">
+  <header class="zine-hero">
+    <div class="zine-hero__meta">
+      {% if page_type %}<span>{{ page_type }}</span>{% endif %}
+      {% if page_date %}<span>{{ page_date }}</span>{% endif %}
+      {% if collection %}<span>{{ collection }}</span>{% endif %}
+    </div>
+    <h1 class="zine-hero__title">{{ page_title }}</h1>
+    {% if page_summary %}
+    <p class="zine-hero__summary">{{ page_summary }}</p>
+    {% endif %}
+  </header>
+  <div class="zine-article__frame">
+    <div class="zine-article__body">
+      {% if rendered_blocks %}
+      <section class="zine-article__blocks">
+        {{ rendered_blocks|safe }}
+      </section>
+      {% endif %}
+
+      {% if content %}
+      <section class="zine-article__content prose">
+        {{ content|safe }}
+      </section>
+      {% endif %}
+    </div>
+    <aside class="zine-article__sidebar">
+      <section class="zine-sidecard">
+        <p class="zine-sidecard__label">Broadcast</p>
+        <ul class="zine-sidecard__list">
+          {% if page_type %}<li>{{ page_type }}</li>{% endif %}
+          {% if collection %}<li>{{ collection }}</li>{% endif %}
+          {% if page_date %}<li>{{ page_date }}</li>{% endif %}
+        </ul>
+      </section>
+      {% if page_summary %}
+      <section class="zine-sidecard">
+        <p class="zine-sidecard__label">Pull quote</p>
+        <p class="zine-sidecard__text">{{ page_summary }}</p>
+      </section>
+      {% endif %}
+    </aside>
+  </div>
+</article>
+{% endblock %}

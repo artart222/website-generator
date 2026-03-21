@@ -1,0 +1,14 @@
+<footer class="ledger-footer ledger-footer--{{ theme_component_presets.footer|default:'edition' }}">
+  <div class="ledger-footer__inner">
+    <div class="ledger-footer__colophon">
+      <p class="ledger-footer__eyebrow">Colophon</p>
+      <p class="ledger-footer__name">{{ site_name }}</p>
+    </div>
+    <p class="ledger-footer__note">Editorial theme for essays, notes, and archive pages arranged like a small digital paper.</p>
+    <div class="ledger-footer__links">
+      {% for item in navigation_items %}
+      <a href="{{ item.url }}" class="ledger-footer__link">{{ item.title }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</footer>

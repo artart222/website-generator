@@ -30,11 +30,15 @@ class SitemapPlugin(BasePlugin):
 
         sitemap_entries = []
 
+        base_url = str(config.get("site.base_url", config.get("base_url", ""))).rstrip("/")
+
         for page in site.get_pages():
             self.logger.debug(
                 f"Processing page for sitemap: {page.title} ({page.get_root_rel_url()})"
             )
-            url = page.get_root_rel_url()
+            url = page.get_abs_url() or page.get_root_rel_url()
+            if base_url and url.startswith("/"):
+                url = f"{base_url}{url}"
 
             # last modified date (Today)
             lastmod = getattr(page, "last_modified", date.today()).isoformat()

@@ -1,0 +1,19 @@
+<header class="zine-header zine-header--{{ theme_component_presets.header|default:'signal' }}">
+  <div class="zine-header__signal">
+    <span class="zine-header__badge">Live</span>
+    <span class="zine-header__signal-text">Late-night essays, notes, and release dispatches</span>
+  </div>
+  <div class="zine-header__inner">
+    <a href="/" class="zine-brand">{{ site_name }}</a>
+    <p class="zine-header__issue">Vol. 01 / Night shift issue</p>
+    <nav class="zine-nav" aria-label="Primary navigation">
+      <ul class="zine-nav__list">
+        {% for item in navigation_items %}
+        <li class="zine-nav__item">
+          <a href="{{ item.url }}" class="zine-nav__link"><span class="zine-nav__index">{{ forloop.counter|stringformat:"02d" }}</span>{{ item.title }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+</header>

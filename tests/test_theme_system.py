@@ -21,7 +21,9 @@ def test_theme_manager_loads_manifest_and_tokens():
 
     assert manager.manifest["name"] == "minimal-blog"
     assert "document" in manager.manifest["layouts"]
-    assert manager.get_resolved_tokens()["colors"]["accent"] == "#0f766e"
+    assert manager.get_resolved_tokens()["colors"]["accent"] == (
+        manager.manifest["tokens"]["colors"]["accent"]
+    )
 
 
 def test_theme_manager_generates_theme_css_and_override_file():

@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyd
 *.pyo
+.pytest_cache/
 
 # Distribution / packaging
 .venv/
@@ -15,12 +16,9 @@ website-generator.code-workspace
 # Output items
 output/
 output.zip
+react-app/public/data/
 
 # React app artifacts
 react-app/node_modules/
 react-app/.next/
 react-app/out/
-
-# Dead codes
-styles/styles.css
-plugins/blog_indexer.py

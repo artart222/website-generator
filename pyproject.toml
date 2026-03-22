@@ -12,6 +12,18 @@ license = { text = "MIT" }
 authors = [
   { name = "Artin Mobasher" }
 ]
+keywords = ["static-site-generator", "python", "blog", "themes", "markdown"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Framework :: Django",
+  "Topic :: Internet :: WWW/HTTP :: Site Management",
+]
 dependencies = [
   "asgiref==3.8.1",
   "beautifulsoup4==4.12.3",
@@ -23,6 +35,11 @@ dependencies = [
   "python-slugify==8.0.4",
   "PyYAML==6.0.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/artart222/website-generator"
+Repository = "https://github.com/artart222/website-generator"
+Issues = "https://github.com/artart222/website-generator/issues"
 
 [project.optional-dependencies]
 dev = [

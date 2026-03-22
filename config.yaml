@@ -3,15 +3,13 @@ version: 1
 site:
   name: artart222 Portfolio/Blog
   description: Portfolio and blog.
-  base_url: artart222.github.io
+  base_url: https://artart222.github.io
   author: Artin Mobasher
   navigation:
     - title: Home
       type: index
     - title: Blog
       collection_index: blog
-    - title: Shop
-      collection_index: shop
 
 content:
   source_directory: ./source
@@ -62,11 +60,6 @@ theme:
   site_theme_dir: ./site-theme
   extra_css_urls:
     - /styles/code.css
-  # name: docs-basic
-  # settings: ./theme.settings.yaml
-  # site_theme_dir: ./site-theme
-  # extra_css_urls:
-  #   - /styles/code.css
 
 
 build:
@@ -74,7 +67,7 @@ build:
   asset_dirs:
     - ./source/assets
   template_engine: django
-  log_level: 10
+  log_level: 20
 
 plugins:
   - CollectionIndexerPlugin

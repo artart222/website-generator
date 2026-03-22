@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import time
+from slugify import slugify
 
 from core.bootstrap import bootstrap
 from core.project import Project
@@ -36,6 +37,12 @@ def cmd_serve(args: argparse.Namespace) -> int:
         project.build()
 
     output_dir = Path(config.get("build.output_directory", config.get("output_directory")))
+    if not output_dir.exists():
+        raise FileNotFoundError(
+            f"Output directory does not exist: {output_dir}. Run 'wg build' first or use '--build-first'."
+        )
+    if not output_dir.is_dir():
+        raise NotADirectoryError(f"Output path is not a directory: {output_dir}")
     os.chdir(output_dir)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), SimpleHTTPRequestHandler)
     logger.info("Serving %s at http://127.0.0.1:%s", output_dir, args.port)
@@ -77,8 +84,11 @@ def cmd_init(args: argparse.Namespace) -> int:
     fs_manager = FileSystemManager()
     fs_manager.create_directory(target_dir)
     fs_manager.create_directory(target_dir / "source")
+    fs_manager.create_directory(target_dir / "source" / "assets")
     fs_manager.create_directory(target_dir / "source" / "blogs")
+    fs_manager.create_directory(target_dir / "source" / "data")
     fs_manager.create_directory(target_dir / "site-theme")
+    fs_manager.create_directory(target_dir / "styles")
 
     config_path = target_dir / "config.yaml"
     theme_settings_path = target_dir / "theme.settings.yaml"
@@ -379,6 +389,10 @@ def cmd_theme_eject(args: argparse.Namespace) -> int:
 
     if not source.exists():
         raise FileNotFoundError(f"Theme file not found: {source}")
+    if destination.exists():
+        raise FileExistsError(
+            f"Theme override already exists: {destination}. Remove it first if you want to replace it."
+        )
 
     fs_manager.create_directory(destination.parent)
     fs_manager.copy_file(source, destination)
@@ -399,8 +413,12 @@ def _create_content_file(
     fs_manager = FileSystemManager()
     fs_manager.create_directory(collection_path)
 
-    slug = args.slug or args.title.lower().replace(" ", "-")
+    slug = slugify(args.slug or args.title)
     file_path = collection_path / f"{slug}.md"
+    if file_path.exists():
+        raise FileExistsError(
+            f"Content file already exists: {file_path}. Choose a different title or pass --slug."
+        )
     template = f"""---
 title: {args.title}
 slug: {slug}

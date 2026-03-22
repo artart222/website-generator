@@ -1,5 +1,8 @@
 # Website Generator
 
+[![Tests](https://github.com/artart222/website-generator/actions/workflows/tests.yml/badge.svg)](https://github.com/artart222/website-generator/actions/workflows/tests.yml)
+[![Code Quality](https://github.com/artart222/website-generator/actions/workflows/pylint.yml/badge.svg)](https://github.com/artart222/website-generator/actions/workflows/pylint.yml)
+
 Developer-first static site generator built in Python.
 
 It turns Markdown content, YAML configuration, theme packages, and optional frontend tooling into a deployable static site in `output/`. The project is designed around collections, themes, and plugins so you can grow from a simple blog to a more customized portfolio, docs site, or content-heavy project without rewriting the core.

@@ -6,11 +6,12 @@ currency: USD
 type: shop
 layout: document
 date: 2026-03-19
+draft: true
 ---
 
 # Sample Product
 
-This is a placeholder product to demonstrate the `shop` collection.
+This is a placeholder product to demonstrate the `shop` collection once it is enabled in `config.yaml`.
 
 - **Price:** $49.00
 - **Availability:** In stock

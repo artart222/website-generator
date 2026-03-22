@@ -73,7 +73,10 @@ class Site:
             )
 
         self.navigation_items = navigation_items
-        self.header = self.populate_header()
+        self.header = "\n".join(
+            f"<li><a href='{item['url']}'>{item['title']}</a></li>"
+            for item in self.navigation_items
+        )
         return navigation_items
 
     def _resolve_navigation_url(self, raw_item: dict[str, Any]) -> str:
@@ -102,7 +105,12 @@ class Site:
 
     def populate_header(self) -> str:
         if not self.navigation_items:
-            self.build_navigation()
+            nav_config = self.config.get("site.navigation", self.config.get("navigation", []))
+            if isinstance(nav_config, list) and nav_config:
+                self.build_navigation()
+            else:
+                self.header = ""
+                return self.header
 
         return "\n".join(
             f"<li><a href='{item['url']}'>{item['title']}</a></li>"

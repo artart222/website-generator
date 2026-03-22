@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 from copy import deepcopy
 from pathlib import Path
 
@@ -58,6 +59,7 @@ class Project:
         )
 
         self.logger.info("Build process started.")
+        self._prepare_output_dir()
 
         self._discover_and_load_pages()
         self._load_site_data()
@@ -98,6 +100,29 @@ class Project:
         )
 
         self.logger.info("Build process finished successfully.")
+
+    def _prepare_output_dir(self) -> None:
+        output_dir = Path(
+            self.config.get("build.output_directory", self.config.get("output_directory"))
+        )
+        resolved_output_dir = output_dir.resolve()
+        project_root = Path.cwd().resolve()
+
+        if resolved_output_dir == project_root:
+            raise ValueError(
+                f"Refusing to use the project root as the output directory: {resolved_output_dir}"
+            )
+        if output_dir.exists() and output_dir.is_file():
+            raise FileExistsError(f"Output path is a file, not a directory: {output_dir}")
+
+        self.fs_manager.create_directory(output_dir)
+        for child in output_dir.iterdir():
+            if child.name == ".git":
+                continue
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
 
     def get_template_engine(self) -> TemplateEngine:
         return self.template_engine

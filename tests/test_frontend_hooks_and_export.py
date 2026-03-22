@@ -4,13 +4,39 @@ import sys
 from pathlib import Path
 import tempfile
 
+import pytest
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.insert(0, project_root)
 
 from core.config import Config  # noqa: E402
 from core.page import Page  # noqa: E402
+from core.plugin_manager import PluginManager  # noqa: E402
 from core.project import Project  # noqa: E402
+from tests.support_plugins import TestPluginA, TestPluginB  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def use_test_plugins(monkeypatch):
+    discovered_plugins = {
+        "TestPluginA": TestPluginA,
+        "TestPluginB": TestPluginB,
+    }
+
+    def detect_and_load_test_plugins(self):
+        self.plugins = [
+            discovered_plugins[name]()
+            for name in self.config.get("plugins", [])
+            if name in discovered_plugins
+        ]
+        return self.plugins
+
+    monkeypatch.setattr(
+        PluginManager,
+        "detect_and_load_plugins",
+        detect_and_load_test_plugins,
+    )
 
 
 def test_inject_css_order_respects_config():

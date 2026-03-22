@@ -162,3 +162,32 @@ def test_collection_index_plugin_generates_collection_page():
         assert index_page is not None
         assert index_page.get_root_rel_url() == "/blog/"
         assert "/blog/blog-post/" in index_page.processed_content
+
+
+def test_build_cleans_stale_output_files():
+    with tempfile.TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+        temp_path = Path(temp_dir)
+        pages_dir = temp_path / "pages"
+        output_dir = temp_path / "output"
+        _write_markdown(pages_dir / "home.md", "Home", "index")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        stale_file = output_dir / "stale.txt"
+        stale_file.write_text("stale", encoding="utf-8")
+
+        config = Config()
+        config.settings["build"]["output_directory"] = str(output_dir)
+        config.settings["content"]["collections"] = {
+            "pages": {
+                "path": str(pages_dir),
+                "type": "page",
+                "route": {"prefix": ""},
+                "layout": "document",
+            }
+        }
+        config.settings["site"]["navigation"] = []
+
+        project = Project(config)
+        project.build()
+
+        assert not stale_file.exists()
+        assert (output_dir / "index.html").exists()

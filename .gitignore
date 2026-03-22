@@ -6,6 +6,7 @@ __pycache__/
 
 # Distribution / packaging
 .venv/
+*.egg-info/
 
 # IDE items:
 .idea
@@ -19,3 +20,7 @@ output.zip
 react-app/node_modules/
 react-app/.next/
 react-app/out/
+
+# Dead codes
+styles/styles.css
+plugins/blog_indexer.py

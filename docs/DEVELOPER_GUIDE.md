@@ -1,206 +1,528 @@
 # Developer Guide
 
-This guide explains how the generator is structured, how the build pipeline works, and where to extend it. It reflects the current codebase and configuration as of this repository state.
+This guide explains how the current codebase works, where extension points live, and which legacy compatibility paths still exist.
 
-**What This Project Is**
+## Overview
 
-This is a static site generator with:
-1. File-based content (`source/`)
-2. Template rendering (Django templates)
-3. A plugin system for build-time hooks
-4. Optional Tailwind CSS build
-5. Optional React/Next static export for one collection
-6. Optional JSON export for frontend consumption
+The generator is a build-time system. It reads source content, applies processors and plugins, renders with Django templates, optionally exports JSON and frontend artifacts, and writes the final site into `output/`.
 
-There is no runtime server. Everything happens at build time and outputs to `output/`.
+Main capabilities:
 
-**Core Architecture**
+1. File-based content in `source/`
+2. Collection-aware routing
+3. Theme manifests plus project-level overrides
+4. Plugin hooks throughout the build lifecycle
+5. Optional JSON export
+6. Optional Tailwind build
+7. Optional React export for one collection
 
-The pipeline is orchestrated by `core/project.py`:
-1. Load config and initialize core objects
-2. Discover content and create `Page` objects
-3. Load structured data (`site.data`)
-4. Render templates
-5. Export JSON (optional)
-6. Build React section (optional)
-7. Build Tailwind CSS (optional)
-8. Copy assets
+## Repository Map
 
-Key types:
-1. `core/Config`: Loads `config.yaml`, merges defaults, exposes `settings`
-2. `core/Project`: Build orchestrator and integration point
-3. `core/Site`: In-memory model of the site, holds pages and site metadata
-4. `core/Page`: Represents a single content file and its rendered output
-5. `plugins/BasePlugin`: Hook base class and lifecycle hooks
-6. `processor/*`: Content processing and Tailwind build
+Key areas of the repo:
 
-**Build Flow in Detail**
+1. `cli.py`
+   Primary command-line entry point for `wg`
 
-1. `Project.__init__`
-   - Loads config
-   - Creates `Site`, `PluginManager`, and template engine
-   - Runs `after_config_loaded` hooks
+2. `core/`
+   Config loading, project orchestration, routing, theme management, site model, and page model
 
-2. `Project.build`
-   - `before_build` hooks
-   - `_discover_and_load_pages`
-   - `_load_site_data`
-   - `after_pages_discovered` hooks
-   - `_render_pages`
-   - `_export_json_data` if `frontend.export_data.enabled`
-   - `_build_react_section` if `react.enabled`
-   - `_build_tailwind` if `frontend.tailwind.enabled`
-   - `_copy_assets`
-   - `after_build` hooks
+3. `processor/`
+   Content processors plus Tailwind and React build helpers
 
-**Content Discovery and Collections**
+4. `engines/`
+   Template engine abstraction and Django implementation
 
-If `collections` exists in `config.yaml`, discovery is collection-based:
-1. Each collection defines a `path` and defaults like `type` and `template`
-2. Files are scanned inside those collection paths
-3. The `page.collection` and `page.collection_config` are set
-4. Frontmatter `type` can override collection `type`
-5. Output path is `/<url_prefix or type>/<slug>/index.html`
+5. `plugins/`
+   Plugin base class and built-in plugins
 
-If `collections` is missing, the generator falls back to scanning `source_directory`.
+6. `themes/`
+   Packaged themes with manifests, layouts, blocks, partials, styles, and static assets
 
-**Template Selection Order**
+7. `site-theme/`
+   Project-local overrides that take precedence over packaged theme files
 
-Template name resolves in this order:
-1. Frontmatter `template`
-2. Collection `template`
-3. `templates_by_type[type]`
-4. Fallback `post.html`
+8. `source/`
+   Source content and data
 
-See `core/project.py:_resolve_template_name`.
+9. `tests/`
+   Coverage for config normalization, collections, theme system, CLI behavior, and frontend helpers
 
-**Template Context**
+## Entry Points
 
-Context is assembled in `Project._build_page_context` and `Page.get_context`.
-Important keys available in templates:
-1. `content`, `page_title`, `page_description`, `page_meta`
-2. `page`, `site`, `site_data`
-3. `frontend`, `theme`
-4. `stylesheets`, `scripts`
-5. `collection`, `collection_config`
-6. `header` (generated navigation HTML)
+The preferred entry point is the CLI:
 
-**Plugins**
+```bash
+wg build
+wg serve --build-first
+wg watch
+```
 
-Plugins are loaded from `plugins/` and must be listed in `config.yaml` under `plugins`.
-The manager preserves the order of `config.plugins`.
+The script entry point is defined in `pyproject.toml`:
 
-Hooks you can implement in a plugin:
+```toml
+[project.scripts]
+wg = "cli:main"
+```
+
+Other executable files still present:
+
+1. `main.py`
+   Thin build wrapper that loads `config.yaml` and runs `Project.build()`
+
+2. `dev.py`
+   Older convenience script that cleans the output directory, calls `main.py`, and serves the result
+
+These files still work, but the CLI is the current public interface.
+
+## Configuration Model
+
+The current public config format is the nested v1 schema:
+
+1. `site`
+2. `content`
+3. `theme`
+4. `build`
+5. `plugins`
+6. `experimental`
+
+`core/config.py` is responsible for:
+
+1. Loading YAML
+2. Merging defaults
+3. Normalizing older flat config keys into v1
+4. Preserving compatibility aliases like `frontend`, `collections`, and `output_directory`
+
+Important compatibility behavior:
+
+1. Legacy flat configs are still accepted
+2. `frontend.*` aliases are still synthesized for older callers
+3. `build.template_dirs` and `templates/<theme>` still participate in fallback template resolution
+
+For new work, prefer only the nested v1 config keys.
+
+## Build Lifecycle
+
+The main orchestration happens in `core/project.py`.
+
+`Project.__init__`:
+
+1. Stores config
+2. Creates `FileSystemManager`, `Site`, `Router`, `ThemeManager`, and `PluginManager`
+3. Loads configured plugins
+4. Runs `after_config_loaded`
+5. Creates the template engine using the active theme template directories
+
+`Project.build` runs the pipeline in this order:
+
+1. `before_build`
+2. `_discover_and_load_pages`
+3. `_load_site_data`
+4. `_assign_routes`
+5. `after_collections_loaded`
+6. `after_pages_discovered`
+7. `_assign_routes` again so generated pages get canonical paths
+8. `after_routes_built`
+9. `_render_pages`
+10. `_export_json_data`
+11. `build_react_section`
+12. `_build_tailwind`
+13. `_copy_assets`
+14. `after_build`
+
+That order matters. For example:
+
+1. Collection index pages are generated before the second route assignment
+2. JSON export runs before the React build because the React app consumes that JSON
+3. Theme assets are prepared during `_copy_assets`, after page rendering is complete
+
+## Content Processing
+
+Content processors are created in `processor/factory.py`.
+
+Current processor map:
+
+1. `.md` -> `MarkdownProcessor`
+
+Default Markdown extensions:
+
+1. `extra`
+2. `meta`
+3. `codehilite`
+
+`MarkdownProcessor` also supports YAML front matter surrounded by `---` markers before the Markdown body.
+
+The result of parsing becomes:
+
+1. `Page.processed_content`
+2. `Page.metadata`
+3. Derived `Page` attributes such as `title`, `slug`, `page_type`, `layout`, `blocks`, and `draft`
+
+## Discovery, Collections, and Routing
+
+Content discovery is collection-first when `content.collections` is configured.
+
+For each collection:
+
+1. The configured `path` is scanned recursively
+2. Supported file extensions are matched
+3. A `Page` is created and loaded through the correct processor
+4. Collection defaults are applied
+5. Draft pages are skipped
+6. The page is added to `Site`
+
+If no collections are configured, the project falls back to `content.source_directory`.
+
+Routing rules come from `core/router.py`:
+
+1. Home pages render to `output/index.html`
+2. 404 pages render to `output/404.html`
+3. Collection indexes render to either their configured `index.output_path` or `/<prefix>/index.html`
+4. Normal content renders to `/<route.prefix>/<slug>/index.html`
+
+Public URLs are derived from output paths, and `site.base_url` is used to produce absolute URLs.
+
+## Page Model and Template Context
+
+`core/page.py` stores both source metadata and derived build state.
+
+Important page attributes:
+
+1. `title`
+2. `slug`
+3. `page_type`
+4. `summary`
+5. `description`
+6. `date`
+7. `draft`
+8. `collection`
+9. `layout`
+10. `blocks`
+11. `output_path`
+12. `root_rel_url`
+13. `abs_url`
+
+Templates receive context assembled by `Project._build_page_context` and `Page.get_context`.
+
+Important template keys:
+
+1. `content`
+2. `rendered_blocks`
+3. `page_title`
+4. `page_summary`
+5. `page_description`
+6. `page_keywords`
+7. `page_authors`
+8. `page_tags`
+9. `page_categories`
+10. `page_date`
+11. `page_url`
+12. `page_image`
+13. `page_type`
+14. `page_layout`
+15. `page_layout_options`
+16. `page_blocks`
+17. `page_meta`
+18. `page`
+19. `site`
+20. `site_data`
+21. `navigation_items`
+22. `stylesheets`
+23. `scripts`
+24. `collection`
+25. `collection_config`
+26. `theme`
+27. `theme_manifest`
+28. `theme_settings`
+29. `theme_tokens`
+30. `theme_component_presets`
+
+Plugins may further modify the context through `modify_context` or `modify_template_context`.
+
+## Site Model and Navigation
+
+`core/site.py` holds:
+
+1. Site metadata
+2. All pages in memory
+3. Loaded structured data
+4. Navigation items
+
+Navigation items are built from `site.navigation`.
+
+Resolution order for each item:
+
+1. `url`
+2. `collection_index`
+3. `type`
+4. `collection`
+
+`populate_header()` builds a simple HTML list, but themes usually consume `navigation_items` directly.
+
+## Theme System
+
+`core/theme_manager.py` is the central piece for theme loading and rendering support.
+
+Theme inputs:
+
+1. Packaged theme manifest at `themes/<name>/theme.yaml`
+2. Project-level theme settings in `theme.settings.yaml`
+3. Project-local overrides in `site-theme/`
+
+Theme template directory precedence:
+
+1. `site-theme/`
+2. `themes/<active-theme>/`
+3. Any `build.template_dirs`
+4. Legacy fallback `templates/<active-theme>/`
+
+Theme responsibilities:
+
+1. Load the manifest and project settings
+2. Resolve layouts like `document`, `collection`, and `not_found`
+3. Merge theme tokens and selected presets
+4. Render block templates
+5. Generate `theme.css` from merged tokens
+6. Copy packaged assets and project override assets into `output/`
+
+Generated theme output includes:
+
+1. `output/styles/theme-base.css`
+2. `output/styles/theme.css`
+3. `output/styles/theme-overrides.css` when `site-theme/styles/overrides.css` exists
+
+Legacy note:
+
+`templates/<theme>/` is still supported as a fallback. That makes the old templates directory a compatibility path, not a fully dead subsystem.
+
+## Plugins
+
+Plugins are discovered by scanning `plugins/*.py`, importing modules, and instantiating only the classes whose names appear in `config.plugins`.
+
+Plugin order follows the order listed in config.
+
+Supported hook methods:
+
 1. `after_config_loaded`
 2. `before_build`
-3. `after_pages_discovered`
+3. `after_collections_loaded`
 4. `before_page_parsed`
 5. `after_page_parsed`
-6. `before_page_rendered`
-7. `after_page_rendered`
-8. `after_build`
-9. `modify_template_context` (returns dict)
-10. `inject_css` (returns list or string)
-11. `inject_js` (returns list or string)
+6. `after_document_loaded`
+7. `after_pages_discovered`
+8. `after_routes_built`
+9. `before_page_rendered`
+10. `after_page_rendered`
+11. `after_build`
+12. `modify_context`
+13. `modify_template_context`
+14. `inject_css`
+15. `inject_js`
 
-See `plugins/base_plugin.py` and `core/plugin_manager.py`.
+Behavior notes:
 
-**Collection Index Pages**
+1. `run_hook` executes hooks and ignores failures after logging them
+2. `run_hook_collect` gathers non-`None` return values in plugin order
+3. BasePlugin automatically wraps supported hooks with logging and argument validation
 
-`CollectionIndexerPlugin` generates index pages for collections with:
+Built-in plugins of note:
+
+1. `CollectionIndexerPlugin`
+   Generates synthetic collection index pages
+
+2. `SpecialPagesPlugin`
+   Adjusts special routes like the homepage
+
+3. `PageKeyWordExtractor`
+   Adds keyword metadata
+
+4. `SitemapPlugin`
+   Generates sitemap output
+
+5. `BlogIndexerPlugin`
+   Deprecated compatibility plugin kept for older blog-index workflows
+
+## Collection Index Pages
+
+The current preferred approach is `CollectionIndexerPlugin`.
+
+Example:
+
+```yaml
+content:
+  collections:
+    blog:
+      path: ./source/blogs
+      type: blog
+      route:
+        prefix: blog
+      index:
+        enabled: true
+        layout: collection
+        output_path: blog/index.html
+        title: Blog
 ```
-collections:
-  blog:
-    index:
-      enabled: true
-      template: blog-indexer.html
-      output_path: blog-indexer/index.html
-      title: Blog
+
+The plugin creates a synthetic `Page` with:
+
+1. `is_generated = True`
+2. `is_collection_index = True`
+3. `collection = <name>`
+4. `page_type = <name>-index`
+
+It generates a simple HTML list from the collection's pages and lets the active theme render that page through the normal collection layout.
+
+## Structured Data Loading
+
+`Project._load_site_data()` scans `content.data_dir` for:
+
+1. `.json`
+2. `.yaml`
+3. `.yml`
+
+Files are loaded into a nested `site.data` dictionary based on their relative path under the data directory.
+
+Example:
+
+```text
+source/data/products/widget.yaml
 ```
 
-It creates a synthetic `Page` with `type: <collection>-index`.
-This is how blog indexes are generated today.
-
-**Static Data Loading**
-
-If `data_dir` is set, JSON/YAML files are loaded into `site.data`.
-Example structure:
-```
-source/data/products/widget.json
-```
 Becomes:
-```
+
+```python
 site.data["products"]["widget"]
 ```
 
-**Tailwind CSS (v4, CSS-first)**
+## JSON Export
 
-The Tailwind build is handled in `processor/tailwind_processor.py`:
-```
-npx tailwindcss -c <config> -i <input> -o <output> [--minify]
-```
+`Project._export_json_data()` writes JSON when `experimental.export_data.enabled` is true.
 
-Current CSS-first setup:
-1. `styles/tailwind.input.css` imports Tailwind and declares sources
-2. `tailwind.config.js` only contains `theme.extend` and plugins
+Outputs:
 
-The React app has its own Tailwind input:
-`react-app/styles/globals.css`
+1. `site.json`
+2. One page JSON file per rendered page
 
-**React/Next Static Section**
+Each page payload includes:
 
-If `react.enabled` is true:
-1. JSON export must be enabled
-2. JSON is copied into `react-app/public/data`
-3. `npm run build` runs in `react-app`
-4. `react-app/out` is copied into `output/<export_subdir>`
+1. `title`
+2. `slug`
+3. `type`
+4. `collection`
+5. `abs_url`
+6. `root_rel_url`
+7. `metadata`
+8. `content_html`
+9. `blocks`
+10. `layout`
 
-Environment variables passed into Next build:
+If `include_collections` is set, export is filtered to only those collections.
+
+## Tailwind Build
+
+`processor/tailwind_processor.py` handles Tailwind.
+
+When enabled:
+
+1. It reads `experimental.tailwind`
+2. It requires `npx` on PATH
+3. It runs `tailwindcss -c <config> -i <input> -o <output>`
+4. It optionally appends `--minify`
+
+The default output path is `styles/tailwind.css`, which later gets copied into the built site through the normal asset-copy step.
+
+## React Export
+
+`processor/react_processor.py` handles the optional React section.
+
+When enabled:
+
+1. It validates that a collection is configured
+2. It validates that `experimental.export_data.enabled` is true
+3. It copies exported JSON into `react-app/public/data`
+4. It sets Next.js environment variables
+5. It runs `npm run build`
+6. It copies `react-app/out` into `output/<export_subdir>`
+
+Environment variables passed into the React build:
+
 1. `NEXT_PUBLIC_BASE_PATH`
 2. `NEXT_PUBLIC_ASSET_PREFIX`
 3. `NEXT_PUBLIC_COLLECTION`
 4. `NEXT_PUBLIC_DATA_URL`
 
-See `core/project.py:_build_react_section`.
+This keeps the React app consuming the same build-generated JSON contract as the rest of the system.
 
-**Key Configuration Files**
+## Asset Copying
 
-1. `config.yaml` for site configuration
-2. `tailwind.config.js` for Tailwind theme tokens
-3. `styles/tailwind.input.css` for Tailwind entrypoint
-4. `react-app/next.config.js` for Next static export
+Asset copying happens late in the build.
 
-**Local Development**
+`Project._copy_assets()`:
 
-Build:
+1. Calls `ThemeManager.prepare_theme_output()`
+2. Ensures `./styles` is included in the copy list
+3. Copies each configured asset directory into `output/<dir-name>/`
+
+This means:
+
+1. Files in `styles/` become available under `/styles/...`
+2. Files in `source/assets/` become available under `/assets/...`
+3. Theme assets may also populate `/assets/...`
+
+## Local Development
+
+Preferred local commands:
+
+```bash
+wg build
+wg serve --build-first
+wg watch
+pytest
 ```
+
+You can still use:
+
+```bash
+python cli.py build
 python main.py
 ```
 
-Serve output:
-```
-python -m http.server 8000 --directory output
-```
+But new docs and examples should prefer `wg`.
 
-If React is enabled, visit:
-```
-http://localhost:8000/<export_subdir>/
-```
+## Extension Points
 
-**Extension Points**
+Common extension work happens in:
 
-Common places to extend:
-1. New processors in `processor/` and `processor/factory.py`
-2. New plugins in `plugins/`
-3. New themes in `templates/<theme>/`
-4. New collections in `config.yaml`
-5. New data sources in `source/data/`
+1. `processor/`
+   Add new source format processors
 
-**Design Notes and Current Constraints**
+2. `engines/`
+   Add new template engines
 
-1. Build-time only, no runtime server
-2. File-based content model
-3. Plugins are build-time hooks only
-4. JSON export is the stable interface for frontend consumers
+3. `plugins/`
+   Add build-time hooks or template context injections
 
-If you plan to move toward a CMS, preserve the JSON contract so a future backend can feed the same schema.
+4. `themes/`
+   Add or evolve theme packages
+
+5. `site-theme/`
+   Override a packaged theme for one project
+
+6. `config.yaml`
+   Add new collections, data sources, or experimental features
+
+## Legacy and Migration Notes
+
+There are still several compatibility paths in the repo:
+
+1. `frontend.*` config aliases are synthesized from v1 config
+2. `templates/<theme>/` still acts as a fallback template source
+3. `BlogIndexerPlugin` is still present but deprecated
+4. `main.py` and `dev.py` still exist as older entry points
+
+These are useful during migration, but new development should center on:
+
+1. `wg`
+2. v1 nested config
+3. packaged themes in `themes/`
+4. project overrides in `site-theme/`
+5. collection-based indexes through `CollectionIndexerPlugin`

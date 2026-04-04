@@ -1,0 +1,1 @@
+"""Official sitemap extension placeholder."""

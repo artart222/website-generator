@@ -12,13 +12,16 @@ import yaml
 from engines.base_engine import TemplateEngine
 from engines.factory import create_template_engine
 from processor.factory import _PROCESSOR_MAP, create_content_processor
-from processor.react_processor import build_react_section
 from processor.tailwind_processor import build_tailwind
 from utils.fs_manager import FileSystemManager
+from .content_models import ContentModelError
 from .config import Config
+from .extension_manager import ExtensionManager
+from .frontend_manager import FrontendManager
 from .page import Page
 from .plugin_manager import PluginManager
 from .router import Router
+from .runtime_manager import RuntimeManager
 from .site import Site
 from .theme_manager import ThemeManager
 
@@ -32,9 +35,17 @@ class Project:
         self.logger = logging.getLogger(__name__)
         self.config: Config = config
         self.fs_manager: FileSystemManager = FileSystemManager()
+        self.extension_manager = ExtensionManager(self.config, self.fs_manager)
+        self.extension_manager.detect_and_load_extensions()
         self.site: Site = Site(self.config)
         self.router = Router(self.config)
         self.theme_manager = ThemeManager(self.config, self.fs_manager)
+        self.frontend_manager = FrontendManager(
+            self.config, self.fs_manager, self.extension_manager
+        )
+        self.runtime_manager = RuntimeManager(
+            self.config, self.fs_manager, self.extension_manager
+        )
         self.plugin_manager: PluginManager = PluginManager(self.config, self.site)
         self.plugin_manager.detect_and_load_plugins()
 
@@ -43,14 +54,24 @@ class Project:
             site=self.site,
             config=self.config,
             fs_manager=self.fs_manager,
+            extension_manager=self.extension_manager,
         )
+
+        template_dirs = self.theme_manager.get_template_dirs() + self.extension_manager.get_template_dirs()
+        deduped_template_dirs: list[str] = []
+        for template_dir in template_dirs:
+            if template_dir not in deduped_template_dirs:
+                deduped_template_dirs.append(template_dir)
 
         self.template_engine: TemplateEngine = create_template_engine(
             self.config.get("build.template_engine", self.config.get("template_engine")),
-            self.theme_manager.get_template_dirs(),
+            deduped_template_dirs,
         )
 
     def build(self) -> None:
+        self.extension_manager.run_build_hook(
+            "before_build", project=self, site=self.site, config=self.config
+        )
         self.plugin_manager.run_hook(
             "before_build",
             site=self.site,
@@ -62,6 +83,10 @@ class Project:
         self._prepare_output_dir()
 
         self._discover_and_load_pages()
+        self._apply_content_models()
+        self.extension_manager.run_build_hook(
+            "after_pages_modeled", project=self, site=self.site, config=self.config
+        )
         self._load_site_data()
         self._assign_routes()
 
@@ -77,6 +102,7 @@ class Project:
             config=self.config,
             fs_manager=self.fs_manager,
         )
+        self._apply_content_models(only_missing=True)
 
         self._assign_routes()
         self.plugin_manager.run_hook(
@@ -85,10 +111,25 @@ class Project:
             config=self.config,
             fs_manager=self.fs_manager,
         )
+        self.extension_manager.run_build_hook(
+            "after_routes_built", project=self, site=self.site, config=self.config
+        )
 
         self._render_pages()
         self._export_json_data()
-        build_react_section(self.config, self.fs_manager, self.logger)
+        self.extension_manager.run_build_hook(
+            "after_json_export", project=self, site=self.site, config=self.config
+        )
+        self.frontend_manager.build_targets(
+            runtime_public_config=self.runtime_manager.build_public_config()
+        )
+        self.extension_manager.run_build_hook(
+            "after_frontend_targets", project=self, site=self.site, config=self.config
+        )
+        self.runtime_manager.emit_manifest()
+        self.extension_manager.run_build_hook(
+            "after_runtime_manifest", project=self, site=self.site, config=self.config
+        )
         self._build_tailwind()
         self._copy_assets()
 
@@ -97,6 +138,9 @@ class Project:
             site=self.site,
             config=self.config,
             fs_manager=self.fs_manager,
+        )
+        self.extension_manager.run_build_hook(
+            "after_build", project=self, site=self.site, config=self.config
         )
 
         self.logger.info("Build process finished successfully.")
@@ -278,6 +322,15 @@ class Project:
         for page in self.site.pages:
             self.router.assign(page)
 
+    def _apply_content_models(self, *, only_missing: bool = False) -> None:
+        for page in self.site.pages:
+            if only_missing and page.model_name:
+                continue
+            try:
+                self.extension_manager.model_registry.apply_to_page(page)
+            except ContentModelError as exc:
+                raise ContentModelError(str(exc)) from exc
+
     def _render_pages(self) -> None:
         self.logger.info("Rendering pages...")
         navigation_items = self.site.build_navigation()
@@ -346,6 +399,13 @@ class Project:
             elif isinstance(injected, (list, tuple)):
                 scripts.extend(injected)
 
+        frontend_context = self.frontend_manager.get_context()
+        runtime_context = self.runtime_manager.get_context()
+        extensions_context = self.extension_manager.get_context()
+        bootstrap_script = frontend_context.get("frontend", {}).get("bootstrap_script", "")
+        if bootstrap_script and bootstrap_script not in scripts:
+            scripts.append(bootstrap_script)
+
         base_context = page.get_context(
             header=header,
             site=self.site,
@@ -354,6 +414,9 @@ class Project:
             navigation_items=navigation_items,
             theme_context=theme_context,
             layout_options=layout_options,
+            frontend_context=frontend_context,
+            runtime_context=runtime_context,
+            extensions_context=extensions_context,
         )
         rendered_blocks = self.theme_manager.render_blocks(
             page.blocks, self.template_engine, base_context
@@ -367,6 +430,9 @@ class Project:
             theme_context=theme_context,
             rendered_blocks=rendered_blocks,
             layout_options=layout_options,
+            frontend_context=frontend_context,
+            runtime_context=runtime_context,
+            extensions_context=extensions_context,
         )
 
         for update in self.plugin_manager.run_hook_collect(
@@ -478,6 +544,8 @@ class Project:
                 "description": self.config.get("site.description", ""),
                 "base_url": self.config.get("site.base_url", ""),
             },
+            "frontend": self.frontend_manager.get_context().get("frontend", {}),
+            "runtime": self.runtime_manager.build_public_config(),
             "pages": [],
         }
 
@@ -504,12 +572,15 @@ class Project:
                 "title": page.title,
                 "slug": page.slug,
                 "type": page.page_type,
+                "model": page.model_name,
+                "model_data": page.model_data,
                 "collection": page.collection,
                 "abs_url": page.abs_url,
                 "root_rel_url": page.root_rel_url,
                 "metadata": page.metadata,
                 "content_html": page.processed_content,
                 "blocks": page.blocks,
+                "islands": page.islands,
                 "layout": page.layout,
             }
 
@@ -528,6 +599,7 @@ class Project:
                     "title": page.title,
                     "slug": page.slug,
                     "type": page.page_type,
+                    "model": page.model_name,
                     "collection": page.collection,
                     "url": page.abs_url,
                     "root_rel_url": page.root_rel_url,
@@ -545,6 +617,7 @@ class Project:
             self.config.get("build.output_directory", self.config.get("output_directory"))
         )
         self.theme_manager.prepare_theme_output(output_dir)
+        self.extension_manager.copy_extension_assets(output_dir)
 
         asset_dirs = list(self.config.get("build.asset_dirs", self.config.get("asset_dirs", [])))
         if "./styles" not in asset_dirs:

@@ -1,0 +1,10 @@
+name: wg-sitemap
+version: 1
+provides:
+  models: []
+  blocks: []
+  runtime_adapters: []
+  frontend_targets: []
+  commands: []
+python:
+  entrypoint: extensions.wg_sitemap.extension:get_extension

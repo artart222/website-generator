@@ -12,6 +12,7 @@ from slugify import slugify
 
 from core.bootstrap import bootstrap
 from core.project import Project
+from core.starters import STARTER_NAMES, scaffold_starter
 from core.theme_manager import ThemeManager
 from utils.fs_manager import FileSystemManager
 
@@ -83,155 +84,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     target_dir = Path(args.directory).resolve()
     fs_manager = FileSystemManager()
     fs_manager.create_directory(target_dir)
-    fs_manager.create_directory(target_dir / "source")
-    fs_manager.create_directory(target_dir / "source" / "assets")
-    fs_manager.create_directory(target_dir / "source" / "blogs")
-    fs_manager.create_directory(target_dir / "source" / "data")
-    fs_manager.create_directory(target_dir / "site-theme")
-    fs_manager.create_directory(target_dir / "styles")
-
-    config_path = target_dir / "config.yaml"
-    theme_settings_path = target_dir / "theme.settings.yaml"
-    index_path = target_dir / "source" / "index.md"
-    blog_path = target_dir / "source" / "blogs" / "hello-world.md"
-
-    if not config_path.exists():
-        fs_manager.write_file(
-            config_path,
-            """version: 1
-site:
-  name: My Site
-  description: A new site powered by wg.
-  base_url: http://localhost:8000
-  author: Your Name
-  navigation:
-    - title: Home
-      type: index
-    - title: Blog
-      collection_index: blog
-content:
-  source_directory: ./source
-  data_dir: ./source/data
-  collections:
-    blog:
-      path: ./source/blogs
-      type: blog
-      route:
-        prefix: blog
-      layout: document
-      index:
-        enabled: true
-        layout: collection
-        title: Blog
-    pages:
-      path: ./source
-      type: page
-      route:
-        prefix: ""
-      layout: document
-build:
-  output_directory: ./output
-  asset_dirs:
-    - ./source/assets
-  template_engine: django
-  log_level: 20
-theme:
-  name: minimal-blog
-  settings: ./theme.settings.yaml
-  site_theme_dir: ./site-theme
-plugins:
-  - CollectionIndexerPlugin
-  - SpecialPagesPlugin
-  - PageKeyWordExtractor
-  - SitemapPlugin
-experimental:
-  export_data:
-    enabled: false
-    output_dir: ./output/data
-    include_collections: []
-  react:
-    enabled: false
-    collection: ""
-    app_dir: ./react-app
-    export_subdir: ""
-    base_path: ""
-    asset_prefix: ""
-  tailwind:
-    enabled: false
-    input: ./styles/tailwind.input.css
-    output: ./styles/tailwind.css
-    config: ./tailwind.config.js
-    minify: false
-""",
-        )
-
-    if not theme_settings_path.exists():
-        fs_manager.write_file(
-            theme_settings_path,
-            """preset: default
-presets:
-  header: default
-  footer: default
-  cards: default
-  blog_index: default
-  post: default
-  buttons: default
-tokens:
-  colors:
-    bg: "#f8fafc"
-    surface: "#ffffff"
-    text: "#0f172a"
-    muted: "#475569"
-    accent: "#0f766e"
-    border: "#dbe4ee"
-  typography:
-    body-family: "'Segoe UI', sans-serif"
-    heading-family: "'Georgia', serif"
-stylesheets: []
-scripts: []
-""",
-        )
-
-    if not index_path.exists():
-        fs_manager.write_file(
-            index_path,
-            """---
-title: Home
-type: index
-layout: document
-blocks:
-  - type: hero
-    variant: splash
-    content:
-      eyebrow: Welcome
-      title: A new website generator site
-      text: Customize your theme with tokens, presets, and block-based pages.
-      actions:
-        - label: Read the blog
-          url: /blog/
----
-
-This page also supports regular Markdown content below the block sections.
-""",
-        )
-
-    if not blog_path.exists():
-        fs_manager.write_file(
-            blog_path,
-            """---
-title: Hello World
-summary: Your first generated blog post.
-date: 2026-03-19
-type: blog
-layout: document
----
-
-# Hello World
-
-Your site is ready. Start customizing the theme and content.
-""",
-        )
-
+    starter_name = getattr(args, "starter", "blog")
+    scaffold_starter(target_dir, starter_name, fs_manager)
     return 0
 
 
@@ -489,6 +343,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     init_parser = subparsers.add_parser("init", help="Scaffold a new site")
     init_parser.add_argument("directory", nargs="?", default=".")
+    init_parser.add_argument("--starter", choices=STARTER_NAMES, default="blog")
     init_parser.set_defaults(func=cmd_init)
 
     new_page_parser = subparsers.add_parser("new", help="Create a new page or post")

@@ -22,6 +22,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "content": {
         "source_directory": "./source",
         "data_dir": "./source/data",
+        "models": {},
         "collections": {},
     },
     "theme": {
@@ -39,6 +40,18 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "template_dirs": [],
         "log_level": 20,
     },
+    "extensions": {
+        "enabled": [],
+        "local_paths": ["./extensions"],
+    },
+    "frontend": {
+        "targets": [],
+        "islands": [],
+    },
+    "runtime": {
+        "targets": [],
+    },
+    "integrations": {},
     "plugins": [],
     "experimental": {
         "react": {
@@ -171,11 +184,29 @@ class Config:
         return normalized
 
     def _looks_like_v1(self, loaded_settings: dict[str, Any]) -> bool:
-        if loaded_settings.get("version") == 1:
+        if loaded_settings.get("version") in {1, 2}:
             return True
 
-        v1_sections = {"site", "content", "theme", "build", "experimental"}
-        return any(section in loaded_settings for section in v1_sections)
+        v1_sections = {
+            "site",
+            "content",
+            "theme",
+            "build",
+            "experimental",
+            "extensions",
+            "runtime",
+            "integrations",
+        }
+        if any(section in loaded_settings for section in v1_sections):
+            return True
+
+        frontend = loaded_settings.get("frontend")
+        if isinstance(frontend, dict) and (
+            "targets" in frontend or "islands" in frontend
+        ):
+            return True
+
+        return False
 
     def _normalize_legacy_settings(
         self, loaded_settings: dict[str, Any]
@@ -214,6 +245,7 @@ class Config:
                 "data_dir": loaded_settings.get(
                     "data_dir", DEFAULT_SETTINGS["content"]["data_dir"]
                 ),
+                "models": {},
                 "collections": deepcopy(loaded_settings.get("collections", {})),
             },
             "theme": {
@@ -239,6 +271,10 @@ class Config:
                     "log_level", DEFAULT_SETTINGS["build"]["log_level"]
                 ),
             },
+            "extensions": deepcopy(DEFAULT_SETTINGS["extensions"]),
+            "frontend": deepcopy(DEFAULT_SETTINGS["frontend"]),
+            "runtime": deepcopy(DEFAULT_SETTINGS["runtime"]),
+            "integrations": {},
             "plugins": deepcopy(loaded_settings.get("plugins", [])),
             "experimental": {
                 "react": deepcopy(
@@ -297,6 +333,10 @@ class Config:
         normalized.setdefault("content", {})
         normalized.setdefault("theme", {})
         normalized.setdefault("build", {})
+        normalized.setdefault("extensions", {})
+        normalized.setdefault("frontend", {})
+        normalized.setdefault("runtime", {})
+        normalized.setdefault("integrations", {})
         normalized.setdefault("plugins", [])
         normalized.setdefault("experimental", {})
 
@@ -304,6 +344,9 @@ class Config:
         content = normalized["content"]
         theme = normalized["theme"]
         build = normalized["build"]
+        extensions = normalized["extensions"]
+        frontend = normalized["frontend"]
+        runtime = normalized["runtime"]
         experimental = normalized["experimental"]
 
         if not isinstance(site, dict):
@@ -318,6 +361,15 @@ class Config:
         if not isinstance(build, dict):
             normalized["build"] = deepcopy(DEFAULT_SETTINGS["build"])
             build = normalized["build"]
+        if not isinstance(extensions, dict):
+            normalized["extensions"] = deepcopy(DEFAULT_SETTINGS["extensions"])
+            extensions = normalized["extensions"]
+        if not isinstance(frontend, dict):
+            normalized["frontend"] = deepcopy(DEFAULT_SETTINGS["frontend"])
+            frontend = normalized["frontend"]
+        if not isinstance(runtime, dict):
+            normalized["runtime"] = deepcopy(DEFAULT_SETTINGS["runtime"])
+            runtime = normalized["runtime"]
         if not isinstance(experimental, dict):
             normalized["experimental"] = deepcopy(DEFAULT_SETTINGS["experimental"])
             experimental = normalized["experimental"]
@@ -327,12 +379,18 @@ class Config:
             "source_directory", DEFAULT_SETTINGS["content"]["source_directory"]
         )
         content.setdefault("data_dir", DEFAULT_SETTINGS["content"]["data_dir"])
+        content.setdefault("models", {})
         theme.setdefault("name", DEFAULT_SETTINGS["theme"]["name"])
         theme.setdefault("settings", DEFAULT_SETTINGS["theme"]["settings"])
         theme.setdefault("site_theme_dir", DEFAULT_SETTINGS["theme"]["site_theme_dir"])
         theme.setdefault("extra_css_urls", [])
         theme.setdefault("extra_js_urls", [])
         theme.setdefault("customizer", {})
+        extensions.setdefault("enabled", [])
+        extensions.setdefault("local_paths", ["./extensions"])
+        frontend.setdefault("targets", [])
+        frontend.setdefault("islands", [])
+        runtime.setdefault("targets", [])
         build.setdefault(
             "output_directory", DEFAULT_SETTINGS["build"]["output_directory"]
         )
@@ -379,6 +437,7 @@ class Config:
 
             raw_cfg["route"] = route
             raw_cfg.setdefault("type", name)
+            raw_cfg.setdefault("model", self._infer_collection_model(name, raw_cfg))
             raw_cfg.setdefault("layout", raw_cfg.get("template", "document"))
 
             defaults = raw_cfg.get("defaults", {})
@@ -394,6 +453,29 @@ class Config:
                 index_cfg.setdefault("layout", "collection")
                 index_cfg.setdefault("title", name.replace("-", " ").title())
             raw_cfg["index"] = index_cfg
+
+        react_cfg = experimental.get("react", {})
+        frontend_targets = frontend.get("targets", [])
+        if not isinstance(frontend_targets, list):
+            frontend_targets = []
+        if isinstance(react_cfg, dict) and react_cfg.get("enabled", False):
+            frontend_targets.append(
+                {
+                    "type": "spa_subtree",
+                    "name": react_cfg.get("collection") or "react-section",
+                    "framework": "next_static_export",
+                    "collection": react_cfg.get("collection", ""),
+                    "app_dir": react_cfg.get("app_dir", "./react-app"),
+                    "export_subdir": react_cfg.get("export_subdir")
+                    or react_cfg.get("collection", ""),
+                    "base_path": react_cfg.get("base_path", ""),
+                    "asset_prefix": react_cfg.get("asset_prefix", ""),
+                }
+            )
+            self.warnings.append(
+                "experimental.react is deprecated; a frontend.targets entry was synthesized."
+            )
+        frontend["targets"] = frontend_targets
 
     def _apply_compat_aliases(self) -> None:
         """Keep legacy callers working during the migration."""
@@ -413,6 +495,11 @@ class Config:
             "export_data": deepcopy(self.get("experimental.export_data", {})),
             "customizer": deepcopy(self.get("theme.customizer", {})),
         }
+        frontend_section = deepcopy(self.get("frontend", {}))
+        if not isinstance(frontend_section, dict):
+            frontend_section = {}
+        for key, value in legacy_frontend.items():
+            frontend_section.setdefault(key, value)
 
         self.settings["site_name"] = self.get("site.name")
         self.settings["site_description"] = self.get("site.description")
@@ -428,7 +515,24 @@ class Config:
         self.settings["log_level"] = self.get("build.log_level")
         self.settings["navigation"] = deepcopy(self.get("site.navigation", []))
         self.settings["react"] = deepcopy(self.get("experimental.react", {}))
-        self.settings["frontend"] = legacy_frontend
+        self.settings["frontend"] = frontend_section
+
+    def _infer_collection_model(self, name: str, raw_cfg: dict[str, Any]) -> str:
+        collection_type = str(raw_cfg.get("type", name))
+        model_map = {
+            "blog": "post",
+            "post": "post",
+            "page": "page",
+            "pages": "page",
+            "doc": "doc",
+            "docs": "doc",
+            "shop": "product",
+            "product": "product",
+            "category": "category",
+            "landing": "landing",
+            "event": "event",
+        }
+        return model_map.get(collection_type, collection_type)
 
     def _deep_merge_dicts(
         self, base: Dict[str, Any], updates: Dict[str, Any]

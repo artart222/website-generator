@@ -1,0 +1,1 @@
+"""Official SEO extension placeholder."""

@@ -1,0 +1,3 @@
+<section class="wg-commerce-checkout" data-wg-island data-wg-component="commerce/checkout_button" data-wg-target="{{ block.settings.target|default:'store-ui' }}" data-wg-sku="{{ page_model.sku|default:page_meta.sku|default:'' }}" data-wg-price="{{ page_model.price|default:page_meta.price|default:'' }}" data-wg-currency="{{ page_model.currency|default:page_meta.currency|default:'IRR' }}" data-wg-runtime-target="{{ block.settings.runtime_target|default:page_meta.checkout_runtime_target|default:'' }}">
+  <button type="button" class="button">{{ block.content.label|default:"Buy now" }}</button>
+</section>

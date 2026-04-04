@@ -49,9 +49,13 @@ class Page:
         self.layout: str | None = None
         self.layout_options: dict[str, Any] = {}
         self.blocks: list[dict[str, Any]] = []
+        self.islands: list[dict[str, Any]] = []
         self.route_prefix: str = ""
         self.is_generated: bool = False
         self.is_collection_index: bool = False
+        self.model_name: str | None = None
+        self.model_data: dict[str, Any] = {}
+        self.validation_errors: list[str] = []
 
         self.output_path: Path | None = None
         self.abs_url: str = ""
@@ -128,6 +132,8 @@ class Page:
 
         blocks = self.metadata.get("blocks", [])
         self.blocks = blocks if isinstance(blocks, list) else []
+        islands = self.metadata.get("islands", [])
+        self.islands = islands if isinstance(islands, list) else []
 
         self.logger.debug(
             "Page attributes populated for '%s': slug=%s type=%s layout=%s",
@@ -258,9 +264,15 @@ class Page:
         theme_context: Optional[dict[str, Any]] = None,
         rendered_blocks: str = "",
         layout_options: Optional[dict[str, Any]] = None,
+        frontend_context: Optional[dict[str, Any]] = None,
+        runtime_context: Optional[dict[str, Any]] = None,
+        extensions_context: Optional[dict[str, Any]] = None,
     ) -> dict:
         theme_context = theme_context or {}
         layout_options = layout_options or {}
+        frontend_context = frontend_context or {}
+        runtime_context = runtime_context or {}
+        extensions_context = extensions_context or {}
 
         return {
             "content": self.processed_content,
@@ -281,7 +293,12 @@ class Page:
             "page_layout": self.layout,
             "page_layout_options": layout_options,
             "page_blocks": self.blocks,
+            "page_islands": self.islands,
+            "page_frontend_islands": self.islands,
             "page_meta": self.metadata,
+            "page_model_name": self.model_name,
+            "page_model": self.model_data,
+            "page_validation_errors": self.validation_errors,
             "page": self,
             "site": site,
             "site_data": site.data if site else {},
@@ -301,6 +318,9 @@ class Page:
                 "theme_component_presets", {}
             ),
             "core_blocks": theme_context.get("core_blocks", []),
+            "frontend": frontend_context.get("frontend", {}),
+            "runtime": runtime_context.get("runtime", {}),
+            "extensions": extensions_context.get("extensions", {}),
         }
 
     def set_rel_url(self, rel_url: str) -> None:

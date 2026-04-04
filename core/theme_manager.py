@@ -29,6 +29,10 @@ class ThemeManager:
         self.fs_manager = fs_manager
         self.theme_name = str(self.config.get("theme.name", "minimal-blog"))
         self.theme_dir = Path("themes") / self.theme_name
+        if not self.theme_dir.exists():
+            package_theme_dir = Path(__file__).resolve().parent.parent / "themes" / self.theme_name
+            if package_theme_dir.exists():
+                self.theme_dir = package_theme_dir
         self.site_theme_dir = Path(self.config.get("theme.site_theme_dir", "./site-theme"))
         self.settings_path = Path(self.config.get("theme.settings", "./theme.settings.yaml"))
         self.manifest = self._load_theme_manifest()

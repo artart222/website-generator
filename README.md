@@ -3,11 +3,33 @@
 [![Tests](https://github.com/artart222/website-generator/actions/workflows/tests.yml/badge.svg)](https://github.com/artart222/website-generator/actions/workflows/tests.yml)
 [![Code Quality](https://github.com/artart222/website-generator/actions/workflows/pylint.yml/badge.svg)](https://github.com/artart222/website-generator/actions/workflows/pylint.yml)
 
-Developer-first static site generator built in Python.
+Markdown-first static site generator for developers who want themes, collections, plugins, and room to customize.
 
 It turns Markdown content, YAML configuration, theme packages, and optional frontend tooling into a deployable static site in `output/`. The project is designed around collections, themes, and plugins so you can grow from a simple blog to a more customized portfolio, docs site, or content-heavy project without rewriting the core.
 
+This repository also dogfoods the engine: the sample content and themes in the repo are the same pieces used to generate the demo site output.
+
 ![Demo](Demo-Screenshot.png)
+
+## Why It Stands Out
+
+- Theme packages live in `themes/`, while project overrides live in `site-theme/`, so you can customize without forking everything.
+- Collections give you clean routing for blogs, pages, docs, or product catalogs instead of one flat content folder.
+- Plugins let you add behavior such as collection indexes, sitemaps, or metadata extraction without editing the build core.
+- Optional JSON export and a React section make it possible to build hybrid static sites without abandoning the generator.
+- The codebase is small enough to read, learn from, and extend if you want a generator that feels like your own tool instead of a black box.
+
+## Fastest Demo
+
+```bash
+git clone https://github.com/artart222/website-generator.git
+cd website-generator
+pip install -e .
+wg build
+wg serve --build-first
+```
+
+Then open `http://127.0.0.1:8000`.
 
 ## What It Does
 
@@ -344,6 +366,7 @@ Useful references:
 
 - `docs/USER_GUIDE.md`
 - `docs/DEVELOPER_GUIDE.md`
+- `docs/LAUNCH_KIT.md`
 - `ARCHITECTURE.md`
 
 ## Tech Stack

@@ -2,10 +2,10 @@ from .config import Config
 from plugins.base_plugin import BasePlugin
 from .site import Site
 
-import os
 import importlib
 import inspect
 import logging
+from pathlib import Path
 
 
 class PluginManager:
@@ -48,16 +48,17 @@ class PluginManager:
             plugins_list = []
             return []
 
-        plugin_dir = "plugins"
+        plugin_package = importlib.import_module("plugins")
+        plugin_dir = Path(plugin_package.__file__).resolve().parent
         plugin_files = [
-            f
-            for f in os.listdir(plugin_dir)
-            if f.endswith(".py") and f != "__init__.py"
+            path.name
+            for path in plugin_dir.iterdir()
+            if path.suffix == ".py" and path.name != "__init__.py"
         ]
 
         plugin_modules = []
         for filename in plugin_files:
-            module_name = f"{plugin_dir}.{filename[:-3]}"  # Remove .py
+            module_name = f"{plugin_package.__name__}.{filename[:-3]}"
             try:
                 module = importlib.import_module(module_name)
                 plugin_modules.append(module)

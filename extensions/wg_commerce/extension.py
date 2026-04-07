@@ -11,11 +11,17 @@ COMMERCE_MODELS = {
         "fields": {
             "sku": {"type": "string", "required": True},
             "price": {"type": "number", "required": True},
+            "price_compare_at": {"type": "number", "default": None},
             "currency": {"type": "string", "default": "IRR"},
             "availability": {"type": "string", "default": "in_stock"},
+            "badge": {"type": "string", "default": ""},
             "images": {"type": "list", "items_type": "string", "default": []},
             "variants": {"type": "list", "items_type": "object", "default": []},
+            "variant_name": {"type": "string", "default": "Edition"},
             "attributes": {"type": "object", "default": {}},
+            "highlights": {"type": "list", "items_type": "string", "default": []},
+            "shipping_note": {"type": "string", "default": ""},
+            "lead_time": {"type": "string", "default": ""},
             "payment_methods": {"type": "list", "items_type": "string", "default": []},
             "checkout_provider": {"type": "string", "default": ""},
         }

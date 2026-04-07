@@ -56,12 +56,7 @@ class CollectionIndexerPlugin(BasePlugin):
             collection_pages.sort(key=lambda page: page.date or "", reverse=True)
 
             list_items = "\n".join(
-                (
-                    "<li class='collection-index__item'>"
-                    f"<article><a href='{p.get_root_rel_url()}'>{p.title}</a>"
-                    f"{f'<p>{p.summary}</p>' if p.summary else ''}</article>"
-                    "</li>"
-                )
+                self._render_collection_item(p)
                 for p in collection_pages
             )
             html_list = f"<ul class='collection-index__list'>{list_items}</ul>"
@@ -95,3 +90,58 @@ class CollectionIndexerPlugin(BasePlugin):
                 index_page.set_output_path(output_dir / output_path)
 
             site.add_page(index_page)
+
+    def _render_collection_item(self, page: Page) -> str:
+        summary_html = f"<p>{page.summary}</p>" if page.summary else ""
+        meta_html = self._render_collection_meta(page)
+        details_url = page.get_root_rel_url()
+        actions_html = (
+            "<div class='collection-index__actions'>"
+            f"<a class='collection-index__action' href='{details_url}'>View details</a>"
+            f"<a class='collection-index__action collection-index__action--secondary' href='{details_url}#purchase-panel'>Buy now</a>"
+            "</div>"
+        )
+
+        return (
+            "<li class='collection-index__item'>"
+            "<article>"
+            f"<a href='{details_url}'>{page.title}</a>"
+            f"{summary_html}"
+            f"{meta_html}"
+            f"{actions_html}"
+            "</article>"
+            "</li>"
+        )
+
+    def _render_collection_meta(self, page: Page) -> str:
+        meta_parts: list[str] = []
+        price = page.metadata.get("price")
+        currency = str(page.metadata.get("currency", "")).strip().upper()
+        availability = str(page.metadata.get("availability", "")).strip()
+
+        price_text = self._format_price(price)
+        if price_text:
+            currency_label = f"{currency} " if currency else ""
+            meta_parts.append(
+                f"<span class='collection-index__price'>{currency_label}{price_text}</span>"
+            )
+
+        if availability:
+            availability_label = availability.replace("_", " ")
+            meta_parts.append(
+                f"<span class='collection-index__availability'>{availability_label}</span>"
+            )
+
+        if not meta_parts:
+            return ""
+
+        return f"<div class='collection-index__meta'>{''.join(meta_parts)}</div>"
+
+    def _format_price(self, price) -> str:
+        if isinstance(price, int):
+            return f"{price:,}"
+        if isinstance(price, float):
+            return f"{price:,.0f}" if price.is_integer() else f"{price:,.2f}"
+        if isinstance(price, str) and price.strip():
+            return price.strip()
+        return ""

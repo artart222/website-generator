@@ -54,4 +54,4 @@ wg = "cli:main"
 py-modules = ["cli", "main", "dev"]
 
 [tool.setuptools.packages.find]
-include = ["core*", "engines*", "plugins*", "processor*", "utils*", "extensions*"]
+include = ["core*", "engines*", "plugins*", "processor*", "utils*", "extensions*", "wg_runtime*"]

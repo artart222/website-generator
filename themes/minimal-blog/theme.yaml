@@ -4,6 +4,7 @@ engine: django
 layouts:
   base: layouts/base.html
   document: layouts/document.html
+  product: layouts/product.html
   collection: layouts/collection.html
   not_found: layouts/404.html
 assets:

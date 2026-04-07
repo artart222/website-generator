@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-labelledby="title">
+  <title>Ceramic Tea Glass Set detail</title>
+  <rect width="360" height="420" fill="#f7ead7"/>
+  <rect x="42" y="56" width="276" height="308" rx="36" fill="#fffaf1" stroke="#cf9d73" stroke-width="4"/>
+  <g transform="translate(72 88)">
+    <ellipse cx="108" cy="188" rx="90" ry="26" fill="#db9e69" opacity=".22"/>
+    <path d="M44 46h124c16 0 26 10 26 26v132c0 31-24 58-58 58H76c-34 0-58-27-58-58V72c0-16 10-26 26-26z" fill="#efd7c1" stroke="#916344" stroke-width="6"/>
+    <path d="M70 22h72" stroke="#916344" stroke-width="8" stroke-linecap="round"/>
+    <path d="M54 124h104" stroke="#c78048" stroke-width="10" stroke-linecap="round" opacity=".85"/>
+    <path d="M54 152h104" stroke="#c78048" stroke-width="10" stroke-linecap="round" opacity=".55"/>
+  </g>
+  <text x="42" y="386" fill="#6b472f" font-family="Segoe UI, sans-serif" font-size="18">Hand-finished rim and matte glaze.</text>
+</svg>

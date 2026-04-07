@@ -2,13 +2,27 @@ preset: default
 
 presets: {}
 
-# tokens:
-#   colors:
-#     accent: "#d19a66"
-#     accent-contrast: "#ecfeff"
-#   typography:
-#     body-family: "'Segoe UI', sans-serif"
-#     heading-family: "'Georgia', serif"
+tokens:
+  colors:
+    bg: "#efe3cf"
+    surface: "#fff8ec"
+    text: "#23180f"
+    muted: "#6f5d4f"
+    accent: "#b5531d"
+    accent-contrast: "#fff7ed"
+    border: "#d8bea0"
+  typography:
+    body-family: "'Segoe UI', sans-serif"
+    heading-family: "'Palatino Linotype', 'Book Antiqua', serif"
+    font-size: "16px"
+  spacing:
+    container: "76rem"
+    section: "4rem"
+  radius:
+    card: "26px"
+    button: "999px"
+  shadows:
+    card: "0 22px 45px rgba(99, 58, 22, 0.13)"
 
 stylesheets: []
 scripts: []

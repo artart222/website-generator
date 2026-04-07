@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-labelledby="title">
+  <title>Copper Tea Tray table scene</title>
+  <rect width="360" height="420" fill="#efe2d2"/>
+  <rect x="0" y="292" width="360" height="128" fill="#8f5d3b"/>
+  <ellipse cx="180" cy="268" rx="128" ry="48" fill="#c87c42" stroke="#8d4d24" stroke-width="7"/>
+  <g fill="#f6e6d2" stroke="#895939" stroke-width="5">
+    <path d="M112 150h40c9 0 14 5 14 15v62c0 14-10 26-24 26h-20c-14 0-24-12-24-26v-62c0-10 5-15 14-15z"/>
+    <path d="M148 160h12c10 0 15 6 15 14s-5 14-15 14h-8" fill="none"/>
+    <path d="M198 136h40c9 0 14 5 14 15v76c0 14-10 26-24 26h-20c-14 0-24-12-24-26v-76c0-10 5-15 14-15z"/>
+    <path d="M234 146h12c10 0 15 6 15 14s-5 14-15 14h-8" fill="none"/>
+  </g>
+  <text x="42" y="70" fill="#6a4328" font-family="Georgia, serif" font-size="24">Tray at service</text>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-labelledby="title">
+  <title>Ceramic Tea Glass Set table scene</title>
+  <rect width="360" height="420" fill="#efe0ca"/>
+  <rect x="0" y="276" width="360" height="144" fill="#c88f5f"/>
+  <ellipse cx="180" cy="282" rx="122" ry="34" fill="#e8b98d"/>
+  <g fill="#f9ead8" stroke="#885a3b" stroke-width="5">
+    <path d="M88 154h52c10 0 16 6 16 18v72c0 16-12 30-28 30h-28c-16 0-28-14-28-30v-72c0-12 6-18 16-18z"/>
+    <path d="M150 168h14c12 0 18 8 18 18s-6 18-18 18h-8" fill="none"/>
+    <path d="M154 136h52c10 0 16 6 16 18v90c0 16-12 30-28 30h-28c-16 0-28-14-28-30v-90c0-12 6-18 16-18z" fill="#efd6bf"/>
+    <path d="M216 150h14c12 0 18 8 18 18s-6 18-18 18h-8" fill="none"/>
+  </g>
+  <circle cx="286" cy="102" r="26" fill="#d16f33" opacity=".18"/>
+  <text x="38" y="70" fill="#6a4530" font-family="Georgia, serif" font-size="24">Evening service</text>
+</svg>

@@ -298,6 +298,22 @@ class Page:
             "page_meta": self.metadata,
             "page_model_name": self.model_name,
             "page_model": self.model_data,
+            "page_price_display": self._format_price_display(
+                self.model_data.get("price", self.metadata.get("price"))
+            ),
+            "page_compare_price_display": self._format_price_display(
+                self.model_data.get(
+                    "price_compare_at", self.metadata.get("price_compare_at")
+                )
+            ),
+            "page_currency": str(
+                self.model_data.get("currency", self.metadata.get("currency", ""))
+            ),
+            "page_availability_label": str(
+                self.model_data.get(
+                    "availability", self.metadata.get("availability", "")
+                )
+            ).replace("_", " "),
             "page_validation_errors": self.validation_errors,
             "page": self,
             "site": site,
@@ -385,6 +401,19 @@ class Page:
             return image_addr
 
         return "/assets/default-share.png"
+
+    def _format_price_display(self, value: Any) -> str:
+        if value is None or value == "":
+            return ""
+        if isinstance(value, bool):
+            return str(value)
+        if isinstance(value, int):
+            return f"{value:,}"
+        if isinstance(value, float):
+            return f"{value:,.0f}" if value.is_integer() else f"{value:,.2f}"
+        if isinstance(value, str):
+            return value.strip()
+        return str(value)
 
     def __repr__(self) -> str:
         return f"<Page title='{self.title}' slug='{self.slug}' type='{self.page_type}'>"

@@ -1,3 +1,17 @@
-<section class="wg-commerce-checkout" data-wg-island data-wg-component="commerce/checkout_button" data-wg-target="{{ block.settings.target|default:'store-ui' }}" data-wg-sku="{{ page_model.sku|default:page_meta.sku|default:'' }}" data-wg-price="{{ page_model.price|default:page_meta.price|default:'' }}" data-wg-currency="{{ page_model.currency|default:page_meta.currency|default:'IRR' }}" data-wg-runtime-target="{{ block.settings.runtime_target|default:page_meta.checkout_runtime_target|default:'' }}">
+<section
+  class="wg-commerce-checkout"
+  data-wg-island
+  data-wg-component="commerce/checkout_button"
+  data-wg-target="{{ block.settings.target|default:'store-ui' }}"
+  data-wg-sku="{{ page_model.sku|default:page_meta.sku|default:''|stringformat:'s' }}"
+  data-wg-price="{{ page_model.price|default:page_meta.price|default:''|stringformat:'s' }}"
+  data-wg-currency="{{ page_model.currency|default:page_meta.currency|default:'IRR'|stringformat:'s' }}"
+  data-wg-runtime-target="{{ block.settings.runtime_target|default:''|stringformat:'s' }}"
+  data-wg-product-title="{{ page_title|stringformat:'s' }}"
+  data-wg-success-url="{{ block.settings.success_url|default:'/order-confirmed/'|stringformat:'s' }}"
+  data-wg-failure-url="{{ block.settings.failure_url|default:'/payment-not-completed/'|stringformat:'s' }}"
+  data-wg-status-url="{{ block.settings.status_url|default:'/order-status/'|stringformat:'s' }}"
+>
   <button type="button" class="button">{{ block.content.label|default:"Buy now" }}</button>
+  <p class="wg-commerce-checkout__feedback" data-checkout-feedback>{{ block.content.text|default:"" }}</p>
 </section>

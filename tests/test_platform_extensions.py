@@ -90,13 +90,19 @@ sku: SKU-001
 price: 490000
 currency: IRR
 type: product
-layout: document
+layout: product
+highlights:
+  - First-class commerce layout
+variants:
+  - id: default
+    label: Default option
+    price: 490000
 blocks:
-  - type: commerce/checkout_button
+  - type: rich_text
     content:
-      label: Buy now
-    settings:
-      runtime_target: commerce-api
+      title: Sample
+      html: |
+        <p>Sample product body.</p>
 ---
 
 # Sample Product
@@ -187,6 +193,7 @@ layout: document
 
         html = html_path.read_text(encoding="utf-8")
         assert 'data-wg-component="commerce/checkout_button"' in html
+        assert 'id="purchase-panel"' in html
 
         page_payload = json.loads(page_json_path.read_text(encoding="utf-8"))
         assert page_payload["model"] == "product"

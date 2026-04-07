@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-labelledby="title">
+  <title>Saffron Gift Box table scene</title>
+  <rect width="360" height="420" fill="#f6e0bf"/>
+  <rect x="0" y="286" width="360" height="134" fill="#b36d36"/>
+  <rect x="82" y="128" width="196" height="134" rx="24" fill="#a33317"/>
+  <rect x="104" y="96" width="152" height="64" rx="16" fill="#6c2010"/>
+  <path d="M120 196c24-34 54-24 70-2 18 24 44 20 72-14" fill="none" stroke="#f6d86c" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="66" cy="94" r="22" fill="#f5bf41" opacity=".45"/>
+  <text x="42" y="64" fill="#6c2b15" font-family="Georgia, serif" font-size="24">Gift table</text>
+</svg>

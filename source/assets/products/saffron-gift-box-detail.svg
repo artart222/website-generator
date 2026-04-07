@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-labelledby="title">
+  <title>Saffron Gift Box detail</title>
+  <rect width="360" height="420" fill="#fff3e6"/>
+  <rect x="38" y="52" width="284" height="316" rx="34" fill="#fff9f3" stroke="#e1b67b" stroke-width="4"/>
+  <g transform="translate(78 92)">
+    <rect x="0" y="28" width="204" height="146" rx="22" fill="#c6461a"/>
+    <rect x="22" y="0" width="160" height="62" rx="18" fill="#7f2714"/>
+    <circle cx="58" cy="118" r="28" fill="#f9d662"/>
+    <circle cx="144" cy="118" r="28" fill="#f0c74d"/>
+    <path d="M44 120c18-22 32-20 44-2" fill="none" stroke="#8d2d18" stroke-width="6" stroke-linecap="round"/>
+    <path d="M130 120c18-22 32-20 44-2" fill="none" stroke="#8d2d18" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <text x="48" y="386" fill="#8a3418" font-family="Segoe UI, sans-serif" font-size="18">Tasting tin, guide, and ceremonial ribbon.</text>
+</svg>

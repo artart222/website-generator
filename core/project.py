@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 from copy import deepcopy
+from datetime import date, datetime
 from pathlib import Path
 
 import yaml
@@ -573,14 +574,14 @@ class Project:
                 "slug": page.slug,
                 "type": page.page_type,
                 "model": page.model_name,
-                "model_data": page.model_data,
+                "model_data": self._make_json_safe(page.model_data),
                 "collection": page.collection,
                 "abs_url": page.abs_url,
                 "root_rel_url": page.root_rel_url,
-                "metadata": page.metadata,
+                "metadata": self._make_json_safe(page.metadata),
                 "content_html": page.processed_content,
-                "blocks": page.blocks,
-                "islands": page.islands,
+                "blocks": self._make_json_safe(page.blocks),
+                "islands": self._make_json_safe(page.islands),
                 "layout": page.layout,
             }
 
@@ -611,6 +612,22 @@ class Project:
         self.fs_manager.write_file(
             site_index_path, json.dumps(site_payload, ensure_ascii=False, indent=2)
         )
+
+    def _make_json_safe(self, value):
+        if isinstance(value, dict):
+            return {
+                str(key): self._make_json_safe(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [self._make_json_safe(item) for item in value]
+        if isinstance(value, tuple):
+            return [self._make_json_safe(item) for item in value]
+        if isinstance(value, Path):
+            return str(value)
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        return value
 
     def _copy_assets(self) -> None:
         output_dir = Path(

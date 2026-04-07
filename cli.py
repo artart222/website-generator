@@ -15,6 +15,7 @@ from core.project import Project
 from core.starters import STARTER_NAMES, scaffold_starter
 from core.theme_manager import ThemeManager
 from utils.fs_manager import FileSystemManager
+from wg_runtime.mock_server import serve_mock_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,15 @@ def cmd_watch(args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         logger.info("Watch mode stopped.")
         return 0
+
+
+def cmd_runtime_mock(args: argparse.Namespace) -> int:
+    serve_mock_runtime(
+        host=args.host,
+        port=args.port,
+        config_path=args.config,
+    )
+    return 0
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -378,6 +388,15 @@ def build_parser() -> argparse.ArgumentParser:
     theme_eject_parser.add_argument("target")
     theme_eject_parser.add_argument("--config", default="config.yaml")
     theme_eject_parser.set_defaults(func=cmd_theme_eject)
+
+    runtime_parser = subparsers.add_parser("runtime", help="Runtime companion tools")
+    runtime_subparsers = runtime_parser.add_subparsers(dest="runtime_command", required=True)
+
+    runtime_mock_parser = runtime_subparsers.add_parser("mock", help="Run the local mock commerce runtime")
+    runtime_mock_parser.add_argument("--config", default="config.yaml")
+    runtime_mock_parser.add_argument("--host", default="127.0.0.1")
+    runtime_mock_parser.add_argument("--port", type=int, default=8787)
+    runtime_mock_parser.set_defaults(func=cmd_runtime_mock)
 
     return parser
 

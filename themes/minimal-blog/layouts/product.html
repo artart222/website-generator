@@ -1,0 +1,193 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<article class="page page--product" data-layout="product">
+  <div class="product-shell">
+    <section class="product-showcase">
+      <div class="product-gallery" data-product-gallery>
+        <div class="product-gallery__frame">
+          {% if page_model.images %}
+          <img
+            src="{{ page_model.images.0 }}"
+            alt="{{ page_title }}"
+            class="product-gallery__main-image"
+            data-product-main-image
+          >
+          {% else %}
+          <div class="product-gallery__placeholder">
+            <span>{{ page_title }}</span>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if page_model.images %}
+        <div class="product-gallery__thumbs">
+          {% for image in page_model.images %}
+          <button
+            type="button"
+            class="product-gallery__thumb{% if forloop.first %} is-active{% endif %}"
+            data-product-thumb
+            data-image-src="{{ image }}"
+            data-image-alt="{{ page_title }} view {{ forloop.counter|stringformat:'s' }}"
+          >
+            <img src="{{ image }}" alt="{{ page_title }} view {{ forloop.counter|stringformat:'s' }}">
+          </button>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="product-buy-panel" id="purchase-panel" data-product-panel>
+        <div class="product-buy-panel__eyebrow-row">
+          <span class="page__eyebrow">{{ page_type|default:"product" }}</span>
+          {% if page_model.badge %}
+          <span class="product-pill product-pill--badge">{{ page_model.badge }}</span>
+          {% endif %}
+        </div>
+
+        <h1 class="product-buy-panel__title">{{ page_title }}</h1>
+
+        {% if page_summary %}
+        <p class="product-buy-panel__summary">{{ page_summary }}</p>
+        {% endif %}
+
+        <div class="product-buy-panel__meta">
+          {% if page_availability_label %}
+          <span class="product-pill product-pill--availability">{{ page_availability_label }}</span>
+          {% endif %}
+          {% if page_model.sku %}
+          <span class="product-pill">{{ page_model.sku }}</span>
+          {% endif %}
+          {% if page_date %}
+          <span class="product-pill">{{ page_date }}</span>
+          {% endif %}
+        </div>
+
+        <div class="product-pricing" data-product-pricing>
+          {% if page_compare_price_display %}
+          <div class="product-pricing__compare">{{ page_currency }} {{ page_compare_price_display }}</div>
+          {% endif %}
+          <div class="product-pricing__current">
+            <span class="product-pricing__currency">{{ page_currency }}</span>
+            <span class="product-pricing__value" data-product-price>{{ page_price_display }}</span>
+          </div>
+          <p class="product-pricing__note">Static presentation, runtime-backed checkout.</p>
+        </div>
+
+        {% if page_model.variants %}
+        <div class="product-option">
+          <label class="product-option__label" for="product-variant">{{ page_model.variant_name|default:"Edition" }}</label>
+          <select id="product-variant" class="product-option__select" data-product-variant>
+            {% for variant in page_model.variants %}
+            <option
+              value="{{ variant.id|default:forloop.counter|stringformat:'s' }}"
+              data-price="{{ variant.price|default:page_model.price|stringformat:'s' }}"
+              data-label="{{ variant.label|default:'' }}"
+              data-note="{{ variant.note|default:'' }}"
+            >
+              {{ variant.label|default:"Option" }}
+            </option>
+            {% endfor %}
+          </select>
+          <p class="product-option__note" data-product-variant-note>
+            {% with first_variant=page_model.variants.0 %}
+            {{ first_variant.note|default:"Choose the finish that fits your table." }}
+            {% endwith %}
+          </p>
+        </div>
+        {% endif %}
+
+        <div class="product-option product-option--quantity">
+          <label class="product-option__label" for="product-quantity">Quantity</label>
+          <input
+            id="product-quantity"
+            class="product-option__input"
+            type="number"
+            min="1"
+            step="1"
+            value="1"
+            data-product-quantity
+          >
+        </div>
+
+        {% if page_model.highlights %}
+        <ul class="product-highlights">
+          {% for highlight in page_model.highlights %}
+          <li>{{ highlight }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        <section
+          class="wg-commerce-checkout product-buy-panel__checkout"
+          data-wg-island
+          data-wg-component="commerce/checkout_button"
+          data-wg-target="store-ui"
+          data-wg-sku="{{ page_model.sku|default:page_meta.sku|default:''|stringformat:'s' }}"
+          data-wg-price="{{ page_model.price|default:page_meta.price|default:''|stringformat:'s' }}"
+          data-wg-currency="{{ page_model.currency|default:page_meta.currency|default:'IRR'|stringformat:'s' }}"
+          data-wg-runtime-target="{{ runtime.targets.0.name|default:'commerce-api'|stringformat:'s' }}"
+          data-wg-product-title="{{ page_title|stringformat:'s' }}"
+          data-wg-variant-selector="#product-variant"
+          data-wg-quantity-selector="#product-quantity"
+          data-wg-success-url="/order-confirmed/"
+          data-wg-failure-url="/payment-not-completed/"
+          data-wg-status-url="/order-status/"
+        >
+          <button type="button" class="button button--purchase">Buy now</button>
+          <a class="product-buy-panel__status-link" href="/order-status/">Track an order</a>
+          <p class="wg-commerce-checkout__feedback" data-checkout-feedback>Local mock checkout is ready.</p>
+        </section>
+
+        <dl class="product-aside-meta">
+          {% if page_model.shipping_note %}
+          <div>
+            <dt>Shipping</dt>
+            <dd>{{ page_model.shipping_note }}</dd>
+          </div>
+          {% endif %}
+          {% if page_model.lead_time %}
+          <div>
+            <dt>Lead time</dt>
+            <dd>{{ page_model.lead_time }}</dd>
+          </div>
+          {% endif %}
+          {% if page_model.checkout_provider %}
+          <div>
+            <dt>Payment</dt>
+            <dd>{{ page_model.checkout_provider }}</dd>
+          </div>
+          {% endif %}
+        </dl>
+      </div>
+    </section>
+
+    <section class="product-details-grid">
+      <div class="product-details-card">
+        <h2>Product details</h2>
+        <dl class="product-specs">
+          {% for key, value in page_model.attributes.items %}
+          <div>
+            <dt>{{ key }}</dt>
+            <dd>{{ value }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+      </div>
+
+      <div class="product-details-card product-details-card--story">
+        <h2>Why it belongs in the demo</h2>
+        <div class="prose">
+          {{ content|safe }}
+        </div>
+      </div>
+    </section>
+
+    {% if rendered_blocks %}
+    <section class="page__blocks product-supporting">
+      {{ rendered_blocks|safe }}
+    </section>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

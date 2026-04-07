@@ -1,4 +1,16 @@
 <section class="wg-commerce-order-status" data-wg-island data-wg-component="commerce/order_status" data-wg-target="{{ block.settings.target|default:'store-ui' }}" data-wg-runtime-target="{{ block.settings.runtime_target|default:'' }}">
   <h2>{{ block.content.title|default:"Order status" }}</h2>
   <p>{{ block.content.text|default:"This page can query a runtime target for public order state." }}</p>
+  <form class="wg-commerce-order-status__form" data-order-status-form>
+    <input
+      class="wg-commerce-order-status__input"
+      type="text"
+      name="order_id"
+      placeholder="Enter order id"
+      autocomplete="off"
+      data-order-status-input
+    >
+    <button type="submit" class="button">Check status</button>
+  </form>
+  <div class="wg-commerce-order-status__result" data-order-status-result>Enter an order id or return here after checkout.</div>
 </section>

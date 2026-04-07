@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-labelledby="title">
+  <title>Copper Tea Tray hero</title>
+  <defs>
+    <radialGradient id="tray" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#f6c691"/>
+      <stop offset="100%" stop-color="#b96c34"/>
+    </radialGradient>
+  </defs>
+  <rect width="360" height="420" fill="#f6ead7"/>
+  <ellipse cx="180" cy="210" rx="128" ry="94" fill="url(#tray)" stroke="#87481f" stroke-width="8"/>
+  <ellipse cx="180" cy="210" rx="108" ry="74" fill="none" stroke="#d99a61" stroke-width="7" stroke-dasharray="6 10"/>
+  <circle cx="180" cy="210" r="34" fill="none" stroke="#8f5126" stroke-width="7"/>
+  <text x="56" y="360" fill="#6a3f24" font-family="Georgia, serif" font-size="30">Copper Tea Tray</text>
+  <text x="56" y="388" fill="#91522a" font-family="Segoe UI, sans-serif" font-size="16">Hammered finish, tea service scale.</text>
+</svg>

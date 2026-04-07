@@ -1,23 +1,43 @@
-version: 1
+version: 2
 
 site:
-  name: artart222 Portfolio/Blog
-  description: Portfolio and blog.
-  base_url: https://artart222.github.io
+  name: Bazaar Atelier
+  description: Static-first storefront demo with runtime-ready checkout and Iranian payment adapter wiring.
+  base_url: http://localhost:8000
   author: Artin Mobasher
   navigation:
     - title: Home
       type: index
-    - title: Blog
+    - title: Shop
+      collection_index: shop
+    - title: Order Status
+      type: order-status
+    - title: Journal
       collection_index: blog
 
 content:
   source_directory: ./source
   data_dir: ./source/data
   collections:
+    shop:
+      path: ./source/shop
+      type: product
+      model: product
+      route:
+        prefix: shop
+      layout: product
+      defaults:
+        layout: product
+      index:
+        enabled: true
+        layout: collection
+        output_path: shop/index.html
+        title: Shop
+        description: A static storefront catalog backed by runtime-ready checkout contracts.
     blog:
       path: ./source/blogs
       type: blog
+      model: post
       route:
         prefix: blog
       layout: document
@@ -27,40 +47,24 @@ content:
         enabled: true
         layout: collection
         output_path: blog/index.html
-        title: Blog
+        title: Journal
+        description: Notes about the static-first platform behind this demo.
     pages:
       path: ./source
       type: page
+      model: page
       route:
         prefix: ""
       layout: document
       defaults:
         layout: document
-    # shop:
-    #   path: ./source/shop
-    #   type: shop
-    #   route:
-    #     prefix: shop
-    #   layout: document
-    #   defaults:
-    #     layout: document
-    #   index:
-    #     enabled: true
-    #     layout: collection
-    #     output_path: shop/index.html
-    #     title: Shop
 
 theme:
   name: minimal-blog
-  # name: editorial-ledger
-  # name: docs-basic
-  # name: sunlit-notes
-  # name: midnight-zine
   settings: ./theme.settings.yaml
   site_theme_dir: ./site-theme
   extra_css_urls:
     - /styles/code.css
-
 
 build:
   output_directory: ./output
@@ -68,6 +72,47 @@ build:
     - ./source/assets
   template_engine: django
   log_level: 20
+
+extensions:
+  enabled:
+    - wg-commerce
+    - wg-seo
+    - wg-sitemap
+
+frontend:
+  targets:
+    - type: static_islands_bundle
+      name: store-ui
+      mount_base: /assets/frontend
+  islands:
+    - name: cart
+      component: commerce/cart
+    - name: checkout_button
+      component: commerce/checkout_button
+    - name: order_status
+      component: commerce/order_status
+
+runtime:
+  targets:
+    - name: commerce-api
+      type: fastapi_service
+      public_base_url: http://localhost:8787
+      capabilities:
+        - checkout
+        - payment_callback
+        - order_status
+
+integrations:
+  commerce:
+    provider: wg-commerce
+  payments:
+    default: iran_gateway
+    providers:
+      iran_gateway:
+        adapter: commerce.payment.ir.shaparak_like
+        runtime_target: commerce-api
+        currency: IRR
+        callback_url: http://localhost:8787/payments/callback
 
 plugins:
   - CollectionIndexerPlugin
@@ -77,7 +122,7 @@ plugins:
 
 experimental:
   export_data:
-    enabled: false
+    enabled: true
     output_dir: ./output/data
     include_collections: []
   react:

@@ -2,5 +2,8 @@
   <div class="wg-commerce-cart__body">
     <h2>{{ block.content.title|default:"Cart" }}</h2>
     <p>{{ block.content.text|default:"This cart UI is mounted by your frontend island bundle." }}</p>
+    <ul class="wg-commerce-cart__list" data-cart-list>
+      <li class="wg-commerce-cart__item">Your cart is empty. Product selections will appear here.</li>
+    </ul>
   </div>
 </section>

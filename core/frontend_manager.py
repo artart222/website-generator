@@ -44,34 +44,402 @@ def build_static_islands_bundle(
 
     bootstrap_js_path = asset_dir / "wg-islands.js"
     bootstrap_script = """(function () {
+  var runtimeConfigPromise = null;
+
   function toProps(element) {
     var props = {};
     Object.keys(element.dataset).forEach(function (key) {
-      if (!key.startsWith(\"wg\")) {
+      if (!key.startsWith('wg')) {
         props[key] = element.dataset[key];
       }
     });
     return props;
   }
 
+  function resolveUrl(path) {
+    if (!path) {
+      return '';
+    }
+    if (/^https?:\\/\\//i.test(path)) {
+      return path;
+    }
+    return new URL(path, window.location.origin).toString();
+  }
+
+  function formatPrice(value) {
+    var number = Number(value || 0);
+    if (!Number.isFinite(number)) {
+      return String(value || '');
+    }
+    return new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 0
+    }).format(number);
+  }
+
+  function getRuntimeConfig() {
+    if (!runtimeConfigPromise) {
+      runtimeConfigPromise = fetch('/runtime/public-config.json', {
+        credentials: 'same-origin'
+      }).then(function (response) {
+        if (!response.ok) {
+          throw new Error('Unable to load runtime config');
+        }
+        return response.json();
+      }).catch(function () {
+        return { targets: [], integrations: {} };
+      });
+    }
+    return runtimeConfigPromise;
+  }
+
+  function findRuntimeTarget(config, targetName) {
+    var targets = Array.isArray(config.targets) ? config.targets : [];
+    if (targetName) {
+      for (var index = 0; index < targets.length; index += 1) {
+        if (targets[index] && targets[index].name === targetName) {
+          return targets[index];
+        }
+      }
+    }
+    return targets.length ? targets[0] : null;
+  }
+
+  function setCheckoutFeedback(element, text, isError) {
+    var feedback = element.querySelector('[data-checkout-feedback]');
+    if (!feedback) {
+      return;
+    }
+    feedback.textContent = text || '';
+    feedback.style.color = isError ? '#8d1f1f' : '';
+  }
+
+  function readQuantity(element) {
+    var selector = element.dataset.wgQuantitySelector;
+    var input = selector ? document.querySelector(selector) : null;
+    var value = input ? Number(input.value || 1) : 1;
+    if (!Number.isFinite(value) || value < 1) {
+      return 1;
+    }
+    return Math.round(value);
+  }
+
+  function readVariant(element) {
+    var selector = element.dataset.wgVariantSelector;
+    var input = selector ? document.querySelector(selector) : null;
+    if (!input || !input.selectedOptions || !input.selectedOptions.length) {
+      return null;
+    }
+    var option = input.selectedOptions[0];
+    return {
+      id: option.value || '',
+      label: option.dataset.label || option.textContent || '',
+      note: option.dataset.note || '',
+      price: option.dataset.price || element.dataset.wgPrice || ''
+    };
+  }
+
+  function readCart() {
+    try {
+      var raw = window.localStorage.getItem('wg-cart');
+      if (!raw) {
+        return { items: [] };
+      }
+      var parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.items)) {
+        return { items: [] };
+      }
+      return parsed;
+    } catch (error) {
+      return { items: [] };
+    }
+  }
+
+  function writeCart(cart) {
+    try {
+      window.localStorage.setItem('wg-cart', JSON.stringify(cart));
+    } catch (error) {
+      /* ignore localStorage failures */
+    }
+  }
+
+  function renderCart(element) {
+    var list = element.querySelector('[data-cart-list]');
+    if (!list) {
+      return;
+    }
+    var cart = readCart();
+    list.innerHTML = '';
+    if (!cart.items.length) {
+      var emptyItem = document.createElement('li');
+      emptyItem.className = 'wg-commerce-cart__item';
+      emptyItem.textContent = 'Your cart is empty. Product selections will appear here.';
+      list.appendChild(emptyItem);
+      return;
+    }
+    cart.items.forEach(function (item) {
+      var row = document.createElement('li');
+      row.className = 'wg-commerce-cart__item';
+      row.textContent = item.title + ' x' + item.quantity + ' - ' + item.currency + ' ' + formatPrice(item.price);
+      list.appendChild(row);
+    });
+  }
+
+  function syncCartFromSelection(element) {
+    var variant = readVariant(element);
+    var quantity = readQuantity(element);
+    var cart = {
+      items: [{
+        sku: element.dataset.wgSku || '',
+        title: element.dataset.wgProductTitle || 'Product',
+        price: variant && variant.price ? variant.price : element.dataset.wgPrice || '',
+        currency: element.dataset.wgCurrency || 'IRR',
+        quantity: quantity,
+        variantId: variant ? variant.id : '',
+        variantLabel: variant ? variant.label : ''
+      }]
+    };
+    writeCart(cart);
+    document.querySelectorAll('[data-wg-component=\"commerce/cart\"]').forEach(renderCart);
+  }
+
+  function mountProductGallery() {
+    document.querySelectorAll('[data-product-gallery]').forEach(function (gallery) {
+      if (gallery.dataset.galleryMounted === 'true') {
+        return;
+      }
+      var mainImage = gallery.querySelector('[data-product-main-image]');
+      if (!mainImage) {
+        gallery.dataset.galleryMounted = 'true';
+        return;
+      }
+      gallery.querySelectorAll('[data-product-thumb]').forEach(function (thumb) {
+        thumb.addEventListener('click', function () {
+          if (mainImage.tagName === 'IMG') {
+            mainImage.src = thumb.dataset.imageSrc || mainImage.src;
+            mainImage.alt = thumb.dataset.imageAlt || mainImage.alt;
+          }
+          gallery.querySelectorAll('[data-product-thumb]').forEach(function (item) {
+            item.classList.remove('is-active');
+          });
+          thumb.classList.add('is-active');
+        });
+      });
+      gallery.dataset.galleryMounted = 'true';
+    });
+  }
+
+  function mountProductPanel(element) {
+    if (element.dataset.panelMounted === 'true') {
+      return;
+    }
+    var selector = element.dataset.wgVariantSelector ? document.querySelector(element.dataset.wgVariantSelector) : null;
+    var priceNode = document.querySelector('[data-product-price]');
+    var noteNode = document.querySelector('[data-product-variant-note]');
+
+    function syncVariant() {
+      var variant = readVariant(element);
+      if (variant && variant.price) {
+        element.dataset.wgPrice = variant.price;
+        if (priceNode) {
+          priceNode.textContent = formatPrice(variant.price);
+        }
+      } else if (priceNode) {
+        priceNode.textContent = formatPrice(element.dataset.wgPrice || '');
+      }
+      if (noteNode && variant) {
+        noteNode.textContent = variant.note || '';
+      }
+    }
+
+    if (selector) {
+      selector.addEventListener('change', syncVariant);
+    }
+    syncVariant();
+    element.dataset.panelMounted = 'true';
+  }
+
+  function mountCheckoutButton(element) {
+    if (element.dataset.wgCheckoutMounted === 'true') {
+      return;
+    }
+    var button = element.querySelector('button');
+    if (!button) {
+      return;
+    }
+
+    mountProductPanel(element);
+
+    button.addEventListener('click', function () {
+      button.disabled = true;
+      setCheckoutFeedback(element, 'Creating checkout session...', false);
+      syncCartFromSelection(element);
+
+      var variant = readVariant(element);
+      var payload = {
+        sku: element.dataset.wgSku || '',
+        title: element.dataset.wgProductTitle || '',
+        price: variant && variant.price ? variant.price : element.dataset.wgPrice || '',
+        currency: element.dataset.wgCurrency || 'IRR',
+        quantity: readQuantity(element),
+        variant_id: variant ? variant.id : '',
+        variant_label: variant ? variant.label : '',
+        success_url: resolveUrl(element.dataset.wgSuccessUrl || '/order-confirmed/'),
+        failure_url: resolveUrl(element.dataset.wgFailureUrl || '/payment-not-completed/'),
+        status_url: resolveUrl(element.dataset.wgStatusUrl || '/order-status/')
+      };
+
+      getRuntimeConfig().then(function (runtimeConfig) {
+        var target = findRuntimeTarget(runtimeConfig, element.dataset.wgRuntimeTarget || '');
+        if (!target || !target.public_base_url) {
+          throw new Error('Runtime target is not configured');
+        }
+        return fetch(target.public_base_url.replace(/\\/$/, '') + '/checkout/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+      }).then(function (response) {
+        if (!response.ok) {
+          throw new Error('Checkout request failed');
+        }
+        return response.json();
+      }).then(function (payload) {
+        if (payload && payload.order_id) {
+          try {
+            window.localStorage.setItem('wg-last-order-id', payload.order_id);
+          } catch (error) {
+            /* ignore localStorage failures */
+          }
+        }
+        if (payload && payload.redirect_url) {
+          window.location.href = payload.redirect_url;
+          return;
+        }
+        throw new Error('Checkout response missing redirect_url');
+      }).catch(function (error) {
+        setCheckoutFeedback(element, error.message || 'Checkout failed', true);
+        button.disabled = false;
+      });
+    });
+
+    element.dataset.wgCheckoutMounted = 'true';
+  }
+
+  function renderOrderStatus(element, payload) {
+    var result = element.querySelector('[data-order-status-result]');
+    if (!result) {
+      return;
+    }
+    if (!payload) {
+      result.textContent = 'Order not found.';
+      return;
+    }
+    var summary = payload.order_id + ' - ' + payload.status;
+    if (payload.variant_label) {
+      summary += ' - ' + payload.variant_label;
+    }
+    if (payload.reference) {
+      summary += ' - ref ' + payload.reference;
+    }
+    result.textContent = summary;
+  }
+
+  function mountOrderStatus(element) {
+    if (element.dataset.statusMounted === 'true') {
+      return;
+    }
+    var form = element.querySelector('[data-order-status-form]');
+    var input = element.querySelector('[data-order-status-input]');
+    if (!form || !input) {
+      return;
+    }
+
+    function lookup(orderId) {
+      if (!orderId) {
+        renderOrderStatus(element, null);
+        return Promise.resolve();
+      }
+      return getRuntimeConfig().then(function (runtimeConfig) {
+        var target = findRuntimeTarget(runtimeConfig, element.dataset.wgRuntimeTarget || '');
+        if (!target || !target.public_base_url) {
+          throw new Error('Runtime target is not configured');
+        }
+        return fetch(target.public_base_url.replace(/\\/$/, '') + '/orders/' + encodeURIComponent(orderId), {
+          method: 'GET'
+        });
+      }).then(function (response) {
+        if (!response.ok) {
+          throw new Error('Order status lookup failed');
+        }
+        return response.json();
+      }).then(function (payload) {
+        renderOrderStatus(element, payload);
+      }).catch(function (error) {
+        var result = element.querySelector('[data-order-status-result]');
+        if (result) {
+          result.textContent = error.message || 'Order status lookup failed.';
+        }
+      });
+    }
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      lookup(input.value.trim());
+    });
+
+    var params = new URLSearchParams(window.location.search);
+    var presetOrderId = params.get('order_id') || '';
+    if (!presetOrderId) {
+      try {
+        presetOrderId = window.localStorage.getItem('wg-last-order-id') || '';
+      } catch (error) {
+        presetOrderId = '';
+      }
+    }
+    if (presetOrderId) {
+      input.value = presetOrderId;
+      lookup(presetOrderId);
+    }
+
+    element.dataset.statusMounted = 'true';
+  }
+
+  function mountCart(element) {
+    if (element.dataset.cartMounted === 'true') {
+      return;
+    }
+    renderCart(element);
+    element.dataset.cartMounted = 'true';
+  }
+
   function mountIsland(element) {
-    if (element.dataset.wgIslandMounted === \"true\") {
+    if (element.dataset.wgIslandMounted === 'true') {
       return;
     }
     var detail = {
-      component: element.dataset.wgComponent || \"\",
-      target: element.dataset.wgTarget || \"\",
+      component: element.dataset.wgComponent || '',
+      target: element.dataset.wgTarget || '',
       props: toProps(element)
     };
-    element.dataset.wgIslandMounted = \"true\";
-    element.dispatchEvent(new CustomEvent(\"wg:island-mount\", {
+    element.dataset.wgIslandMounted = 'true';
+    if (detail.component === 'commerce/checkout_button') {
+      mountCheckoutButton(element);
+    } else if (detail.component === 'commerce/order_status') {
+      mountOrderStatus(element);
+    } else if (detail.component === 'commerce/cart') {
+      mountCart(element);
+    }
+    element.dispatchEvent(new CustomEvent('wg:island-mount', {
       bubbles: true,
       detail: detail
     }));
   }
 
-  document.addEventListener(\"DOMContentLoaded\", function () {
-    document.querySelectorAll(\"[data-wg-island]\").forEach(mountIsland);
+  document.addEventListener('DOMContentLoaded', function () {
+    mountProductGallery();
+    document.querySelectorAll('[data-wg-island]').forEach(mountIsland);
   });
 })();"""
     fs_manager.write_file(bootstrap_js_path, bootstrap_script)

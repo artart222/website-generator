@@ -278,17 +278,22 @@ def build_static_islands_bundle(
       syncCartFromSelection(element);
 
       var variant = readVariant(element);
-      var payload = {
+      var lineItem = {
         sku: element.dataset.wgSku || '',
         title: element.dataset.wgProductTitle || '',
         price: variant && variant.price ? variant.price : element.dataset.wgPrice || '',
         currency: element.dataset.wgCurrency || 'IRR',
         quantity: readQuantity(element),
         variant_id: variant ? variant.id : '',
-        variant_label: variant ? variant.label : '',
+        variant_label: variant ? variant.label : ''
+      };
+
+      var payload = {
+        currency: element.dataset.wgCurrency || 'IRR',
         success_url: resolveUrl(element.dataset.wgSuccessUrl || '/order-confirmed/'),
         failure_url: resolveUrl(element.dataset.wgFailureUrl || '/payment-not-completed/'),
-        status_url: resolveUrl(element.dataset.wgStatusUrl || '/order-status/')
+        status_url: resolveUrl(element.dataset.wgStatusUrl || '/order-status/'),
+        lines: [lineItem]
       };
 
       getRuntimeConfig().then(function (runtimeConfig) {

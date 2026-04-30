@@ -85,3 +85,33 @@ def test_django_runtime_allows_cors_preflight():
     assert response["Access-Control-Allow-Origin"] == "*"
     assert "Content-Type" in response["Access-Control-Allow-Headers"]
     assert "POST" in response["Access-Control-Allow-Methods"]
+
+
+def test_django_runtime_allows_cross_origin_post_without_csrf():
+    client = Client(enforce_csrf_checks=True)
+    payload = {
+        "provider": "local_gateway",
+        "currency": "USD",
+        "success_url": "http://example.com/success",
+        "failure_url": "http://example.com/failure",
+        "status_url": "http://example.com/status",
+        "lines": [
+            {
+                "title": "Test Product",
+                "sku": "SKU-001",
+                "quantity": 2,
+                "price": "12.50",
+                "currency": "USD",
+            }
+        ],
+    }
+
+    response = client.post(
+        "/checkout/session",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["order_id"]

@@ -5,6 +5,8 @@ from typing import Any
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -91,6 +93,7 @@ def _update_payment_status(order: Order, status: str, reference: str | None = No
     return payment_attempt
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class CheckoutSessionAPIView(APIView):
     def post(self, request: Request) -> Response:
         serializer = CheckoutSessionInputSerializer(data=request.data)
@@ -107,6 +110,7 @@ class CheckoutSessionAPIView(APIView):
         )
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class PaymentCallbackAPIView(APIView):
     def get(self, request: Request) -> HttpResponseRedirect:
         order_id = request.query_params.get("order_id", "")

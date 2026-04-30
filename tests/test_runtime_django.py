@@ -1,0 +1,73 @@
+import json
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+sys.path.insert(0, project_root)
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wg_runtime.settings")
+
+import django  # noqa: E402
+from django.conf import settings  # noqa: E402
+from django.core.management import call_command  # noqa: E402
+from django.test import Client  # noqa: E402
+
+
+temp_db = Path(tempfile.gettempdir()) / "wg_runtime_test.sqlite3"
+settings.DATABASES["default"]["NAME"] = str(temp_db)
+if not django.apps.apps.ready:
+    django.setup()
+call_command("migrate", verbosity=0, interactive=False)
+
+
+def test_django_runtime_checkout_flow():
+    client = Client()
+    payload = {
+        "provider": "local_gateway",
+        "currency": "USD",
+        "success_url": "http://example.com/success",
+        "failure_url": "http://example.com/failure",
+        "status_url": "http://example.com/status",
+        "lines": [
+            {
+                "title": "Test Product",
+                "sku": "SKU-001",
+                "quantity": 2,
+                "price": "12.50",
+                "currency": "USD",
+            }
+        ],
+    }
+
+    response = client.post(
+        "/checkout/session",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "pending"
+    assert data["redirect_url"].startswith("http://")
+    assert data["order_id"]
+
+    order_id = data["order_id"]
+    callback = client.get(
+        "/payments/callback",
+        {
+            "order_id": order_id,
+            "status": "paid",
+            "reference": "TEST-REF",
+        },
+    )
+    assert callback.status_code == 302
+    assert "success" in callback.url
+
+    status_response = client.get(f"/orders/{order_id}")
+    assert status_response.status_code == 200
+    status_payload = status_response.json()
+    assert status_payload["order_id"] == order_id
+    assert status_payload["status"] == "paid"
+    assert status_payload["total_amount"] == "25.00"

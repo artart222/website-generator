@@ -39,6 +39,15 @@ def start_runtime(config: Config) -> subprocess.Popen | None:
     parsed = urlparse(public_base_url)
     host = parsed.hostname or "127.0.0.1"
     port = parsed.port or 8787
+    runtime_type = str(runtime_target.get("type", "mock_runtime")).strip()
+
+    if runtime_type == "django_service":
+        # runtime_entrypoint = Path(__file__).resolve().parent / "wg_runtime" / "manage.py"
+        runtime_entrypoint  = "wg_runtime.manage"
+        logger.info("Starting Django runtime at http://%s:%s", host, port)
+        return subprocess.Popen(
+            [sys.executable, "-m", str(runtime_entrypoint), "runserver", f"{host}:{port}"],
+        )
 
     logger.info("Starting mock runtime at http://%s:%s", host, port)
     return subprocess.Popen(

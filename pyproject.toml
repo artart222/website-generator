@@ -30,6 +30,7 @@ dependencies = [
   "colorama==0.4.6",
   "colorlog==6.10.1",
   "Django==5.2.1",
+  "djangorestframework==3.17.1",
   "Markdown==3.8",
   "Pygments==2.19.1",
   "python-slugify==8.0.4",

@@ -2,6 +2,7 @@ asgiref==3.8.1
 colorama==0.4.6
 colorlog==6.10.1
 Django==5.2.1
+djangorestframework==3.17.1
 iniconfig==2.1.0
 Markdown==3.8
 packaging==25.0

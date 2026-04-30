@@ -5,6 +5,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import logging
 import os
+import subprocess
+import sys
 from pathlib import Path
 import shutil
 import time
@@ -87,6 +89,21 @@ def cmd_runtime_mock(args: argparse.Namespace) -> int:
         port=args.port,
         config_path=args.config,
     )
+    return 0
+
+
+def cmd_runtime_django(args: argparse.Namespace) -> int:
+    manage_py = Path(__file__).resolve().parent / "wg_runtime" / "manage.py"
+    if not manage_py.exists():
+        raise FileNotFoundError(f"Unable to find Django runtime entrypoint: {manage_py}")
+
+    command = [sys.executable, str(manage_py), "runserver", f"{args.host}:{args.port}"]
+    process = subprocess.Popen(command)
+    try:
+        process.wait()
+    except KeyboardInterrupt:
+        process.terminate()
+        process.wait()
     return 0
 
 
@@ -397,6 +414,11 @@ def build_parser() -> argparse.ArgumentParser:
     runtime_mock_parser.add_argument("--host", default="127.0.0.1")
     runtime_mock_parser.add_argument("--port", type=int, default=8787)
     runtime_mock_parser.set_defaults(func=cmd_runtime_mock)
+
+    runtime_django_parser = runtime_subparsers.add_parser("django", help="Run the local Django commerce runtime")
+    runtime_django_parser.add_argument("--host", default="127.0.0.1")
+    runtime_django_parser.add_argument("--port", type=int, default=8787)
+    runtime_django_parser.set_defaults(func=cmd_runtime_django)
 
     return parser
 

@@ -148,6 +148,23 @@ def test_validate_warns_on_fastapi_service_runtime_target():
     assert any("fastapi_service" in warning for warning in config.warnings)
 
 
+def test_validate_accepts_django_service_runtime_target():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    version: 2
+    runtime:
+      targets:
+        - name: api
+          type: django_service
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+    config.validate()
+
+    assert not any("deprecated" in warning.lower() for warning in config.warnings)
+
+
 def test_list_files_returns_sorted_paths():
     from utils.fs_manager import FileSystemManager
 

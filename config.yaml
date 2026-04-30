@@ -95,7 +95,7 @@ frontend:
 runtime:
   targets:
     - name: commerce-api
-      type: fastapi_service
+      type: django_service
       public_base_url: http://localhost:8787
       capabilities:
         - checkout

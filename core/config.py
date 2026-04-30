@@ -128,6 +128,7 @@ class Config:
             )
 
         runtime_targets = self.get("runtime.targets", [])
+        allowed_runtime_types = {"django_service", "fastapi_service", "mock_runtime"}
         if isinstance(runtime_targets, list):
             for raw_target in runtime_targets:
                 if not isinstance(raw_target, dict):
@@ -137,6 +138,12 @@ class Config:
                     self.warnings.append(
                         "runtime.targets[].type 'fastapi_service' is deprecated; "
                         "use 'django_service' instead."
+                    )
+                elif target_type and target_type not in allowed_runtime_types:
+                    self.warnings.append(
+                        "runtime.targets[].type '%s' is not recognized; "
+                        "supported values are 'django_service', 'fastapi_service', and 'mock_runtime'."
+                        % target_type
                     )
         elif runtime_targets is not None:
             self.warnings.append(

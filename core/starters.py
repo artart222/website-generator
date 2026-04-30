@@ -422,7 +422,7 @@ def _store_base_files() -> dict[Path, str]:
         runtime:
           targets:
             - name: commerce-api
-              type: fastapi_service
+              type: django_service
               public_base_url: https://api.example.com
               capabilities:
                 - checkout

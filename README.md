@@ -102,6 +102,14 @@ wg watch
 
 If you prefer not to install the CLI entry point, the same commands can be run with `python cli.py ...`.
 
+## Runtime Support
+
+This generator now includes an official Django runtime companion for commerce and order workflows.
+
+- `runtime.targets[].type: django_service` is the supported runtime target.
+- `fastapi_service` is still recognized as a deprecated alias for compatibility.
+- Use `wg runtime django` to launch the local Django runtime server.
+
 ## Start a New Site
 
 Scaffold a fresh project:

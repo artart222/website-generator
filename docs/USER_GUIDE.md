@@ -84,6 +84,14 @@ Watch content, theme files, and config for changes:
 wg watch
 ```
 
+Launch the Django runtime companion:
+
+```bash
+wg runtime django
+```
+
+## Content Files
+
 Create content files:
 
 ```bash

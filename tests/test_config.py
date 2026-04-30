@@ -165,6 +165,70 @@ def test_validate_accepts_django_service_runtime_target():
     assert not any("deprecated" in warning.lower() for warning in config.warnings)
 
 
+def test_validate_warns_when_runtime_catalog_collection_has_snapshot_disabled():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    version: 2
+    content:
+      collections:
+        shop:
+          type: runtime_catalog
+          route:
+            prefix: shop
+    runtime:
+      targets:
+        - name: commerce-api
+          type: django_service
+          public_base_url: http://localhost:8787
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+    config.validate()
+
+    assert any(
+        "type 'runtime_catalog'" in warning
+        for warning in config.warnings
+    )
+
+
+def test_validate_accepts_runtime_catalog_when_snapshot_enabled_and_target_exists():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    version: 2
+    content:
+      collections:
+        shop:
+          type: runtime_catalog
+          model: product
+          route:
+            prefix: shop
+    runtime:
+      targets:
+        - name: commerce-api
+          type: django_service
+          public_base_url: http://localhost:8787
+      catalog_snapshot:
+        enabled: true
+        target: commerce-api
+        url_path: /catalog/snapshot
+        output_dir: ./output/data/runtime
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+    config.validate()
+
+    assert not any(
+        "type 'runtime_catalog'" in warning
+        for warning in config.warnings
+    )
+    assert not any(
+        "was not found in runtime.targets[].name" in warning
+        for warning in config.warnings
+    )
+
+
 def test_list_files_returns_sorted_paths():
     from utils.fs_manager import FileSystemManager
 

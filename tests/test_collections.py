@@ -274,3 +274,149 @@ def test_build_cleans_stale_output_files():
 
         assert not stale_file.exists()
         assert (output_dir / "index.html").exists()
+
+
+def test_runtime_catalog_collection_generates_pages_from_snapshot():
+    if not _supports_python_dir_creation():
+        pytest.skip("Current interpreter cannot create directories in this environment.")
+
+    with tempfile.TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+        temp_path = Path(temp_dir)
+        config = Config()
+        config.settings["build"]["output_directory"] = str(temp_path / "output")
+        config.settings["content"]["collections"] = {
+            "shop": {
+                "type": "runtime_catalog",
+                "model": "product",
+                "route": {"prefix": "shop"},
+                "layout": "document",
+            }
+        }
+
+        project = Project(config)
+        project.runtime_catalog_snapshot = {
+            "products": [
+                {
+                    "name": "Test Product",
+                    "slug": "test-product",
+                    "description": "A product from runtime snapshot.",
+                    "metadata": {"category": "runtime"},
+                    "variants": [
+                        {
+                            "sku": "TEST-001",
+                            "label": "Default",
+                            "price": "19.99",
+                            "currency": "USD",
+                            "metadata": {},
+                        }
+                    ],
+                }
+            ]
+        }
+
+        project._discover_and_load_pages()
+        project._apply_content_models()
+
+        generated_pages = [p for p in project.site.pages if p.collection == "shop"]
+        assert len(generated_pages) == 1
+
+        page = generated_pages[0]
+        assert page.is_generated is True
+        assert page.slug == "test-product"
+        assert page.title == "Test Product"
+        assert page.collection == "shop"
+        assert page.model_name == "product"
+        assert page.model_data["sku"] == "TEST-001"
+        assert page.model_data["price"] == 19.99
+        assert page.model_data["currency"] == "USD"
+        assert page.get_output_path() is not None
+
+
+def test_build_ingests_runtime_catalog_and_keeps_editorial_pages_file_based():
+    if not _supports_python_dir_creation():
+        pytest.skip("Current interpreter cannot create directories in this environment.")
+
+    with tempfile.TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+        temp_path = Path(temp_dir)
+        pages_dir = temp_path / "pages"
+        _write_markdown(pages_dir / "home.md", "Home", "index")
+
+        output_dir = temp_path / "output"
+        config = Config()
+        config.settings["site"]["navigation"] = []
+        config.settings["plugins"] = [
+            "CollectionIndexerPlugin",
+            "SpecialPagesPlugin",
+        ]
+        config.settings["build"]["output_directory"] = str(output_dir)
+        config.settings["content"]["collections"] = {
+            "shop": {
+                "type": "runtime_catalog",
+                "model": "product",
+                "route": {"prefix": "shop"},
+                "layout": "product",
+                "index": {
+                    "enabled": True,
+                    "layout": "collection",
+                    "title": "Shop",
+                    "output_path": "shop/index.html",
+                },
+            },
+            "pages": {
+                "path": str(pages_dir),
+                "type": "page",
+                "model": "page",
+                "route": {"prefix": ""},
+                "layout": "document",
+            },
+        }
+        config.settings["runtime"]["targets"] = [
+            {
+                "name": "commerce-api",
+                "type": "django_service",
+                "public_base_url": "http://127.0.0.1:8787",
+                "capabilities": ["checkout", "order_status"],
+            }
+        ]
+        config.settings["runtime"]["catalog_snapshot"] = {
+            "enabled": True,
+            "target": "commerce-api",
+            "url_path": "/catalog/snapshot",
+            "output_dir": str(temp_path / "snapshot"),
+        }
+
+        snapshot_payload = {
+            "products": [
+                {
+                    "name": "Runtime Product",
+                    "slug": "runtime-product",
+                    "description": "Served by runtime snapshot.",
+                    "metadata": {"availability": "in_stock"},
+                    "variants": [
+                        {
+                            "sku": "RT-001",
+                            "label": "Default",
+                            "price": "29.50",
+                            "currency": "USD",
+                        }
+                    ],
+                }
+            ]
+        }
+
+        project = Project(config)
+        project.runtime_manager.fetch_catalog_snapshot = lambda: (
+            snapshot_payload,
+            None,
+        )
+        project.build()
+
+        assert (output_dir / "index.html").exists()
+        assert (output_dir / "shop" / "runtime-product" / "index.html").exists()
+        assert (output_dir / "shop" / "index.html").exists()
+
+        runtime_product_html = (
+            output_dir / "shop" / "runtime-product" / "index.html"
+        ).read_text(encoding="utf-8")
+        assert "Runtime Product" in runtime_product_html
+        assert "USD" in runtime_product_html

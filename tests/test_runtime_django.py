@@ -16,7 +16,9 @@ from django.core.management import call_command  # noqa: E402
 from django.test import Client  # noqa: E402
 
 
-temp_db = Path(tempfile.gettempdir()) / "wg_runtime_test.sqlite3"
+temp_db = Path(tempfile.gettempdir()) / f"wg_runtime_test_{os.getpid()}.sqlite3"
+if temp_db.exists():
+    temp_db.unlink()
 settings.DATABASES["default"]["NAME"] = str(temp_db)
 if not django.apps.apps.ready:
     django.setup()
@@ -115,3 +117,48 @@ def test_django_runtime_allows_cross_origin_post_without_csrf():
     assert response.status_code == 200
     data = response.json()
     assert data["order_id"]
+
+
+def test_django_runtime_catalog_snapshot_endpoint_returns_published_products():
+    from wg_runtime.runtime.models import Product, ProductVariant
+
+    product = Product.objects.create(
+        name="Snapshot Product",
+        slug="snapshot-product",
+        description="Snapshot product description",
+        is_published=True,
+        metadata={"source": "runtime"},
+    )
+    ProductVariant.objects.create(
+        product=product,
+        sku="SNAP-001",
+        label="Snapshot Variant",
+        price="29.99",
+        currency="USD",
+        is_published=True,
+        metadata={"inventory": "in_stock"},
+    )
+
+    unpublished = Product.objects.create(
+        name="Hidden Product",
+        slug="hidden-product",
+        description="Should not be visible",
+        is_published=False,
+    )
+    ProductVariant.objects.create(
+        product=unpublished,
+        sku="HIDDEN-001",
+        label="Hidden Variant",
+        price="9.99",
+        currency="USD",
+        is_published=True,
+    )
+
+    client = Client()
+    response = client.get("/catalog/snapshot")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "products" in payload
+    assert len(payload["products"]) == 1
+    assert payload["products"][0]["slug"] == "snapshot-product"
+    assert payload["products"][0]["variants"][0]["sku"] == "SNAP-001"

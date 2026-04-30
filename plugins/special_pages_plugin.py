@@ -24,8 +24,16 @@ class SpecialPagesPlugin(BasePlugin):
         Modify output paths and URLs for pages of special types.
         """
         site: Site = kwargs["site"]
-        output_dir = Path(site.config.get("output_directory", "output"))
-        base_url = site.config.get("base_url", "").rstrip("/")
+        output_dir = Path(
+            site.config.get(
+                "build.output_directory",
+                site.config.get("output_directory", "output"),
+            )
+        )
+        base_url = site.config.get(
+            "site.base_url",
+            site.config.get("base_url", ""),
+        ).rstrip("/")
         page: Page = kwargs["page"]
 
         # for page in site.pages:

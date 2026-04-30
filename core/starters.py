@@ -428,6 +428,11 @@ def _store_base_files() -> dict[Path, str]:
                 - checkout
                 - payment_callback
                 - order_status
+          catalog_snapshot:
+            enabled: false
+            target: commerce-api
+            url_path: /catalog/snapshot
+            output_dir: ./output/data/runtime
         integrations:
           commerce:
             provider: wg-commerce

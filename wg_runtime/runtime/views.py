@@ -11,8 +11,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Order, OrderLine, PaymentAttempt
-from .serializers import CheckoutSessionInputSerializer, OrderStatusSerializer
+from .models import Order, OrderLine, PaymentAttempt, Product
+from .serializers import (
+    CatalogSnapshotSerializer,
+    CheckoutSessionInputSerializer,
+    OrderStatusSerializer,
+)
 
 
 def _normalize_amount(value: Any) -> Decimal:
@@ -154,6 +158,37 @@ class PublicOrderStatusAPIView(APIView):
                 "metadata": order.metadata,
             }
         )
+        return Response(serializer.data)
+
+
+class CatalogSnapshotAPIView(APIView):
+    def get(self, request: Request) -> Response:
+        products = []
+        for product in Product.objects.filter(is_published=True).prefetch_related("variants"):
+            variants = []
+            for variant in product.variants.filter(is_published=True):
+                variants.append(
+                    {
+                        "sku": variant.sku,
+                        "label": variant.label,
+                        "price": variant.price,
+                        "currency": variant.currency,
+                        "metadata": variant.metadata,
+                    }
+                )
+
+            products.append(
+                {
+                    "id": str(product.id),
+                    "name": product.name,
+                    "slug": product.slug,
+                    "description": product.description,
+                    "metadata": product.metadata,
+                    "variants": variants,
+                }
+            )
+
+        serializer = CatalogSnapshotSerializer({"products": products})
         return Response(serializer.data)
 
 

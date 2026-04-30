@@ -50,6 +50,12 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     },
     "runtime": {
         "targets": [],
+        "catalog_snapshot": {
+            "enabled": False,
+            "target": "",
+            "url_path": "/catalog/snapshot",
+            "output_dir": "./output/data/runtime",
+        },
     },
     "integrations": {},
     "plugins": [],
@@ -150,10 +156,79 @@ class Config:
                 "runtime.targets should be a list of runtime target definitions."
             )
 
-    def load(self, filepath: Path = Path("./config.yaml")) -> None:
-        """
-        Loads configuration from YAML and normalizes it into the v1 schema.
-        """
+        catalog_snapshot = self.get("runtime.catalog_snapshot")
+        if catalog_snapshot is not None and not isinstance(catalog_snapshot, dict):
+            self.warnings.append(
+                "runtime.catalog_snapshot should be a mapping of snapshot settings."
+            )
+        elif isinstance(catalog_snapshot, dict):
+            if catalog_snapshot.get("enabled") and not isinstance(
+                catalog_snapshot.get("enabled"), bool
+            ):
+                self.warnings.append(
+                    "runtime.catalog_snapshot.enabled should be true or false."
+                )
+            if catalog_snapshot.get("target") is not None and not isinstance(
+                catalog_snapshot.get("target"), str
+            ):
+                self.warnings.append(
+                    "runtime.catalog_snapshot.target should be a string."
+                )
+            if catalog_snapshot.get("url_path") is not None and not isinstance(
+                catalog_snapshot.get("url_path"), str
+            ):
+                self.warnings.append(
+                    "runtime.catalog_snapshot.url_path should be a string."
+                )
+            if catalog_snapshot.get("output_dir") is not None and not isinstance(
+                catalog_snapshot.get("output_dir"), str
+            ):
+                self.warnings.append(
+                    "runtime.catalog_snapshot.output_dir should be a string."
+                )
+
+        collections = self.get("content.collections", self.get("collections", {}))
+        uses_runtime_catalog = False
+        if isinstance(collections, dict):
+            for raw_cfg in collections.values():
+                if not isinstance(raw_cfg, dict):
+                    continue
+                collection_type = str(raw_cfg.get("type", "")).strip()
+                if collection_type == "runtime_catalog":
+                    uses_runtime_catalog = True
+                    break
+
+        snapshot_enabled = (
+            isinstance(catalog_snapshot, dict)
+            and catalog_snapshot.get("enabled") is True
+        )
+
+        if uses_runtime_catalog and not snapshot_enabled:
+            self.warnings.append(
+                "A collection uses type 'runtime_catalog' but runtime.catalog_snapshot.enabled is not true."
+            )
+
+        if snapshot_enabled:
+            named_targets: list[str] = []
+            if isinstance(runtime_targets, list):
+                for raw_target in runtime_targets:
+                    if isinstance(raw_target, dict):
+                        named_targets.append(str(raw_target.get("name", "")).strip())
+
+            if not named_targets:
+                self.warnings.append(
+                    "runtime.catalog_snapshot.enabled is true but no runtime.targets are configured."
+                )
+
+            target_name = str(catalog_snapshot.get("target", "")).strip()
+            if target_name and target_name not in named_targets:
+                self.warnings.append(
+                    "runtime.catalog_snapshot.target '%s' was not found in runtime.targets[].name."
+                    % target_name
+                )
+
+    def load(self, filepath: str) -> None:
+        """Load configuration from a YAML file."""
         self.logger.debug("Loading config from '%s'", filepath)
         self.warnings = []
         try:

@@ -110,6 +110,34 @@ This generator now includes an official Django runtime companion for commerce an
 - `fastapi_service` is still recognized as a deprecated alias for compatibility.
 - Use `wg runtime django` to launch the local Django runtime server.
 
+### Runtime-backed catalog builds
+
+You can keep editorial content (`pages`, `blog`, `docs`) file-based while ingesting products from runtime at build time.
+
+```yaml
+content:
+  collections:
+    shop:
+      type: runtime_catalog
+      model: product
+      route:
+        prefix: shop
+      layout: product
+
+runtime:
+  targets:
+    - name: commerce-api
+      type: django_service
+      public_base_url: http://localhost:8787
+  catalog_snapshot:
+    enabled: true
+    target: commerce-api
+    url_path: /catalog/snapshot
+    output_dir: ./output/data/runtime
+```
+
+When enabled, the build fetches published products from runtime, writes `catalog.json`, and generates static catalog/product pages from that snapshot.
+
 ## Start a New Site
 
 Scaffold a fresh project:

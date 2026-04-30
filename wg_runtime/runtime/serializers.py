@@ -37,3 +37,24 @@ class OrderStatusSerializer(serializers.Serializer):
     provider = serializers.CharField()
     lines = OrderLineSerializer(many=True)
     metadata = serializers.DictField(child=serializers.CharField())
+
+
+class ProductVariantSerializer(serializers.Serializer):
+    sku = serializers.CharField()
+    label = serializers.CharField()
+    price = serializers.DecimalField(max_digits=12, decimal_places=2)
+    currency = serializers.CharField()
+    metadata = serializers.DictField(child=serializers.JSONField(), required=False, default=dict)
+
+
+class ProductCatalogSerializer(serializers.Serializer):
+    id = serializers.CharField(required=False)
+    name = serializers.CharField()
+    slug = serializers.CharField(required=False)
+    description = serializers.CharField(required=False, allow_blank=True)
+    metadata = serializers.DictField(child=serializers.JSONField(), required=False, default=dict)
+    variants = ProductVariantSerializer(many=True)
+
+
+class CatalogSnapshotSerializer(serializers.Serializer):
+    products = ProductCatalogSerializer(many=True)

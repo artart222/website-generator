@@ -4,6 +4,9 @@ from copy import deepcopy
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 from utils.fs_manager import FileSystemManager
 
@@ -57,7 +60,65 @@ class RuntimeManager:
         }
         return self.public_manifest
 
-    def emit_manifest(self) -> dict[str, Any]:
+    def fetch_catalog_snapshot(self) -> tuple[dict[str, Any] | None, Path | None]:
+        runtime_cfg = self.config.get("runtime", {})
+        if not isinstance(runtime_cfg, dict):
+            return None, None
+
+        snapshot_cfg = runtime_cfg.get("catalog_snapshot", {})
+        if not isinstance(snapshot_cfg, dict) or not snapshot_cfg.get("enabled", False):
+            return None, None
+
+        targets = runtime_cfg.get("targets", [])
+        if not isinstance(targets, list):
+            targets = []
+
+        target_name = str(snapshot_cfg.get("target", "")).strip()
+        target = None
+        if target_name:
+            for raw_target in targets:
+                if isinstance(raw_target, dict) and str(raw_target.get("name", "")).strip() == target_name:
+                    target = raw_target
+                    break
+        if target is None and targets:
+            first_target = targets[0]
+            if isinstance(first_target, dict):
+                target = first_target
+
+        if not isinstance(target, dict):
+            return None, None
+
+        public_base_url = str(target.get("public_base_url", "")).strip()
+        if not public_base_url:
+            return None, None
+
+        url_path = str(snapshot_cfg.get("url_path", "/catalog/snapshot")).strip()
+        if not url_path.startswith("/"):
+            url_path = "/" + url_path
+
+        snapshot_url = urljoin(public_base_url.rstrip("/") + "/", url_path.lstrip("/"))
+        request = Request(snapshot_url, headers={"Accept": "application/json"})
+
+        try:
+            with urlopen(request, timeout=30) as response:
+                payload = response.read()
+                snapshot_data = json.loads(payload.decode("utf-8"))
+        except (HTTPError, URLError, ValueError, json.JSONDecodeError):
+            return None, None
+
+        output_dir = Path(snapshot_cfg.get("output_dir", "./output/data/runtime"))
+        self.fs_manager.create_directory(output_dir)
+        output_path = output_dir / "catalog.json"
+        self.fs_manager.write_file(
+            output_path,
+            json.dumps(snapshot_data, ensure_ascii=False, indent=2, sort_keys=True),
+        )
+        return snapshot_data, output_path
+
+    def get_context(self) -> dict[str, Any]:
+        configured_targets = self.config.get("runtime.targets", [])
+        if not isinstance(configured_targets, list):
+            configured_targets = []
         public_manifest = self.build_public_config()
         output_dir = Path(
             self.config.get("build.output_directory", self.config.get("output_directory"))
@@ -72,17 +133,12 @@ class RuntimeManager:
         )
         self.fs_manager.write_file(runtime_output_dir / "manifest.json", manifest_json)
         self.fs_manager.write_file(runtime_output_dir / "public-config.json", manifest_json)
-        return public_manifest
 
-    def get_context(self) -> dict[str, Any]:
-        configured_targets = self.config.get("runtime.targets", [])
-        if not isinstance(configured_targets, list):
-            configured_targets = []
-        has_targets = bool(self.public_manifest.get("targets")) or bool(configured_targets)
+        has_targets = bool(public_manifest.get("targets")) or bool(configured_targets)
         return {
             "runtime": {
                 "targets": deepcopy(
-                    self.public_manifest.get("targets", [])
+                    public_manifest.get("targets", [])
                     or configured_targets
                 ),
                 "manifest_url": "/runtime/manifest.json"
@@ -90,3 +146,6 @@ class RuntimeManager:
                 else "",
             }
         }
+
+    def emit_manifest(self) -> dict[str, Any]:
+        return self.get_context()

@@ -7,8 +7,11 @@ import shutil
 from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
+
+from slugify import slugify
 
 from engines.base_engine import TemplateEngine
 from engines.factory import create_template_engine
@@ -68,6 +71,7 @@ class Project:
             self.config.get("build.template_engine", self.config.get("template_engine")),
             deduped_template_dirs,
         )
+        self.runtime_catalog_snapshot: dict[str, Any] | None = None
 
     def build(self) -> None:
         self.extension_manager.run_build_hook(
@@ -82,6 +86,7 @@ class Project:
 
         self.logger.info("Build process started.")
         self._prepare_output_dir()
+        self._fetch_runtime_catalog_snapshot()
 
         self._discover_and_load_pages()
         self._apply_content_models()
@@ -169,6 +174,126 @@ class Project:
             else:
                 child.unlink()
 
+    def _fetch_runtime_catalog_snapshot(self) -> None:
+        snapshot_data, output_path = self.runtime_manager.fetch_catalog_snapshot()
+        if snapshot_data is None:
+            self.logger.debug("Runtime catalog snapshot fetching is disabled or not configured.")
+            return
+
+        self.runtime_catalog_snapshot = snapshot_data
+        if output_path is not None:
+            self.logger.info("Runtime catalog snapshot saved to %s", output_path)
+
+    def _normalize_runtime_catalog_product(
+        self, product: dict[str, Any], collection_cfg: dict
+    ) -> dict[str, Any] | None:
+        runtime_metadata = product.get("metadata", {})
+        if not isinstance(runtime_metadata, dict):
+            runtime_metadata = {}
+
+        raw_variants = product.get("variants", [])
+        variants: list[dict[str, Any]] = []
+        if isinstance(raw_variants, list):
+            for raw_variant in raw_variants:
+                if isinstance(raw_variant, dict):
+                    variants.append(deepcopy(raw_variant))
+
+        first_variant = variants[0] if variants else {}
+        name = str(product.get("name", product.get("title", ""))).strip()
+        if not name:
+            self.logger.warning("Skipping runtime catalog product with missing name/title.")
+            return None
+
+        slug = str(product.get("slug", "")).strip() or slugify(name)
+        description = str(product.get("description", "")).strip()
+        summary = str(product.get("summary", description)).strip()
+
+        sku_value = product.get("sku")
+        if (sku_value is None or sku_value == "") and isinstance(first_variant, dict):
+            sku_value = first_variant.get("sku", "")
+
+        price_value = product.get("price")
+        if (price_value is None or price_value == "") and isinstance(first_variant, dict):
+            price_value = first_variant.get("price")
+
+        currency_value = (
+            product.get("currency")
+            or (first_variant.get("currency", "") if isinstance(first_variant, dict) else "")
+            or runtime_metadata.get("currency", "")
+        )
+        availability_value = product.get("availability", runtime_metadata.get("availability", "in_stock"))
+        page_type = str(product.get("type", collection_cfg.get("model", "product"))).strip() or "product"
+        layout_value = (
+            product.get("layout")
+            or collection_cfg.get("layout")
+            or runtime_metadata.get("layout", "")
+        )
+
+        normalized = deepcopy(runtime_metadata)
+        normalized["title"] = name
+        normalized["slug"] = slug
+        normalized["summary"] = summary
+        normalized["description"] = description
+        normalized["type"] = page_type
+        normalized["model"] = str(collection_cfg.get("model", "product"))
+        normalized["variants"] = variants
+        if layout_value:
+            normalized["layout"] = str(layout_value)
+
+        if sku_value is not None and sku_value != "":
+            normalized["sku"] = str(sku_value)
+        if price_value is not None and price_value != "":
+            normalized["price"] = price_value
+        if currency_value is not None and currency_value != "":
+            normalized["currency"] = str(currency_value)
+        if availability_value is not None and availability_value != "":
+            normalized["availability"] = str(availability_value)
+
+        return normalized
+
+    def _load_runtime_catalog_collection(self, collection_name: str, collection_cfg: dict, collection_path: Path | None) -> None:
+        if self.runtime_catalog_snapshot is None:
+            self.logger.warning(
+                "No runtime catalog snapshot available for collection '%s'.", collection_name
+            )
+            return
+
+        products = self.runtime_catalog_snapshot.get("products")
+        if not isinstance(products, list):
+            self.logger.warning(
+                "Runtime catalog snapshot for collection '%s' does not contain products list.",
+                collection_name,
+            )
+            return
+
+        route_prefix = collection_cfg.get("route", {}).get("prefix", "")
+        for product in products:
+            if not isinstance(product, dict):
+                continue
+
+            page_metadata = self._normalize_runtime_catalog_product(product, collection_cfg)
+            if page_metadata is None:
+                continue
+
+            page = Page(Path(), self.config, self.fs_manager)
+            page.is_generated = True
+            page.collection = collection_name
+            page.collection_config = collection_cfg
+            page.metadata = page_metadata
+            page._populate_attributes()
+            page.page_type = str(page_metadata.get("type", "")) or page.page_type
+            page.set_route_prefix(route_prefix)
+            self._apply_collection_defaults(page, collection_cfg)
+
+            page.processed_content = ""
+            page.raw_content = ""
+            page.model_data = deepcopy(page_metadata)
+
+            if not page.get_output_path():
+                page.calculate_output_path(Path(self.config.get("build.output_directory", self.config.get("output_directory", "./output"))))
+
+            self.site.add_page(page)
+
     def get_template_engine(self) -> TemplateEngine:
         return self.template_engine
 
@@ -181,22 +306,30 @@ class Project:
         )
 
         if isinstance(collections, dict) and collections:
-            collection_items: list[tuple[str, dict, Path]] = []
+            collection_items: list[tuple[str, dict, Path | None]] = []
             for name, cfg in collections.items():
                 if not isinstance(cfg, dict):
                     continue
                 path_value = cfg.get("path")
-                if not path_value:
+                collection_type = str(cfg.get("type", "")).strip()
+                if not path_value and collection_type != "runtime_catalog":
                     continue
-                collection_items.append((name, cfg, Path(path_value)))
+                collection_path = Path(path_value) if path_value else None
+                collection_items.append((name, cfg, collection_path))
 
             collection_items.sort(
-                key=lambda item: len(item[2].resolve().parts), reverse=True
+                key=lambda item: len(item[2].resolve().parts) if item[2] is not None else 0,
+                reverse=True,
             )
 
             seen_paths: set[Path] = set()
             for name, cfg, collection_path in collection_items:
-                if not collection_path.exists():
+                collection_type = str(cfg.get("type", "")).strip()
+                if collection_type == "runtime_catalog":
+                    self._load_runtime_catalog_collection(name, cfg, collection_path)
+                    continue
+
+                if collection_path is None or not collection_path.exists():
                     self.logger.warning("Collection path does not exist: %s", collection_path)
                     continue
 

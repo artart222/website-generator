@@ -206,6 +206,121 @@ layout: document
         assert provider_cfg["adapter_metadata"]["kind"] == "payment_provider"
 
 
+def test_runtime_manifest_is_deterministic_across_rebuilds():
+    if not _supports_python_dir_creation():
+        pytest.skip("Current interpreter cannot create directories in this environment.")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        shop_dir = temp_path / "shop"
+        pages_dir = temp_path / "pages"
+        site_theme_dir = temp_path / "site-theme"
+        site_theme_dir.mkdir(parents=True, exist_ok=True)
+
+        _write_markdown(
+            shop_dir / "sample-product.md",
+            """---
+    title: Sample Product
+    sku: SKU-001
+    price: 490000
+    currency: IRR
+    type: product
+    layout: product
+    blocks:
+      - type: rich_text
+        content:
+          title: Sample
+          html: |
+            <p>Sample product body.</p>
+    ---
+
+    # Sample Product
+    """,
+        )
+        _write_markdown(
+            pages_dir / "home.md",
+            """---
+    title: Home
+    type: index
+    layout: document
+    ---
+
+    # Home
+    """,
+        )
+
+        output_dir = temp_path / "output"
+        data_dir = output_dir / "data"
+
+        config = Config()
+        config.settings["site"]["navigation"] = []
+        config.settings["build"]["output_directory"] = str(output_dir)
+        config.settings["theme"]["site_theme_dir"] = str(site_theme_dir)
+        config.settings["extensions"]["enabled"] = ["wg-commerce"]
+        config.settings["frontend"]["targets"] = [
+            {
+                "type": "static_islands_bundle",
+                "name": "store-ui",
+                "mount_base": "/assets/frontend",
+            }
+        ]
+        config.settings["frontend"]["islands"] = [
+            {"name": "checkout_button", "component": "commerce/checkout_button"}
+        ]
+        config.settings["runtime"]["targets"] = [
+            {
+                "name": "commerce-api",
+                "type": "fastapi_service",
+                "public_base_url": "https://api.example.com",
+                "capabilities": ["checkout", "payment_callback", "order_status"],
+            }
+        ]
+        config.settings["integrations"] = {
+            "payments": {
+                "default": "iran_gateway",
+                "providers": {
+                    "iran_gateway": {
+                        "adapter": "commerce.payment.ir.shaparak_like",
+                        "runtime_target": "commerce-api",
+                        "currency": "IRR",
+                        "callback_url": "https://api.example.com/payments/callback",
+                    }
+                },
+            }
+        }
+        config.settings["experimental"]["export_data"]["enabled"] = True
+        config.settings["experimental"]["export_data"]["output_dir"] = str(data_dir)
+        config.settings["content"]["collections"] = {
+            "shop": {
+                "path": str(shop_dir),
+                "type": "product",
+                "model": "product",
+                "route": {"prefix": "shop"},
+                "layout": "document",
+            },
+            "pages": {
+                "path": str(pages_dir),
+                "type": "page",
+                "model": "page",
+                "route": {"prefix": ""},
+                "layout": "document",
+            },
+        }
+
+        project = Project(config)
+        project.build()
+        first_manifest = (output_dir / "runtime" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
+
+        project.build()
+        second_manifest = (output_dir / "runtime" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
+
+        assert first_manifest == second_manifest
+
+
 def test_init_store_ir_payments_scaffolds_platform_project():
     if not _supports_python_dir_creation():
         pytest.skip("Current interpreter cannot create directories in this environment.")

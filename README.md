@@ -7,6 +7,8 @@ Markdown-first static site generator for developers who want themes, collections
 
 It turns Markdown content, YAML configuration, theme packages, and optional frontend tooling into a deployable static site in `output/`. The project is designed around collections, themes, and plugins so you can grow from a simple blog to a more customized portfolio, docs site, or content-heavy project without rewriting the core.
 
+This version officially supports `config.yaml` with `version: 2` and the `django` template engine. Legacy `version: 1` config is still accepted during migration, but it is deprecated and will emit warnings.
+
 This repository also dogfoods the engine: the sample content and themes in the repo are the same pieces used to generate the demo site output.
 
 ![Demo](Demo-Screenshot.png)

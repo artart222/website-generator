@@ -64,7 +64,12 @@ class RuntimeManager:
         )
         runtime_output_dir = output_dir / "runtime"
         self.fs_manager.create_directory(runtime_output_dir)
-        manifest_json = json.dumps(public_manifest, ensure_ascii=False, indent=2)
+        manifest_json = json.dumps(
+            public_manifest,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
         self.fs_manager.write_file(runtime_output_dir / "manifest.json", manifest_json)
         self.fs_manager.write_file(runtime_output_dir / "public-config.json", manifest_json)
         return public_manifest

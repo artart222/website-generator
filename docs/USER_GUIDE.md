@@ -184,10 +184,10 @@ With that setup:
 
 ## Configuration
 
-The current config format is the nested v1 schema:
+The current config format is the nested v1 schema, but `version: 2` is the official default for new projects:
 
 ```yaml
-version: 1
+version: 2
 
 site:
   name: My Site

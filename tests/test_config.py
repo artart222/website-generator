@@ -1,7 +1,10 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 from unittest.mock import Mock
+
+import pytest
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
@@ -97,3 +100,63 @@ def test_config_load_missing_file_does_not_crash():
     config.load(Path("config.yaml"))
 
     assert config.get("build.output_directory") == "./output"
+
+
+def test_validate_warns_on_v1_config():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    version: 1
+    site:
+      name: Legacy Site
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+    config.validate()
+
+    assert any("deprecated" in warning.lower() for warning in config.warnings)
+
+
+def test_validate_rejects_non_django_template_engine():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    version: 2
+    build:
+      template_engine: jinja
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+    with pytest.raises(ValueError, match="Unsupported template engine"):
+        config.validate()
+
+
+def test_validate_warns_on_fastapi_service_runtime_target():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    version: 2
+    runtime:
+      targets:
+        - name: api
+          type: fastapi_service
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+    config.validate()
+
+    assert any("fastapi_service" in warning for warning in config.warnings)
+
+
+def test_list_files_returns_sorted_paths():
+    from utils.fs_manager import FileSystemManager
+
+    fs_manager = FileSystemManager()
+    with tempfile.TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+        temp_path = Path(temp_dir)
+        (temp_path / "b.md").write_text("b content", encoding="utf-8")
+        (temp_path / "a.md").write_text("a content", encoding="utf-8")
+
+        found_files = fs_manager.list_files(temp_path, recursive=False)
+
+        assert [p.name for p in found_files] == ["a.md", "b.md"]

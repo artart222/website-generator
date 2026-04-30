@@ -337,6 +337,7 @@ class FileSystemManager:
                         or path.suffix.lower() in normalized_exts
                     ):
                         found_files.append(path.resolve())
+            found_files.sort()
             self.logger.info(f"Found {len(found_files)} files in '{directory}'")
             return found_files
         except FileNotFoundError as e:

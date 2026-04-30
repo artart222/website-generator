@@ -40,7 +40,10 @@ def build_static_islands_bundle(
         "islands": islands if isinstance(islands, list) else [],
         "runtime": runtime_public_config,
     }
-    fs_manager.write_file(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))
+    fs_manager.write_file(
+        manifest_path,
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True),
+    )
 
     bootstrap_js_path = asset_dir / "wg-islands.js"
     bootstrap_script = """(function () {

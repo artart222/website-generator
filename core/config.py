@@ -103,6 +103,46 @@ class Config:
         for key, value in self.settings.items():
             setattr(self, key, value)
 
+    def validate(self) -> None:
+        """Validate the loaded configuration and collect deprecation warnings."""
+        version = self.get("version")
+        if version not in {1, 2}:
+            raise ValueError(
+                f"Unsupported config version: {version!r}. Supported versions are 1 and 2. "
+                "Use 'version: 2' for new projects."
+            )
+
+        if version == 1:
+            self.warnings.append(
+                "Config version 1 is deprecated. Please migrate to version 2 for new projects."
+            )
+
+        template_engine = self.get(
+            "build.template_engine",
+            self.get("template_engine", DEFAULT_SETTINGS["build"]["template_engine"]),
+        )
+        if template_engine != "django":
+            raise ValueError(
+                "Unsupported template engine: '%s'. The only supported engine is 'django'."
+                % template_engine
+            )
+
+        runtime_targets = self.get("runtime.targets", [])
+        if isinstance(runtime_targets, list):
+            for raw_target in runtime_targets:
+                if not isinstance(raw_target, dict):
+                    continue
+                target_type = str(raw_target.get("type", "")).strip()
+                if target_type == "fastapi_service":
+                    self.warnings.append(
+                        "runtime.targets[].type 'fastapi_service' is deprecated; "
+                        "use 'django_service' instead."
+                    )
+        elif runtime_targets is not None:
+            self.warnings.append(
+                "runtime.targets should be a list of runtime target definitions."
+            )
+
     def load(self, filepath: Path = Path("./config.yaml")) -> None:
         """
         Loads configuration from YAML and normalizes it into the v1 schema.

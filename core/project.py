@@ -586,7 +586,8 @@ class Project:
             }
 
             self.fs_manager.write_file(
-                json_output_path, json.dumps(page_payload, ensure_ascii=False, indent=2)
+                json_output_path,
+                json.dumps(page_payload, ensure_ascii=False, indent=2, sort_keys=True),
             )
 
             try:
@@ -610,7 +611,8 @@ class Project:
 
         site_index_path = data_dir / "site.json"
         self.fs_manager.write_file(
-            site_index_path, json.dumps(site_payload, ensure_ascii=False, indent=2)
+            site_index_path,
+            json.dumps(site_payload, ensure_ascii=False, indent=2, sort_keys=True),
         )
 
     def _make_json_safe(self, value):

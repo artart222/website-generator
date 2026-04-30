@@ -71,3 +71,17 @@ def test_django_runtime_checkout_flow():
     assert status_payload["order_id"] == order_id
     assert status_payload["status"] == "paid"
     assert status_payload["total_amount"] == "25.00"
+
+
+def test_django_runtime_allows_cors_preflight():
+    client = Client()
+    response = client.options(
+        "/checkout/session",
+        HTTP_ORIGIN="http://localhost:8000",
+        HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+        HTTP_ACCESS_CONTROL_REQUEST_HEADERS="Content-Type",
+    )
+    assert response.status_code == 200
+    assert response["Access-Control-Allow-Origin"] == "*"
+    assert "Content-Type" in response["Access-Control-Allow-Headers"]
+    assert "POST" in response["Access-Control-Allow-Methods"]

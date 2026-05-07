@@ -1,5 +1,6 @@
 [MASTER]
 ignore=.git,venv,.venv,__pycache__,migrations
+py-version=3.12
 
 [MESSAGES CONTROL]
 disable=

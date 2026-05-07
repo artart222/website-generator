@@ -100,6 +100,16 @@ Important compatibility behavior:
 
 For new work, prefer only the nested v1 config keys.
 
+## Supporting Guides
+
+Additional repository documentation is available in the `docs/` folder:
+
+- `docs/MIGRATION_GUIDE.md`
+- `docs/EXTENSION_AUTHOR_GUIDE.md`
+- `docs/THEME_AUTHOR_GUIDE.md`
+- `docs/RUNTIME_INTEGRATION_GUIDE.md`
+- `docs/RELEASE_CHECKLIST.md`
+
 ## Build Lifecycle
 
 The main orchestration happens in `core/project.py`.

@@ -10,6 +10,10 @@ This guide is for people using the generator to build a site. It focuses on the 
 4. Theme packages with project-level overrides
 5. Optional JSON export, Tailwind build, and React export for one collection
 
+## Documentation
+
+See the companion guides in `docs/` for extension authors, theme authors, runtime integration, migration planning, and release readiness.
+
 ## Prerequisites
 
 1. Python 3.10+

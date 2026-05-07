@@ -42,6 +42,18 @@ Then open `http://127.0.0.1:8000`.
 - Supports plugins for tasks like collection indexes, special pages, keywords, and sitemaps
 - Can optionally export page data as JSON, build Tailwind CSS, and ship one collection as a static React app
 
+## Documentation
+
+This repository now maintains a targeted documentation set for contributors, extension authors, theme builders, runtime integrators, and release reviewers.
+
+- `docs/DEVELOPER_GUIDE.md` — core architecture, config model, build lifecycle, extension points, and developer workflow
+- `docs/USER_GUIDE.md` — end-user workflows, CLI commands, content authoring, and runtime quickstarts
+- `docs/MIGRATION_GUIDE.md` — upgrade guidance for config transitions and compatibility
+- `docs/EXTENSION_AUTHOR_GUIDE.md` — extension package structure, manifest format, and registration hooks
+- `docs/THEME_AUTHOR_GUIDE.md` — theme package conventions, layout structure, and local overrides
+- `docs/RUNTIME_INTEGRATION_GUIDE.md` — runtime target setup, Django companion usage, and catalog snapshot workflows
+- `docs/RELEASE_CHECKLIST.md` — acceptance criteria, smoke tests, and release readiness checks
+
 ## Quick Start
 
 ### 1. Install

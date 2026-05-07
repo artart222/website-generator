@@ -1,24 +1,63 @@
-# Byte-compiled / optimized / DLL files
+# Python bytecode
 __pycache__/
-*.pyc
-*.pyd
-*.pyo
-.pytest_cache/
+*.py[cod]
+*$py.class
 
-# Distribution / packaging
+# Python virtual environments
 .venv/
+venv/
+python_env/
+.env
+.env.*
+
+# Test and coverage
+.pytest_cache/
+.coverage
+coverage/
+coverage.xml
+htmlcov/
+
+# Packaging / distribution
+build/
+dist/
 *.egg-info/
+website_generator.egg-info/
+pip-wheel-metadata/
 
-# IDE items:
-.idea
-website-generator.code-workspace
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.cache/
 
-# Output items
-output/
-output.zip
-react-app/public/data/
+# Django / runtime artifacts
+*.sqlite3
+*.db
+staticfiles/
+media/
+
+# Local VS Code / editor settings
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
 
 # React app artifacts
 react-app/node_modules/
 react-app/.next/
 react-app/out/
+react-app/public/data/
+
+# Output artifacts
+output/
+output.zip
+
+# Temporary files and folders
+tmp*/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini

@@ -48,6 +48,9 @@ Issues = "https://github.com/artart222/website-generator/issues"
 dev = [
   "pytest==8.4.1",
   "pytest-mock==3.14.1",
+  "pylint>=2.17,<3",
+  "ruff>=0.0.280,<0.0.400",
+  "mypy>=1.9,<2",
 ]
 
 [project.scripts]
@@ -58,3 +61,15 @@ py-modules = ["cli", "main", "dev"]
 
 [tool.setuptools.packages.find]
 include = ["core*", "engines*", "plugins*", "processor*", "utils*", "extensions*", "wg_runtime*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = [".git", "build", "dist", "output", ".venv", "venv", "node_modules"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+files = ["core", "wg_runtime", "extensions", "plugins"]

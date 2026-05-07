@@ -83,19 +83,30 @@ def _generate_unique_id() -> str:
 
 
 class Order(models.Model):
-    STATUS_PENDING = "pending"
+    STATUS_DRAFT = "draft"
+    STATUS_PENDING_PAYMENT = "pending_payment"
     STATUS_PAID = "paid"
+    STATUS_FULFILLED = "fulfilled"
+    STATUS_REFUNDED = "refunded"
+    STATUS_PARTIALLY_REFUNDED = "partially_refunded"
     STATUS_CANCELLED = "cancelled"
     STATUS_FAILED = "failed"
     STATUS_CHOICES = [
-        (STATUS_PENDING, "Pending"),
+        (STATUS_DRAFT, "Draft"),
+        (STATUS_PENDING_PAYMENT, "Pending Payment"),
         (STATUS_PAID, "Paid"),
-        (STATUS_CANCELLED, "Cancelled"),
         (STATUS_FAILED, "Failed"),
+        (STATUS_CANCELLED, "Cancelled"),
+        (STATUS_FULFILLED, "Fulfilled"),
+        (STATUS_REFUNDED, "Refunded"),
+        (STATUS_PARTIALLY_REFUNDED, "Partially Refunded"),
     ]
 
     order_id = models.CharField(max_length=64, unique=True, default=_generate_unique_id)
-    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    subtotal_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    shipping_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     currency = models.CharField(max_length=12, default="USD")
     provider = models.CharField(max_length=120, blank=True)
@@ -146,6 +157,7 @@ class PaymentAttempt(models.Model):
     attempt_id = models.CharField(max_length=64, default=_generate_unique_id)
     provider = models.CharField(max_length=120, blank=True)
     reference = models.CharField(max_length=128, blank=True)
+    event_idempotency_key = models.CharField(max_length=160, blank=True, default="", db_index=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     currency = models.CharField(max_length=12, default="USD")
     status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_PENDING)
@@ -206,3 +218,43 @@ class MediaAsset(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class IntegrationOutboxEvent(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_PROCESSING = "processing"
+    STATUS_SUCCEEDED = "succeeded"
+    STATUS_FAILED = "failed"
+    STATUS_DEAD_LETTER = "dead_letter"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_SUCCEEDED, "Succeeded"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_DEAD_LETTER, "Dead Letter"),
+    ]
+
+    event_type = models.CharField(max_length=120)
+    provider_domain = models.CharField(max_length=64, blank=True)
+    provider_name = models.CharField(max_length=120, blank=True)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    payload = models.JSONField(default=dict, blank=True)
+    result_payload = models.JSONField(default=dict, blank=True)
+    idempotency_key = models.CharField(max_length=160, blank=True, default="", db_index=True)
+    attempts = models.PositiveIntegerField(default=0)
+    max_attempts = models.PositiveIntegerField(default=5)
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "next_attempt_at"]),
+            models.Index(fields=["provider_domain", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.event_type} ({self.status})"

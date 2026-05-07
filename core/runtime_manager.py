@@ -42,23 +42,36 @@ class RuntimeManager:
             public_targets.append(public_target)
 
         public_integrations = deepcopy(integrations_cfg) if isinstance(integrations_cfg, dict) else {}
-        payment_providers = public_integrations.get("payments", {}).get("providers", {})
-        if isinstance(payment_providers, dict):
-            for _, provider_cfg in payment_providers.items():
-                if not isinstance(provider_cfg, dict):
-                    continue
-                adapter_name = str(provider_cfg.get("adapter", ""))
-                adapter_metadata = self.extension_manager.runtime_adapter_registry.describe(adapter_name)
-                if adapter_metadata:
-                    provider_cfg["adapter_metadata"] = adapter_metadata
-                provider_cfg.pop("secret", None)
-                provider_cfg.pop("api_key", None)
+        self._enrich_and_redact_integrations(public_integrations)
 
         self.public_manifest = {
             "targets": public_targets,
             "integrations": public_integrations,
         }
         return self.public_manifest
+
+    def _enrich_and_redact_integrations(self, integrations_cfg: dict[str, Any]) -> None:
+        if not isinstance(integrations_cfg, dict):
+            return
+
+        sensitive_keys = {"secret", "api_key", "token", "password", "private_key"}
+        for domain_cfg in integrations_cfg.values():
+            if not isinstance(domain_cfg, dict):
+                continue
+            providers = domain_cfg.get("providers", {})
+            if not isinstance(providers, dict):
+                continue
+
+            for provider_cfg in providers.values():
+                if not isinstance(provider_cfg, dict):
+                    continue
+                adapter_name = str(provider_cfg.get("adapter", "")).strip()
+                if adapter_name:
+                    adapter_metadata = self.extension_manager.runtime_adapter_registry.describe(adapter_name)
+                    if adapter_metadata:
+                        provider_cfg["adapter_metadata"] = adapter_metadata
+                for sensitive_key in sensitive_keys:
+                    provider_cfg.pop(sensitive_key, None)
 
     def fetch_catalog_snapshot(self) -> tuple[dict[str, Any] | None, Path | None]:
         runtime_cfg = self.config.get("runtime", {})

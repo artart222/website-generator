@@ -27,6 +27,7 @@ classifiers = [
 dependencies = [
   "asgiref==3.8.1",
   "beautifulsoup4==4.12.3",
+  "celery==5.4.0",
   "colorama==0.4.6",
   "colorlog==6.10.1",
   "Django==5.2.1",
@@ -35,6 +36,7 @@ dependencies = [
   "Pygments==2.19.1",
   "python-slugify==8.0.4",
   "PyYAML==6.0.2",
+  "redis==5.2.1",
 ]
 
 [project.urls]

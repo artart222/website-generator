@@ -8,6 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from wg_runtime.runtime.models import (
     AuditEvent,
+    IntegrationOutboxEvent,
     InventoryAdjustment,
     InventoryItem,
     MediaAsset,
@@ -34,12 +35,21 @@ MODEL_REGISTRY = {
     "paymentattempt": PaymentAttempt,
     "refund": Refund,
     "auditevent": AuditEvent,
+    "integrationoutboxevent": IntegrationOutboxEvent,
 }
 
 ROLE_PERMISSIONS = {
     "admin": {
         "full": ["product", "productvariant", "inventoryitem", "mediaasset"],
-        "view": ["order", "orderline", "paymentattempt", "refund", "auditevent", "inventoryadjustment"],
+        "edit": ["integrationoutboxevent"],
+        "view": [
+            "order",
+            "orderline",
+            "paymentattempt",
+            "refund",
+            "auditevent",
+            "inventoryadjustment",
+        ],
     },
     "editor": {
         "edit": ["product", "productvariant", "mediaasset"],
@@ -51,11 +61,20 @@ ROLE_PERMISSIONS = {
             "paymentattempt",
             "refund",
             "auditevent",
+            "integrationoutboxevent",
         ],
     },
     "merchandiser": {
         "edit": ["product", "productvariant", "inventoryitem", "mediaasset"],
-        "view": ["order", "orderline", "paymentattempt", "refund", "auditevent", "inventoryadjustment"],
+        "view": [
+            "order",
+            "orderline",
+            "paymentattempt",
+            "refund",
+            "auditevent",
+            "inventoryadjustment",
+            "integrationoutboxevent",
+        ],
     },
     "support": {
         "view": [
@@ -68,6 +87,7 @@ ROLE_PERMISSIONS = {
             "productvariant",
             "inventoryitem",
             "mediaasset",
+            "integrationoutboxevent",
         ],
     },
 }

@@ -1,17 +1,19 @@
-import uuid
-from decimal import Decimal
 from typing import Any
 
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Order, OrderLine, PaymentAttempt, Product
+from .integrations import (
+    IntegrationResolutionError,
+    apply_payment_callback,
+    create_checkout_order,
+)
+from .models import Order, Product
 from .serializers import (
     CatalogSnapshotSerializer,
     CheckoutSessionInputSerializer,
@@ -19,82 +21,8 @@ from .serializers import (
 )
 
 
-def _normalize_amount(value: Any) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
-
-def _generate_order_id() -> str:
-    return uuid.uuid4().hex
-
-
-def _normalize_status(status: str) -> str:
-    normalized = status.strip().lower()
-    if normalized in {"paid", "success", "completed"}:
-        return Order.STATUS_PAID
-    if normalized in {"cancelled", "canceled"}:
-        return Order.STATUS_CANCELLED
-    return Order.STATUS_FAILED
-
-
-def _create_order(request: Request, validated_data: dict[str, Any]) -> tuple[Order, PaymentAttempt]:
-    lines = validated_data.pop("lines")
-    success_url = validated_data.pop("success_url", "")
-    failure_url = validated_data.pop("failure_url", "")
-    status_url = validated_data.pop("status_url", "")
-
-    total_amount = sum(
-        _normalize_amount(line.get("price", 0)) * int(line.get("quantity", 1)) for line in lines
-    )
-    order = Order.objects.create(
-        order_id=_generate_order_id(),
-        total_amount=total_amount,
-        success_url=success_url,
-        failure_url=failure_url,
-        status_url=status_url,
-        **validated_data,
-    )
-
-    for line in lines:
-        OrderLine.objects.create(
-            order=order,
-            title=line.get("title", "")[:240],
-            sku=line.get("sku", "")[:120],
-            quantity=int(line.get("quantity", 1)),
-            price=_normalize_amount(line.get("price", 0)),
-            currency=line.get("currency", order.currency),
-            metadata=line.get("metadata", {}),
-        )
-
-    payment_attempt = PaymentAttempt.objects.create(
-        order=order,
-        provider=order.provider,
-        amount=order.total_amount,
-        currency=order.currency,
-        status=PaymentAttempt.STATUS_PENDING,
-    )
-    return order, payment_attempt
-
-
-def _build_redirect_url(request: Request, order: Order) -> str:
-    gateway_path = reverse("gateway-mock")
-    return request.build_absolute_uri(f"{gateway_path}?order_id={order.order_id}")
-
-
-def _update_payment_status(order: Order, status: str, reference: str | None = None) -> PaymentAttempt:
-    final_status = _normalize_status(status)
-    payment_attempt = order.payment_attempts.create(
-        provider=order.provider,
-        reference=reference or "",
-        amount=order.total_amount,
-        currency=order.currency,
-        status=final_status,
-        metadata={"requested_status": status, "reference": reference or ""},
-    )
-    order.status = final_status
-    order.save(update_fields=["status", "updated_at"])
-    return payment_attempt
+def _request_base_url(request: Request) -> str:
+    return request.build_absolute_uri("/").rstrip("/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -102,12 +30,20 @@ class CheckoutSessionAPIView(APIView):
     def post(self, request: Request) -> Response:
         serializer = CheckoutSessionInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        order, payment_attempt = _create_order(request, serializer.validated_data)
-        redirect_url = _build_redirect_url(request, order)
+        try:
+            order, payment_attempt, redirect_url = create_checkout_order(
+                request_base_url=_request_base_url(request),
+                validated_data=dict(serializer.validated_data),
+            )
+        except IntegrationResolutionError as exc:
+            return Response({"detail": str(exc)}, status=400)
+
         return Response(
             {
                 "order_id": order.order_id,
-                "status": order.status,
+                "status": "pending"
+                if order.status == Order.STATUS_PENDING_PAYMENT
+                else order.status,
                 "redirect_url": redirect_url,
                 "payment_reference": payment_attempt.attempt_id,
             }
@@ -120,8 +56,21 @@ class PaymentCallbackAPIView(APIView):
         order_id = request.query_params.get("order_id", "")
         status = request.query_params.get("status", "paid")
         reference = request.query_params.get("reference", "")
+        idempotency_key = request.query_params.get("idempotency_key", "")
         order = get_object_or_404(Order, order_id=order_id)
-        _update_payment_status(order, status, reference)
+        try:
+            order, _, _ = apply_payment_callback(
+                order=order,
+                requested_status=status,
+                reference=reference,
+                idempotency_key=idempotency_key,
+            )
+        except IntegrationResolutionError as exc:
+            destination = order.failure_url or ""
+            return HttpResponseRedirect(
+                f"{destination}?order_id={order.order_id}&status=failed&error={str(exc)}"
+            )
+
         destination = order.success_url if order.status == Order.STATUS_PAID else order.failure_url
         dest_url = f"{destination}?order_id={order.order_id}&status={order.status}&reference={reference}"
         return HttpResponseRedirect(dest_url)
@@ -130,8 +79,17 @@ class PaymentCallbackAPIView(APIView):
         order_id = request.data.get("order_id", "")
         status = request.data.get("status", "paid")
         reference = request.data.get("reference", "")
+        idempotency_key = (
+            str(request.data.get("idempotency_key", "")).strip()
+            or str(request.headers.get("Idempotency-Key", "")).strip()
+        )
         order = get_object_or_404(Order, order_id=order_id)
-        _update_payment_status(order, status, reference)
+        order, _, _ = apply_payment_callback(
+            order=order,
+            requested_status=status,
+            reference=reference,
+            idempotency_key=idempotency_key,
+        )
         return Response({"order_id": order.order_id, "status": order.status})
 
 
@@ -142,6 +100,9 @@ class PublicOrderStatusAPIView(APIView):
             {
                 "order_id": order.order_id,
                 "status": order.status,
+                "subtotal_amount": order.subtotal_amount,
+                "tax_amount": order.tax_amount,
+                "shipping_amount": order.shipping_amount,
                 "total_amount": order.total_amount,
                 "currency": order.currency,
                 "provider": order.provider,

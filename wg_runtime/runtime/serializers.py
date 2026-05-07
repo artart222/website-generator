@@ -4,12 +4,12 @@ from rest_framework import serializers
 class CheckoutSessionInputSerializer(serializers.Serializer):
     provider = serializers.CharField(required=False, allow_blank=True, default="")
     currency = serializers.CharField(default="USD")
-    metadata = serializers.DictField(child=serializers.CharField(), required=False, default=dict)
+    metadata = serializers.DictField(child=serializers.JSONField(), required=False, default=dict)
     success_url = serializers.URLField(required=False, allow_blank=True, default="")
     failure_url = serializers.URLField(required=False, allow_blank=True, default="")
     status_url = serializers.URLField(required=False, allow_blank=True, default="")
     lines = serializers.ListField(
-        child=serializers.DictField(child=serializers.CharField()),
+        child=serializers.DictField(child=serializers.JSONField()),
         min_length=1,
     )
 
@@ -32,11 +32,14 @@ class OrderLineSerializer(serializers.Serializer):
 class OrderStatusSerializer(serializers.Serializer):
     order_id = serializers.CharField()
     status = serializers.CharField()
+    subtotal_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    tax_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    shipping_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     total_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
     currency = serializers.CharField()
     provider = serializers.CharField()
     lines = OrderLineSerializer(many=True)
-    metadata = serializers.DictField(child=serializers.CharField())
+    metadata = serializers.DictField(child=serializers.JSONField(), required=False, default=dict)
 
 
 class ProductVariantSerializer(serializers.Serializer):

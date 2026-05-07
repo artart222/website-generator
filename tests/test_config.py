@@ -241,3 +241,64 @@ def test_list_files_returns_sorted_paths():
         found_files = fs_manager.list_files(temp_path, recursive=False)
 
         assert [p.name for p in found_files] == ["a.md", "b.md"]
+
+
+def test_validate_accepts_phase5_provider_map_shape_for_all_domains():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    version: 2
+    integrations:
+      payments:
+        default: local
+        providers:
+          local:
+            adapter: commerce.payment.ir.shaparak_like
+      notifications:
+        default: console
+        providers:
+          console:
+            adapter: commerce.notification.local_console
+      shipping:
+        default: flat
+        providers:
+          flat:
+            adapter: commerce.shipping.flat_rate
+      accounting:
+        default: export
+        providers:
+          export:
+            adapter: commerce.accounting.jsonl_exporter
+      tax:
+        default: vat
+        providers:
+          vat:
+            adapter: commerce.tax.simple_vat
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+    config.validate()
+
+    assert not any("integrations." in warning for warning in config.warnings)
+
+
+def test_validate_warns_on_invalid_phase5_provider_map_shape():
+    mock_fs = Mock()
+    mock_fs.read_file.return_value = """
+    version: 2
+    integrations:
+      payments:
+        default: 123
+        providers: []
+      notifications:
+        providers:
+          console: bad
+    """
+
+    config = Config(fs_manager=mock_fs)
+    config.load(Path("config.yaml"))
+    config.validate()
+
+    assert any("integrations.payments.default" in warning for warning in config.warnings)
+    assert any("integrations.payments.providers" in warning for warning in config.warnings)
+    assert any("integrations.notifications.providers.console" in warning for warning in config.warnings)

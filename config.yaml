@@ -113,6 +113,32 @@ integrations:
         runtime_target: commerce-api
         currency: IRR
         callback_url: http://localhost:8787/payments/callback
+  notifications:
+    default: local_console
+    providers:
+      local_console:
+        adapter: commerce.notification.local_console
+        destination: console
+  shipping:
+    default: flat_rate
+    providers:
+      flat_rate:
+        adapter: commerce.shipping.flat_rate
+        flat_rate: "0"
+        currency: IRR
+  accounting:
+    default: local_export
+    providers:
+      local_export:
+        adapter: commerce.accounting.jsonl_exporter
+        output_file: ./output/runtime/accounting-export.jsonl
+  tax:
+    default: simple_vat
+    providers:
+      simple_vat:
+        adapter: commerce.tax.simple_vat
+        rate_percent: "9"
+        inclusive: false
 
 plugins:
   - CollectionIndexerPlugin

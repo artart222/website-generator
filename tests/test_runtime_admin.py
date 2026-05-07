@@ -11,6 +11,7 @@ sys.path.insert(0, project_root)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wg_runtime.settings")
 
 import django  # noqa: E402
+import django.apps  # noqa: E402
 from django.conf import settings  # noqa: E402
 
 temp_db = Path(tempfile.gettempdir()) / f"wg_runtime_admin_test_{os.getpid()}.sqlite3"
@@ -29,6 +30,7 @@ from django.urls import reverse  # noqa: E402
 
 from wg_runtime.runtime.models import (  # noqa: E402
     AuditEvent,
+    IntegrationOutboxEvent,
     InventoryAdjustment,
     InventoryItem,
     MediaAsset,
@@ -239,7 +241,7 @@ def test_order_payment_refund_admin_pages_are_inspection_only_for_admin_group_us
         reverse("admin:runtime_order_change", args=[order.pk]),
         {
             "order_id": order.order_id,
-            "status": Order.STATUS_PENDING,
+            "status": Order.STATUS_PENDING_PAYMENT,
             "total_amount": str(order.total_amount),
             "currency": order.currency,
             "provider": order.provider,
@@ -302,3 +304,45 @@ def test_audit_views_are_read_only_for_admin_group_users():
 
     media_field = MediaAsset._meta.get_field("media_file")
     assert media_field.blank is True
+
+
+def test_outbox_admin_views_and_requeue_action_for_dead_letter_events():
+    call_command("bootstrap_runtime_roles", verbosity=0)
+    admin_group_user = _create_user(
+        username=_unique_username("outbox_admin_user"),
+        is_staff=True,
+    )
+    admin_group_user.groups.add(Group.objects.get(name="admin"))
+    assert admin_group_user.has_perm("runtime.change_integrationoutboxevent")
+
+    event = IntegrationOutboxEvent.objects.create(
+        event_type="payment_failed",
+        provider_domain="notifications",
+        provider_name="local_console",
+        status=IntegrationOutboxEvent.STATUS_DEAD_LETTER,
+        payload={"order_id": "X-1"},
+        attempts=5,
+        max_attempts=5,
+    )
+
+    client = Client()
+    client.force_login(admin_group_user)
+
+    changelist_url = reverse("admin:runtime_integrationoutboxevent_changelist")
+    detail_url = reverse("admin:runtime_integrationoutboxevent_change", args=[event.pk])
+    list_response = client.get(changelist_url)
+    detail_response = client.get(detail_url)
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+
+    action_response = client.post(
+        changelist_url,
+        {
+            "action": "requeue_dead_letter_events",
+            "_selected_action": [str(event.pk)],
+        },
+        follow=True,
+    )
+    assert action_response.status_code == 200
+    event.refresh_from_db()
+    assert event.status == IntegrationOutboxEvent.STATUS_PENDING

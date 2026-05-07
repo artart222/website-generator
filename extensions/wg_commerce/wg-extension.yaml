@@ -12,6 +12,10 @@ provides:
     - commerce/order_status
   runtime_adapters:
     - commerce.payment.ir.shaparak_like
+    - commerce.notification.local_console
+    - commerce.shipping.flat_rate
+    - commerce.accounting.jsonl_exporter
+    - commerce.tax.simple_vat
   frontend_targets: []
   commands: []
 python:

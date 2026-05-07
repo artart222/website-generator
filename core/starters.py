@@ -436,6 +436,40 @@ def _store_base_files() -> dict[Path, str]:
         integrations:
           commerce:
             provider: wg-commerce
+          payments:
+            default: local_gateway
+            providers:
+              local_gateway:
+                adapter: commerce.payment.ir.shaparak_like
+                runtime_target: commerce-api
+                currency: IRR
+                callback_url: https://api.example.com/payments/callback
+          notifications:
+            default: local_console
+            providers:
+              local_console:
+                adapter: commerce.notification.local_console
+                destination: console
+          shipping:
+            default: flat_rate
+            providers:
+              flat_rate:
+                adapter: commerce.shipping.flat_rate
+                flat_rate: "0"
+                currency: IRR
+          accounting:
+            default: local_export
+            providers:
+              local_export:
+                adapter: commerce.accounting.jsonl_exporter
+                output_file: ./output/runtime/accounting-export.jsonl
+          tax:
+            default: simple_vat
+            providers:
+              simple_vat:
+                adapter: commerce.tax.simple_vat
+                rate_percent: "0"
+                inclusive: false
         plugins:
           - CollectionIndexerPlugin
           - SpecialPagesPlugin
@@ -532,21 +566,15 @@ def _store_files() -> dict[Path, str]:
 def _store_ir_files() -> dict[Path, str]:
     files = _store_base_files()
     files[Path("config.yaml")] = files[Path("config.yaml")].replace(
-        "integrations:\n  commerce:\n    provider: wg-commerce\n",
-        dedent(
-            """\
-            integrations:
-              commerce:
-                provider: wg-commerce
-              payments:
-                default: iran_gateway
-                providers:
-                  iran_gateway:
-                    adapter: commerce.payment.ir.shaparak_like
-                    runtime_target: commerce-api
-                    currency: IRR
-                    callback_url: https://api.example.com/payments/callback
-            """
-        ),
+        "default: local_gateway",
+        "default: iran_gateway",
+    )
+    files[Path("config.yaml")] = files[Path("config.yaml")].replace(
+        "local_gateway:",
+        "iran_gateway:",
+    )
+    files[Path("config.yaml")] = files[Path("config.yaml")].replace(
+        "rate_percent: \"0\"",
+        "rate_percent: \"9\"",
     )
     return files

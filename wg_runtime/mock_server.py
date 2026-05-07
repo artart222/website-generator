@@ -177,8 +177,23 @@ class RuntimeContext:
                 {"authority": authority, **callback_input},
                 self.get_store_config(),
             )
-            verified = bool(verification.get("verified"))
-            reference = str(verification.get("reference", reference))
+            verification_meta = verification.get("metadata", {}) if isinstance(verification, dict) else {}
+            verified = bool(
+                verification.get("verified")
+                if isinstance(verification, dict)
+                else False
+            ) or bool(
+                verification_meta.get("verified")
+                if isinstance(verification_meta, dict)
+                else False
+            )
+            reference = str(
+                verification.get("reference", reference)
+                if isinstance(verification, dict)
+                else reference
+            )
+            if isinstance(verification, dict) and str(verification.get("status", "")).lower() == "error":
+                verified = False
         else:
             verified = callback_status == "paid"
             verification = {"verified": verified, "reference": reference}

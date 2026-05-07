@@ -4,8 +4,10 @@ from django import forms
 from django.contrib import admin
 
 from .audit import get_actor_label, log_audit_event, log_model_audit_event
+from .integrations.outbox import requeue_dead_letter_event
 from .models import (
     AuditEvent,
+    IntegrationOutboxEvent,
     InventoryAdjustment,
     InventoryItem,
     MediaAsset,
@@ -279,3 +281,44 @@ class MediaAssetAdmin(AdminAuditMixin, admin.ModelAdmin):
     search_fields = ["title", "file_name"]
     list_filter = ["created_at"]
     readonly_fields = ["created_at"]
+
+
+@admin.register(IntegrationOutboxEvent)
+class IntegrationOutboxEventAdmin(admin.ModelAdmin):
+    list_display = [
+        "created_at",
+        "event_type",
+        "provider_domain",
+        "provider_name",
+        "status",
+        "attempts",
+        "max_attempts",
+        "next_attempt_at",
+    ]
+    search_fields = ["event_type", "provider_domain", "provider_name", "idempotency_key"]
+    list_filter = ["status", "provider_domain", "provider_name", "event_type", "created_at"]
+    readonly_fields = _model_field_names(IntegrationOutboxEvent)
+    actions = ["requeue_dead_letter_events"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        if obj is None:
+            return request.user.has_perm(
+                "runtime.change_integrationoutboxevent"
+            ) or request.user.has_perm("runtime.view_integrationoutboxevent")
+        return False
+
+    @admin.action(description="Requeue selected dead-letter integration events")
+    def requeue_dead_letter_events(self, request, queryset):
+        requeued = 0
+        for event in queryset:
+            if event.status != IntegrationOutboxEvent.STATUS_DEAD_LETTER:
+                continue
+            requeue_dead_letter_event(event.id)
+            requeued += 1
+        self.message_user(request, f"Requeued {requeued} dead-letter events.")

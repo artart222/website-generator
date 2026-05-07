@@ -227,6 +227,54 @@ class Config:
                     % target_name
                 )
 
+        self._validate_integration_provider_maps()
+
+    def _validate_integration_provider_maps(self) -> None:
+        integrations_cfg = self.get("integrations", {})
+        if not isinstance(integrations_cfg, dict):
+            self.warnings.append("integrations should be a mapping.")
+            return
+
+        provider_domains = [
+            "payments",
+            "notifications",
+            "shipping",
+            "accounting",
+            "tax",
+        ]
+        for domain in provider_domains:
+            domain_cfg = integrations_cfg.get(domain)
+            if domain_cfg is None:
+                continue
+            if not isinstance(domain_cfg, dict):
+                self.warnings.append(f"integrations.{domain} should be a mapping.")
+                continue
+
+            default_provider = domain_cfg.get("default", "")
+            providers = domain_cfg.get("providers", {})
+            if default_provider is not None and not isinstance(default_provider, str):
+                self.warnings.append(f"integrations.{domain}.default should be a string.")
+            if providers is not None and not isinstance(providers, dict):
+                self.warnings.append(f"integrations.{domain}.providers should be a mapping.")
+                continue
+            if isinstance(providers, dict) and providers and not str(default_provider).strip():
+                self.warnings.append(
+                    f"integrations.{domain}.providers is configured but integrations.{domain}.default is empty."
+                )
+
+            if isinstance(providers, dict):
+                for provider_name, provider_cfg in providers.items():
+                    if not isinstance(provider_cfg, dict):
+                        self.warnings.append(
+                            f"integrations.{domain}.providers.{provider_name} should be a mapping."
+                        )
+                        continue
+                    adapter_name = provider_cfg.get("adapter")
+                    if adapter_name is None or not str(adapter_name).strip():
+                        self.warnings.append(
+                            f"integrations.{domain}.providers.{provider_name}.adapter is required."
+                        )
+
     def load(self, filepath: str) -> None:
         """Load configuration from a YAML file."""
         self.logger.debug("Loading config from '%s'", filepath)

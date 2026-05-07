@@ -53,6 +53,31 @@ class InventoryItem(models.Model):
         return f"Inventory {self.sku}"
 
 
+class InventoryAdjustment(models.Model):
+    inventory_item = models.ForeignKey(
+        InventoryItem, on_delete=models.CASCADE, related_name="adjustments"
+    )
+    old_available_quantity = models.IntegerField(default=0)
+    new_available_quantity = models.IntegerField(default=0)
+    delta_available_quantity = models.IntegerField(default=0)
+    old_reserved_quantity = models.IntegerField(default=0)
+    new_reserved_quantity = models.IntegerField(default=0)
+    delta_reserved_quantity = models.IntegerField(default=0)
+    actor = models.CharField(max_length=192, blank=True)
+    reason = models.CharField(max_length=280, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return (
+            f"Adjustment {self.inventory_item.sku} "
+            f"({self.delta_available_quantity:+d}/{self.delta_reserved_quantity:+d})"
+        )
+
+
 def _generate_unique_id() -> str:
     return uuid.uuid4().hex
 
@@ -172,6 +197,7 @@ class MediaAsset(models.Model):
     title = models.CharField(max_length=240)
     file_name = models.CharField(max_length=240)
     file_url = models.URLField(blank=True)
+    media_file = models.FileField(upload_to="runtime-media/", blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

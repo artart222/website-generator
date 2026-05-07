@@ -138,6 +138,39 @@ runtime:
 
 When enabled, the build fetches published products from runtime, writes `catalog.json`, and generates static catalog/product pages from that snapshot.
 
+### Runtime admin quickstart
+
+The first back-office implementation is Django admin.
+
+```bash
+python wg_runtime/manage.py migrate
+python wg_runtime/manage.py createsuperuser
+python wg_runtime/manage.py bootstrap_runtime_roles
+python wg_runtime/manage.py runserver 127.0.0.1:8787
+```
+
+Then open `http://127.0.0.1:8787/admin/`.
+
+Role bootstrap command:
+
+```bash
+python wg_runtime/manage.py bootstrap_runtime_roles --assign-user <username> --assign-role merchandiser
+```
+
+Default roles:
+
+- `admin`
+- `editor`
+- `merchandiser`
+- `support`
+
+Operational policy in this phase:
+
+- orders, payments, and refunds are inspection-only in admin
+- product, variant, inventory, and media are operationally editable
+- stock edits create inventory-adjustment records and audit events
+- media can be managed via URL metadata or optional file upload (`MEDIA_ROOT` / `MEDIA_URL`)
+
 ## Start a New Site
 
 Scaffold a fresh project:

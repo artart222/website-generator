@@ -488,6 +488,41 @@ python main.py
 
 But new docs and examples should prefer `wg`.
 
+## Runtime Admin and Roles
+
+The Django runtime includes an intentionally simple first admin surface at `/admin/`.
+
+Bootstrap roles:
+
+```bash
+python wg_runtime/manage.py bootstrap_runtime_roles
+```
+
+Optional assignment during bootstrap:
+
+```bash
+python wg_runtime/manage.py bootstrap_runtime_roles --assign-user <username> --assign-role support
+```
+
+Roles currently managed by the bootstrap command:
+
+1. `admin`
+2. `editor`
+3. `merchandiser`
+4. `support`
+
+Current policy boundaries:
+
+1. `Product`, `ProductVariant`, `InventoryItem`, and `MediaAsset` are editable by permitted roles.
+2. `Order`, `PaymentAttempt`, and `Refund` are inspection-only in admin.
+3. Stock edits on `InventoryItem` create `InventoryAdjustment` rows and `AuditEvent` entries.
+4. `AuditEvent` and `InventoryAdjustment` are read-only admin surfaces.
+
+Media uploads use Django's local storage by default:
+
+1. `RUNTIME_MEDIA_ROOT` controls `MEDIA_ROOT`.
+2. `RUNTIME_MEDIA_URL` controls `MEDIA_URL`.
+
 ## Extension Points
 
 Common extension work happens in:

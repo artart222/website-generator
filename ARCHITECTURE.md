@@ -1,5 +1,7 @@
 # Website Generator Architecture (v1)
 
+> **Note:** This document describes the v1 architecture. The current implementation (v2) maintains most of these principles but has evolved with additional managers, extension system, and runtime integration. See [Developer Guide](docs/developer/DEVELOPER_GUIDE.md) for current architecture details.
+
 ## 1. Overview
 
 This document outlines the proposed software architecture for a static website generator. The architecture is designed using Object-Oriented Principles (OOP) to promote modularity, testability, extensibility, and ease of maintenance. The core goal is to separate concerns, allowing developers to work on different parts of the system independently and to facilitate long-term development and feature additions.

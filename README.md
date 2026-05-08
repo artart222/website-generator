@@ -44,15 +44,34 @@ Then open `http://127.0.0.1:8000`.
 
 ## Documentation
 
-This repository now maintains a targeted documentation set for contributors, extension authors, theme builders, runtime integrators, and release reviewers.
+The Website Generator maintains comprehensive documentation for all audiences:
 
-- `docs/DEVELOPER_GUIDE.md` — core architecture, config model, build lifecycle, extension points, and developer workflow
-- `docs/USER_GUIDE.md` — end-user workflows, CLI commands, content authoring, and runtime quickstarts
-- `docs/MIGRATION_GUIDE.md` — upgrade guidance for config transitions and compatibility
-- `docs/EXTENSION_AUTHOR_GUIDE.md` — extension package structure, manifest format, and registration hooks
-- `docs/THEME_AUTHOR_GUIDE.md` — theme package conventions, layout structure, and local overrides
-- `docs/RUNTIME_INTEGRATION_GUIDE.md` — runtime target setup, Django companion usage, and catalog snapshot workflows
-- `docs/RELEASE_CHECKLIST.md` — acceptance criteria, smoke tests, and release readiness checks
+### User Documentation
+- [User Guide](docs/user/USER_GUIDE.md) — End-user workflows, CLI commands, content authoring
+- [Migration Guide](docs/user/MIGRATION_GUIDE.md) — Config v1 to v2 upgrade guidance
+- [Troubleshooting](docs/user/troubleshooting.md) — Common issues and solutions
+
+### Developer Documentation
+- [Developer Guide](docs/developer/DEVELOPER_GUIDE.md) — Core architecture and build lifecycle
+- [Theme Author Guide](docs/developer/THEME_AUTHOR_GUIDE.md) — Theme package conventions
+- [Extension Author Guide](docs/developer/EXTENSION_AUTHOR_GUIDE.md) — Extension development
+- [Runtime Integration Guide](docs/developer/RUNTIME_INTEGRATION_GUIDE.md) — Runtime setup
+- [Release Checklist](docs/developer/RELEASE_CHECKLIST.md) — Release readiness
+
+### API Reference
+- [API Reference](docs/api/index.md) — Complete class and method documentation
+
+### Examples & Tutorials
+- [Creating Themes](docs/examples/creating-themes.md) — Custom theme development
+- [Writing Plugins](docs/examples/writing-plugins.md) — Plugin development
+- [Launch Kit](docs/examples/LAUNCH_KIT.md) — Quick-start scaffolding
+
+### Module Documentation
+Detailed developer docs for each module:
+- [Core Modules](docs/developer/modules/) — Project, Site, Config, etc.
+- [Engines](docs/developer/modules/engines-base-engine.md) — Template engines
+- [Plugins](docs/developer/modules/core-plugin-manager.md) — Plugin system
+- [Extensions](docs/developer/modules/core-extension-manager.md) — Extension system
 
 ## Quick Start
 

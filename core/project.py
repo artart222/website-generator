@@ -33,7 +33,16 @@ supported_extensions = list(_PROCESSOR_MAP.keys())
 
 
 class Project:
-    """Main build orchestrator."""
+    """
+    Main build orchestrator for the website generator.
+
+    Coordinates all subsystem managers (theme, plugin, extension, frontend, runtime)
+    and executes the build lifecycle with hooks. Manages the end-to-end site
+    generation from configuration loading to output writing.
+
+    The build process follows a phased approach with extension points for
+    plugins and extensions to inject custom behavior.
+    """
 
     def __init__(self, config: Config):
         self.logger = logging.getLogger(__name__)

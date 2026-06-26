@@ -17,11 +17,15 @@ See the companion guides in `docs/` for extension authors, theme authors, runtim
 ## Prerequisites
 
 1. Python 3.10+
-2. Install the project:
+2. Install the project (monorepo — installs all workspace packages in editable mode):
 
 ```bash
-pip install -e .
+git clone https://github.com/artart222/website-generator.git
+cd website-generator
+python scripts/install_editable.py
 ```
+
+This installs `wg-contracts`, `wg-core`, `wg-runtime`, `wg-commerce`, and the root `website-generator` CLI. A plain `pip install -e .` will not work until those packages are installed; they are not published to PyPI.
 
 3. Optional for Tailwind or React export:
    Node.js and npm
@@ -456,5 +460,5 @@ http://127.0.0.1:8000/shop/
 ## Related Docs
 
 1. `README.md` for the fastest overview
-2. `docs/DEVELOPER_GUIDE.md` for architecture and extension details
+2. `docs/developer/DEVELOPER_GUIDE.md` for architecture and extension details
 3. `ARCHITECTURE.md` for broader design notes

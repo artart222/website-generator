@@ -6,9 +6,14 @@ the refactoring roadmap can proceed with provable behavior preservation.
 The build is deterministic (verified: two consecutive builds produce identical
 hashes for all output files), so a SHA-256 manifest is a reliable oracle.
 
-If an intentional change alters output, regenerate the manifest with:
+If an intentional change alters output, regenerate the manifest on Linux (matches CI)
+after ensuring ``.gitattributes`` enforces LF line endings::
 
     WG_REGENERATE_GOLDEN=1 python -m pytest tests/test_characterization_build.py
+
+On Windows, use Docker or WSL so the golden matches Ubuntu CI. After adding or
+updating ``.gitattributes``, run ``git add --renormalize .`` once and refresh
+your working tree so source files are checked out with LF.
 """
 
 from __future__ import annotations

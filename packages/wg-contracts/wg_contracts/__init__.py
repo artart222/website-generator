@@ -12,6 +12,7 @@ Nothing here imports wg-core or wg-runtime. This is the dependency sink that
 breaks the former SSG <-> runtime cycle.
 """
 
+from .extension import BaseExtension
 from .integrations import (
     KIND_ACCOUNTING_EXPORTER,
     KIND_NOTIFICATION_PROVIDER,
@@ -31,6 +32,7 @@ from .integrations import (
 )
 
 __all__ = [
+    "BaseExtension",
     "KIND_ACCOUNTING_EXPORTER",
     "KIND_NOTIFICATION_PROVIDER",
     "KIND_PAYMENT_PROVIDER",

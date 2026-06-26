@@ -1,4 +1,4 @@
-from extensions.base import BaseExtension
+from wg_contracts.extension import BaseExtension
 
 
 class SitemapExtension(BaseExtension):

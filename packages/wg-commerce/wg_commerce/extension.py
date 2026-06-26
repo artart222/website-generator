@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from extensions.base import BaseExtension
+from wg_contracts.extension import BaseExtension
 from wg_contracts.integrations import (
     AdapterResult,
     error_result,

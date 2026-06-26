@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wg-core"
+version = "0.2.0"
+description = "Static site generator core: build pipeline, config, themes, and plugins."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Artin Mobasher" }]
+dependencies = [
+  "wg-contracts==0.2.0",
+  "beautifulsoup4==4.12.3",
+  "colorama==0.4.6",
+  "colorlog==6.10.1",
+  "Django==5.2.1",
+  "Markdown==3.8",
+  "Pygments==2.19.1",
+  "python-slugify==8.0.4",
+  "PyYAML==6.0.2",
+]
+
+[project.entry-points."wg.extensions"]
+wg-seo = "extensions.wg_seo.extension:get_extension"
+wg-sitemap = "extensions.wg_sitemap.extension:get_extension"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "engines*", "plugins*", "processor*", "utils*", "extensions*"]

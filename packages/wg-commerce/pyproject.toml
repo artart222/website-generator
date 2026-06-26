@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wg-commerce"
+version = "0.2.0"
+description = "Commerce extension and runtime adapters for website-generator."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Artin Mobasher" }]
+dependencies = [
+  "wg-contracts==0.2.0",
+]
+
+[project.entry-points."wg.extensions"]
+wg-commerce = "wg_commerce.extension:get_extension"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["wg_commerce*"]
+
+[tool.setuptools.package-data]
+wg_commerce = ["templates/**/*", "wg-extension.yaml"]

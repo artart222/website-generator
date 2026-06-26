@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wg-contracts"
+version = "0.2.0"
+description = "Shared ports and integration contracts for the website-generator ecosystem."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Artin Mobasher" }]
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["wg_contracts*"]

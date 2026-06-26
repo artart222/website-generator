@@ -74,7 +74,7 @@ def build_adapter_registry_for_providers(
 ) -> RuntimeAdapterRegistry:
     """Build an adapter registry from dotted provider paths (no Django required)."""
     registry = RuntimeAdapterRegistry()
-    provider_paths = providers or ["extensions.wg_commerce.extension:get_extension"]
+    provider_paths = providers or ["wg_commerce.extension:get_extension"]
     for provider_path in provider_paths:
         provider = _resolve_dotted(str(provider_path))
         register = getattr(provider, "register_runtime_adapters", None)
@@ -93,7 +93,7 @@ def build_adapter_registry() -> RuntimeAdapterRegistry:
     providers = getattr(
         settings,
         "WG_RUNTIME_ADAPTER_PROVIDERS",
-        ["extensions.wg_commerce.extension:get_extension"],
+        ["wg_commerce.extension:get_extension"],
     )
     return build_adapter_registry_for_providers(list(providers))
 

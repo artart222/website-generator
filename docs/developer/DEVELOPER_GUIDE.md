@@ -18,21 +18,32 @@ Main capabilities:
 
 ## Repository Map
 
+The codebase is a **monorepo** of installable Python packages under `packages/`:
+
+| Package | Path | Role |
+|---------|------|------|
+| `wg-contracts` | `packages/wg-contracts/` | Shared ports, adapter types, `BaseExtension` |
+| `wg-core` | `packages/wg-core/` | SSG build pipeline, config, themes, plugins |
+| `wg-runtime` | `packages/wg-runtime/` | Django commerce runtime |
+| `wg-commerce` | `packages/wg-commerce/` | Commerce extension (blocks, checkout UI) |
+
+Install for development: `python scripts/install_editable.py` (or install each `packages/*` package with `pip install -e` before the repo root).
+
 Key areas of the repo:
 
 1. `cli.py`
-   Primary command-line entry point for `wg`
+   Primary command-line entry point for `wg` (root meta-package)
 
-2. `core/`
+2. `packages/wg-core/core/`
    Config loading, project orchestration, routing, theme management, site model, and page model
 
-3. `processor/`
+3. `packages/wg-core/processor/`
    Content processors plus Tailwind and React build helpers
 
-4. `engines/`
+4. `packages/wg-core/engines/`
    Template engine abstraction and Django implementation
 
-5. `plugins/`
+5. `packages/wg-core/plugins/`
    Plugin base class and built-in plugins
 
 6. `themes/`

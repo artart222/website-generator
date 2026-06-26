@@ -9,7 +9,8 @@ from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BASE_DIR.parent
+# Repository root (config.yaml, themes/, source/) when installed from packages/wg-runtime.
+PROJECT_ROOT = BASE_DIR.parent.parent.parent
 
 # Detect a test run so secure production defaults don't block the test runner.
 _UNDER_TEST = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ

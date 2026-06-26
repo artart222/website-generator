@@ -99,7 +99,13 @@ def cmd_runtime_mock(args: argparse.Namespace) -> int:
 
 
 def cmd_runtime_django(args: argparse.Namespace) -> int:
-    manage_py = Path(__file__).resolve().parent / "wg_runtime" / "manage.py"
+    manage_py = (
+        Path(__file__).resolve().parent
+        / "packages"
+        / "wg-runtime"
+        / "wg_runtime"
+        / "manage.py"
+    )
     if not manage_py.exists():
         raise FileNotFoundError(f"Unable to find Django runtime entrypoint: {manage_py}")
 

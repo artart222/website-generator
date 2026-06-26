@@ -19,4 +19,4 @@ provides:
   frontend_targets: []
   commands: []
 python:
-  entrypoint: extensions.wg_commerce.extension:get_extension
+  entrypoint: wg_commerce.extension:get_extension

@@ -25,19 +25,10 @@ classifiers = [
   "Topic :: Internet :: WWW/HTTP :: Site Management",
 ]
 dependencies = [
-  "asgiref==3.8.1",
-  "beautifulsoup4==4.12.3",
-  "celery==5.4.0",
-  "colorama==0.4.6",
-  "colorlog==6.10.1",
-  "Django==5.2.1",
-  "djangorestframework==3.17.1",
-  "djangorestframework-simplejwt==5.5.0",
-  "Markdown==3.8",
-  "Pygments==2.19.1",
-  "python-slugify==8.0.4",
-  "PyYAML==6.0.2",
-  "redis==5.2.1",
+  "wg-contracts==0.2.0",
+  "wg-core==0.2.0",
+  "wg-runtime==0.2.0",
+  "wg-commerce==0.2.0",
 ]
 
 [project.urls]
@@ -66,17 +57,14 @@ wg = "cli:main"
 [tool.setuptools]
 py-modules = ["cli", "main", "dev"]
 
-[tool.setuptools.packages.find]
-include = ["wg_contracts*", "core*", "engines*", "plugins*", "processor*", "utils*", "extensions*", "wg_runtime*"]
-
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-extend-exclude = [".git", "build", "dist", "output", ".venv", "venv", "node_modules"]
+extend-exclude = [".git", "build", "dist", "output", ".venv", "venv", "node_modules", "packages/*/build", "packages/*/dist"]
 
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-files = ["core", "wg_runtime", "extensions", "plugins"]
+files = ["packages/wg-core/core", "packages/wg-runtime/wg_runtime", "packages/wg-commerce/wg_commerce", "packages/wg-core/plugins"]

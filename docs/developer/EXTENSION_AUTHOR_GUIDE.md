@@ -42,9 +42,9 @@ The extension instance should implement optional registration methods such as:
 Example:
 
 ```python
-from extensions.base import ExtensionBase
+from wg_contracts import BaseExtension
 
-class MyExtension(ExtensionBase):
+class MyExtension(BaseExtension):
     def register_build_hooks(self, registry):
         registry.register("after_build", self.on_after_build)
 

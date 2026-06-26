@@ -1,3 +1,5 @@
+"""Extension author base class (minimal hook surface)."""
+
 from __future__ import annotations
 
 

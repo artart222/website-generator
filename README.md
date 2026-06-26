@@ -26,7 +26,7 @@ This repository also dogfoods the engine: the sample content and themes in the r
 ```bash
 git clone https://github.com/artart222/website-generator.git
 cd website-generator
-pip install -e .
+python scripts/install_editable.py
 wg build
 wg serve --build-first
 ```
@@ -97,17 +97,13 @@ Activate the virtual environment:
 source .venv/bin/activate
 ```
 
-Install the package:
+Install all workspace packages (monorepo):
 
 ```bash
-pip install -e .
+python scripts/install_editable.py
 ```
 
-If you want to run tests too:
-
-```bash
-pip install -e .[dev]
-```
+This installs `wg-contracts`, `wg-core`, `wg-runtime`, `wg-commerce`, and the root `website-generator` CLI in editable mode. CI uses the same package order.
 
 ### 2. Build the included sample site
 

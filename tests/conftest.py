@@ -9,10 +9,38 @@ context cache is reset around every test.
 
 from __future__ import annotations
 
+import json
+
 import pytest
+from django.contrib.auth.models import User
+from django.test import Client
 
 # Environment defaults are set in the repository-root conftest.py, which loads
 # before Django settings are first accessed by pytest-django.
+
+
+@pytest.fixture
+def staff_user(db):
+    return User.objects.create_user(
+        username="staff",
+        password="staff-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def jwt_client(staff_user):
+    """Django test client with a valid JWT Authorization header for staff_user."""
+    client = Client()
+    response = client.post(
+        "/token/obtain/",
+        data=json.dumps({"username": "staff", "password": "staff-pass"}),
+        content_type="application/json",
+    )
+    assert response.status_code == 200, response.content
+    access = response.json()["access"]
+    client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {access}"
+    return client
 
 
 @pytest.fixture(autouse=True)

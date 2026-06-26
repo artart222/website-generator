@@ -7,5 +7,8 @@ class RuntimeConfig(AppConfig):
     verbose_name = "WG Runtime"
 
     def ready(self):
+        from .integrations.context import init_runtime_integration_context
+
+        init_runtime_integration_context()
         # Register model signals.
         from . import signals  # noqa: F401

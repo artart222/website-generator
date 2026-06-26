@@ -88,17 +88,37 @@ The current public config format is the nested v1 schema:
 `core/config.py` is responsible for:
 
 1. Loading YAML
-2. Merging defaults
-3. Normalizing older flat config keys into v1
-4. Preserving compatibility aliases like `frontend`, `collections`, and `output_directory`
+2. Merging defaults into a single nested v2 schema
+3. Validating into typed `AppConfig` via `core/config_schema.py`
+4. Raising `ConfigError` on missing files or invalid YAML (no silent fallback)
 
-Important compatibility behavior:
+Configuration access:
 
-1. Legacy flat configs are still accepted
-2. `frontend.*` aliases are still synthesized for older callers
-3. `build.template_dirs` and `templates/<theme>` still participate in fallback template resolution
+1. Use dotted paths: `config.get("build.output_directory")`
+2. Or typed access: `config.schema.build.output_directory`
+3. Legacy flat keys and compat aliases are **not** supported in v2
 
-For new work, prefer only the nested v1 config keys.
+## Plugin hooks
+
+Plugins subclass `BasePlugin` and override lifecycle hooks with `**kwargs`. Common keys:
+
+| Hook | Typical kwargs |
+|------|----------------|
+| `before_build`, `after_build` | `site`, `config`, `fs_manager` |
+| `after_pages_discovered`, `after_collections_loaded` | `site`, `config`, `fs_manager` |
+| `before_page_rendered`, `modify_context` | `site`, `config`, `fs_manager`, `page` |
+
+Hooks intentionally stay untyped so plugin authors can ignore unused context.
+
+## Runtime authentication
+
+The Django commerce runtime uses JWT (via `djangorestframework-simplejwt`):
+
+- `POST /token/obtain/` — obtain access/refresh tokens (staff user credentials)
+- `POST /token/refresh/` — refresh an access token
+- `GET /staff/orders` — staff-only order list (requires `Authorization: Bearer <access>`)
+
+Storefront endpoints remain public (`AllowAny`): checkout, payment callback, catalog snapshot, and public order status by order ID.
 
 ## Supporting Guides
 
@@ -440,23 +460,16 @@ When enabled:
 
 The default output path is `styles/tailwind.css`, which later gets copied into the built site through the normal asset-copy step.
 
-## React Export
+## React / SPA export
 
-`processor/react_processor.py` handles the optional React section.
+Optional React/Next.js export is handled by `core/frontend_manager.py` (not a separate markdown processor).
 
-When enabled:
+When `experimental.react.enabled` is true and `experimental.export_data.enabled` is true:
 
-1. It validates that a collection is configured
-2. It validates that `experimental.export_data.enabled` is true
-3. It copies exported JSON into `react-app/public/data`
-4. It sets Next.js environment variables
-5. It runs `npm run build`
-6. It copies `react-app/out` into `output/<export_subdir>`
+1. The build exports JSON data for configured collections
+2. `FrontendManager` wires the React app build and copies output into the site `output/` tree
 
-Environment variables passed into the React build:
-
-1. `NEXT_PUBLIC_BASE_PATH`
-2. `NEXT_PUBLIC_ASSET_PREFIX`
+See `config.yaml` `experimental.react` and `frontend.targets` for paths and env wiring.
 3. `NEXT_PUBLIC_COLLECTION`
 4. `NEXT_PUBLIC_DATA_URL`
 

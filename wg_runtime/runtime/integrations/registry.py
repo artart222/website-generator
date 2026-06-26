@@ -50,6 +50,39 @@ def _resolve_dotted(path: str) -> Any:
     return obj() if callable(obj) else obj
 
 
+def load_integrations_from_yaml_path(config_path: str) -> dict[str, Any]:
+    """Load integrations from a YAML file without Django settings."""
+    if not config_path or not os.path.exists(config_path):
+        return {}
+    with open(config_path, "r", encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle) or {}
+    integrations = raw.get("integrations", {}) if isinstance(raw, dict) else {}
+    return deepcopy(integrations) if isinstance(integrations, dict) else {}
+
+
+def load_yaml_config(config_path: str) -> dict[str, Any]:
+    """Load a full YAML site config without the SSG config loader."""
+    if not config_path or not os.path.exists(config_path):
+        return {}
+    with open(config_path, "r", encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle) or {}
+    return deepcopy(raw) if isinstance(raw, dict) else {}
+
+
+def build_adapter_registry_for_providers(
+    providers: list[str] | None = None,
+) -> RuntimeAdapterRegistry:
+    """Build an adapter registry from dotted provider paths (no Django required)."""
+    registry = RuntimeAdapterRegistry()
+    provider_paths = providers or ["extensions.wg_commerce.extension:get_extension"]
+    for provider_path in provider_paths:
+        provider = _resolve_dotted(str(provider_path))
+        register = getattr(provider, "register_runtime_adapters", None)
+        if callable(register):
+            register(registry)
+    return registry
+
+
 def build_adapter_registry() -> RuntimeAdapterRegistry:
     """Populate the registry from the configured adapter providers.
 
@@ -57,18 +90,12 @@ def build_adapter_registry() -> RuntimeAdapterRegistry:
     ``WG_RUNTIME_ADAPTER_PROVIDERS``) returning an object exposing
     ``register_runtime_adapters(registry)``. Defaults to the commerce adapters.
     """
-    registry = RuntimeAdapterRegistry()
     providers = getattr(
         settings,
         "WG_RUNTIME_ADAPTER_PROVIDERS",
         ["extensions.wg_commerce.extension:get_extension"],
     )
-    for provider_path in providers:
-        provider = _resolve_dotted(str(provider_path))
-        register = getattr(provider, "register_runtime_adapters", None)
-        if callable(register):
-            register(registry)
-    return registry
+    return build_adapter_registry_for_providers(list(providers))
 
 
 def load_integrations_config() -> dict[str, Any]:
@@ -89,10 +116,4 @@ def load_integrations_config() -> dict[str, Any]:
         or os.environ.get("WG_CONFIG_PATH")
         or getattr(settings, "WG_CONFIG_PATH", "")
     )
-    if not config_path or not os.path.exists(config_path):
-        return {}
-
-    with open(config_path, "r", encoding="utf-8") as handle:
-        raw = yaml.safe_load(handle) or {}
-    integrations = raw.get("integrations", {}) if isinstance(raw, dict) else {}
-    return deepcopy(integrations) if isinstance(integrations, dict) else {}
+    return load_integrations_from_yaml_path(str(config_path))

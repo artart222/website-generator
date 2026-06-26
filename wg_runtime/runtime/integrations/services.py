@@ -254,7 +254,11 @@ def create_checkout_order(
     )
 
     callback_url = f"{request_base_url.rstrip('/')}{reverse('payment-callback')}"
-    gateway_url = f"{request_base_url.rstrip('/')}{reverse('gateway-mock')}"
+    gateway_url = callback_url
+    if binding is not None:
+        configured_gateway = str(binding.provider_config.get("gateway_url", "")).strip()
+        if configured_gateway:
+            gateway_url = configured_gateway
     redirect_url = f"{gateway_url}?order_id={order.order_id}"
 
     if adapter is not None and binding is not None:

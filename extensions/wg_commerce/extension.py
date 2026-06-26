@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from decimal import Decimal
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -123,12 +124,17 @@ class ShaparakLikePaymentAdapter(CommercePaymentAdapter):
 
 class LocalConsoleNotificationAdapter:
     name = "commerce.notification.local_console"
+    logger = logging.getLogger(__name__)
 
     def send_notification(
         self, payload: dict[str, Any], provider_config: dict[str, Any]
     ) -> AdapterResult:
         destination = str(provider_config.get("destination", "console"))
-        print(f"[notification:{destination}] {json.dumps(payload, ensure_ascii=False)}")
+        self.logger.info(
+            "[notification:%s] %s",
+            destination,
+            json.dumps(payload, ensure_ascii=False),
+        )
         return ok_result(
             provider=self.name,
             metadata={"destination": destination, "event": payload.get("event", "")},

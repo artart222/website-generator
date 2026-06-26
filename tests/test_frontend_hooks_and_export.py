@@ -73,6 +73,41 @@ def test_modify_template_context_merges_in_order():
     assert context["order"] == "b"
 
 
+def test_public_runtime_config_excludes_secret_provider_fields():
+    from core.extension_manager import ExtensionManager
+    from core.runtime_manager import RuntimeManager
+    from utils.fs_manager import FileSystemManager
+
+    config = Config()
+    config.settings["integrations"] = {
+        "payments": {
+            "default": "gateway",
+            "providers": {
+                "gateway": {
+                    "adapter": "commerce.payment.local_gateway",
+                    "runtime_target": "commerce-api",
+                    "currency": "USD",
+                    "api_key": "super-secret-key",
+                    "secret": "must-not-leak",
+                }
+            },
+        }
+    }
+    fs = FileSystemManager()
+    extensions = ExtensionManager(config, fs)
+    extensions.detect_and_load_extensions()
+    runtime = RuntimeManager(config, fs, extensions, strict=True)
+    public = runtime.build_public_config()
+    serialized = json.dumps(public)
+    assert "super-secret-key" not in serialized
+    assert "must-not-leak" not in serialized
+    provider = public["integrations"]["payments"]["providers"]["gateway"]
+    assert provider["adapter"] == "commerce.payment.local_gateway"
+    assert provider["currency"] == "USD"
+    assert "api_key" not in provider
+    assert "secret" not in provider
+
+
 def test_export_json_per_page():
     with tempfile.TemporaryDirectory(dir=os.getcwd()) as temp_dir:
         temp_path = Path(temp_dir)

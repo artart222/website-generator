@@ -11,9 +11,13 @@ from threading import Lock, Thread
 from typing import Any
 from urllib.parse import parse_qs, quote, urlparse
 
-from core.bootstrap import bootstrap
-from core.extension_manager import ExtensionManager
-from utils.fs_manager import FileSystemManager
+from html import escape
+
+from wg_runtime.runtime.integrations.registry import (
+    build_adapter_registry_for_providers,
+    load_integrations_from_yaml_path,
+    load_yaml_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +66,14 @@ class RuntimeContext:
         self.config_path = config_path
         self.host = host
         self.port = port
-        self.config = bootstrap(config_path)
-        self.extension_manager = ExtensionManager(self.config, FileSystemManager())
-        self.extension_manager.detect_and_load_extensions()
+        self.raw_config = load_yaml_config(config_path)
+        self.integrations = load_integrations_from_yaml_path(config_path)
+        self.adapter_registry = build_adapter_registry_for_providers()
         self.runtime_target = self._resolve_runtime_target()
         self.site_base_url = str(
-            self.config.get("site.base_url", "http://127.0.0.1:8000")
+            self.raw_config.get("site", {}).get("base_url", "http://127.0.0.1:8000")
+            if isinstance(self.raw_config.get("site"), dict)
+            else "http://127.0.0.1:8000"
         ).rstrip("/")
         self.public_base_url = (
             str(self.runtime_target.get("public_base_url", "")).rstrip("/")
@@ -75,11 +81,12 @@ class RuntimeContext:
         )
         self.default_provider_name, self.provider_config = self._resolve_payment_provider()
         self.adapter_name = str(self.provider_config.get("adapter", ""))
-        adapter_cls = self.extension_manager.runtime_adapter_registry.get(self.adapter_name)
+        adapter_cls = self.adapter_registry.get(self.adapter_name)
         self.adapter = adapter_cls() if adapter_cls is not None else None
 
     def _resolve_runtime_target(self) -> dict[str, Any]:
-        targets = self.config.get("runtime.targets", [])
+        runtime_cfg = self.raw_config.get("runtime", {})
+        targets = runtime_cfg.get("targets", []) if isinstance(runtime_cfg, dict) else []
         if isinstance(targets, list) and targets:
             first = targets[0]
             if isinstance(first, dict):
@@ -87,7 +94,7 @@ class RuntimeContext:
         return {"name": "commerce-api", "type": "mock_runtime", "public_base_url": ""}
 
     def _resolve_payment_provider(self) -> tuple[str, dict[str, Any]]:
-        payments_cfg = self.config.get("integrations.payments", {})
+        payments_cfg = self.integrations.get("payments", {})
         if not isinstance(payments_cfg, dict):
             return "", {}
         providers = payments_cfg.get("providers", {})
@@ -305,6 +312,13 @@ class MockRuntimeRequestHandler(BaseHTTPRequestHandler):
             self._send_html(404, "<h1>Order not found</h1>")
             return
 
+        safe_order_id = escape(str(order["order_id"]))
+        safe_title = escape(str(order["title"]))
+        safe_quantity = escape(str(order["quantity"]))
+        safe_currency = escape(str(order["currency"]))
+        safe_price = escape(str(order["price"]))
+        safe_variant = escape(str(order.get("variant_label") or "Default option"))
+
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -329,11 +343,11 @@ class MockRuntimeRequestHandler(BaseHTTPRequestHandler):
     <p class="hint">Mock gateway screen</p>
     <h1>Approve or cancel this checkout</h1>
     <div class="meta">
-      <div><strong>Order</strong> {order['order_id']}</div>
-      <div><strong>Product</strong> {order['title']}</div>
-      <div><strong>Quantity</strong> {order['quantity']}</div>
-      <div><strong>Total</strong> {order['currency']} {order['price']}</div>
-      <div><strong>Variant</strong> {order.get('variant_label') or 'Default option'}</div>
+      <div><strong>Order</strong> {safe_order_id}</div>
+      <div><strong>Product</strong> {safe_title}</div>
+      <div><strong>Quantity</strong> {safe_quantity}</div>
+      <div><strong>Total</strong> {safe_currency} {safe_price}</div>
+      <div><strong>Variant</strong> {safe_variant}</div>
     </div>
     <div class="actions">
       <a class="button button--primary" href="/payments/callback?order_id={quote(order['order_id'])}&status=paid&reference=MOCK-{quote(order['order_id'])}">Approve payment</a>

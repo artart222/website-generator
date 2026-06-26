@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import logging
@@ -51,9 +52,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
         )
     if not output_dir.is_dir():
         raise NotADirectoryError(f"Output path is not a directory: {output_dir}")
-    os.chdir(output_dir)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), SimpleHTTPRequestHandler)
-    logger.info("Serving %s at http://127.0.0.1:%s", output_dir, args.port)
+    resolved_output = output_dir.resolve()
+    handler = partial(SimpleHTTPRequestHandler, directory=str(resolved_output))
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
+    logger.info("Serving %s at http://127.0.0.1:%s", resolved_output, args.port)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

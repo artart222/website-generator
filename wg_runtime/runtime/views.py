@@ -4,15 +4,15 @@ from typing import Any
 
 from django.conf import settings
 from django.db.models import Prefetch
-from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
-from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .auth import IsStaffUser, PUBLIC_STOREFRONT
 from .integrations import (
     IntegrationResolutionError,
     apply_payment_callback,
@@ -54,6 +54,8 @@ def _enforce_callback_signature(order_id: str, status: str, reference: str, sign
 
 @method_decorator(csrf_exempt, name="dispatch")
 class CheckoutSessionAPIView(APIView):
+    permission_classes = PUBLIC_STOREFRONT
+
     def post(self, request: Request) -> Response:
         serializer = CheckoutSessionInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -79,6 +81,8 @@ class CheckoutSessionAPIView(APIView):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class PaymentCallbackAPIView(APIView):
+    permission_classes = PUBLIC_STOREFRONT
+
     def get(self, request: Request) -> HttpResponseRedirect:
         order_id = request.query_params.get("order_id", "")
         status = request.query_params.get("status", "paid")
@@ -131,6 +135,8 @@ class PaymentCallbackAPIView(APIView):
 
 
 class PublicOrderStatusAPIView(APIView):
+    permission_classes = PUBLIC_STOREFRONT
+
     def get(self, request: Request, order_id: str) -> Response:
         order = get_object_or_404(Order, order_id=order_id)
         serializer = OrderStatusSerializer(
@@ -160,6 +166,8 @@ class PublicOrderStatusAPIView(APIView):
 
 
 class CatalogSnapshotAPIView(APIView):
+    permission_classes = PUBLIC_STOREFRONT
+
     def get(self, request: Request) -> Response:
         products = []
         published_variants = Prefetch(
@@ -198,29 +206,22 @@ class CatalogSnapshotAPIView(APIView):
         return Response(serializer.data)
 
 
-class GatewayMockView(APIView):
-    """Development-only fake payment gateway.
+class OrderListAPIView(APIView):
+    """Staff-only order listing (requires JWT from ``/token/obtain/``)."""
 
-    Disabled unless ``settings.WG_ENABLE_MOCK_GATEWAY`` (DEBUG by default) is on,
-    so it can never run in production. All user-controlled values are HTML-escaped
-    to prevent the reflected XSS the original implementation had.
-    """
+    permission_classes = [IsStaffUser]
 
-    def get(self, request: Request) -> HttpResponse:
-        if not getattr(settings, "WG_ENABLE_MOCK_GATEWAY", False):
-            raise Http404("Mock gateway is disabled.")
-
-        order_id = request.query_params.get("order_id", "")
-        if not order_id:
-            return HttpResponse("Missing order_id", status=400)
-
-        safe_order_id = escape(order_id)
-        return HttpResponse(
-            f"<html><body>"
-            f"<h1>Mock Payment Gateway</h1>"
-            f"<p>Order ID: {safe_order_id}</p>"
-            f"<a href=\"/payments/callback?order_id={safe_order_id}&status=paid\">Pay</a><br/>"
-            f"<a href=\"/payments/callback?order_id={safe_order_id}&status=cancelled\">Cancel</a>"
-            f"</body></html>",
-            content_type="text/html",
-        )
+    def get(self, request: Request) -> Response:
+        orders = []
+        for order in Order.objects.order_by("-created_at")[:100]:
+            orders.append(
+                {
+                    "order_id": order.order_id,
+                    "status": order.status,
+                    "total_amount": str(order.total_amount),
+                    "currency": order.currency,
+                    "provider": order.provider,
+                    "created_at": order.created_at.isoformat() if order.created_at else "",
+                }
+            )
+        return Response({"orders": orders})

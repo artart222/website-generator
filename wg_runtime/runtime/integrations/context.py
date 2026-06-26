@@ -9,7 +9,6 @@ the SSG.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Any
 
 from wg_contracts.integrations import (
@@ -134,13 +133,25 @@ class RuntimeIntegrationContext:
         return adapter_cls(), binding
 
 
-@lru_cache(maxsize=1)
-def get_runtime_integration_context() -> RuntimeIntegrationContext:
-    return RuntimeIntegrationContext(
+_context: RuntimeIntegrationContext | None = None
+
+
+def init_runtime_integration_context() -> RuntimeIntegrationContext:
+    """Build the integration context once at Django startup (composition root)."""
+    global _context
+    _context = RuntimeIntegrationContext(
         integrations=load_integrations_config(),
         adapter_registry=build_adapter_registry(),
     )
+    return _context
+
+
+def get_runtime_integration_context() -> RuntimeIntegrationContext:
+    if _context is None:
+        return init_runtime_integration_context()
+    return _context
 
 
 def reset_runtime_integration_context_cache() -> None:
-    get_runtime_integration_context.cache_clear()
+    global _context
+    _context = None

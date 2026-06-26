@@ -4,6 +4,8 @@ import os
 import sys
 from pathlib import Path
 
+from datetime import timedelta
+
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -48,9 +50,6 @@ WG_CORS_ALLOWED_ORIGINS = _env_list("WG_CORS_ALLOWED_ORIGINS")
 # Payment callback signing (opt-in; strongly recommended in production).
 WG_REQUIRE_SIGNED_CALLBACKS = _env_flag("WG_REQUIRE_SIGNED_CALLBACKS", "False")
 WG_PAYMENT_CALLBACK_SECRET = os.environ.get("WG_PAYMENT_CALLBACK_SECRET", "")
-
-# Expose the dev-only mock payment gateway view (never in production).
-WG_ENABLE_MOCK_GATEWAY = DEBUG
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -144,6 +143,22 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FormParser",
         "rest_framework.parsers.MultiPartParser",
     ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
+
+# JWT: staff obtain tokens via POST /token/obtain/ (username + password).
+# Storefront endpoints explicitly use AllowAny; admin routes require staff JWT.
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5 if _UNDER_TEST else 60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(hours=1 if _UNDER_TEST else 24),
+    "ROTATE_REFRESH_TOKENS": False,
+    "SIGNING_KEY": SECRET_KEY,
 }
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")

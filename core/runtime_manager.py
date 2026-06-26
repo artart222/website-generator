@@ -18,6 +18,21 @@ def _default_catalog_source_factory(url: str) -> CatalogSourcePort:
     return HttpCatalogSource(url, timeout=30)
 
 
+# Keys safe to publish in runtime/public-config.json (allowlist, not denylist).
+_PUBLIC_PROVIDER_KEYS = frozenset(
+    {
+        "adapter",
+        "runtime_target",
+        "currency",
+        "callback_url",
+        "gateway_url",
+        "destination",
+        "flat_rate",
+        "supported_currencies",
+    }
+)
+
+
 class RuntimeManager:
     """Serializes runtime target configuration into public build artifacts."""
 
@@ -61,8 +76,9 @@ class RuntimeManager:
             }
             public_targets.append(public_target)
 
-        public_integrations = deepcopy(integrations_cfg) if isinstance(integrations_cfg, dict) else {}
-        self._enrich_and_redact_integrations(public_integrations)
+        public_integrations = self._build_public_integrations(
+            integrations_cfg if isinstance(integrations_cfg, dict) else {}
+        )
 
         self.public_manifest = {
             "targets": public_targets,
@@ -70,28 +86,39 @@ class RuntimeManager:
         }
         return self.public_manifest
 
-    def _enrich_and_redact_integrations(self, integrations_cfg: dict[str, Any]) -> None:
-        if not isinstance(integrations_cfg, dict):
-            return
-
-        sensitive_keys = {"secret", "api_key", "token", "password", "private_key"}
-        for domain_cfg in integrations_cfg.values():
+    def _build_public_integrations(self, integrations_cfg: dict[str, Any]) -> dict[str, Any]:
+        """Publish only allowlisted provider fields (never copy secrets by omission)."""
+        public: dict[str, Any] = {}
+        for domain, domain_cfg in integrations_cfg.items():
             if not isinstance(domain_cfg, dict):
                 continue
+            public_domain: dict[str, Any] = {}
+            if "default" in domain_cfg:
+                public_domain["default"] = domain_cfg["default"]
             providers = domain_cfg.get("providers", {})
             if not isinstance(providers, dict):
+                public[domain] = public_domain
                 continue
-
-            for provider_cfg in providers.values():
+            public_providers: dict[str, Any] = {}
+            for provider_name, provider_cfg in providers.items():
                 if not isinstance(provider_cfg, dict):
                     continue
+                public_provider = {
+                    key: deepcopy(provider_cfg[key])
+                    for key in _PUBLIC_PROVIDER_KEYS
+                    if key in provider_cfg
+                }
                 adapter_name = str(provider_cfg.get("adapter", "")).strip()
                 if adapter_name:
-                    adapter_metadata = self.extension_manager.runtime_adapter_registry.describe(adapter_name)
+                    adapter_metadata = self.extension_manager.runtime_adapter_registry.describe(
+                        adapter_name
+                    )
                     if adapter_metadata:
-                        provider_cfg["adapter_metadata"] = adapter_metadata
-                for sensitive_key in sensitive_keys:
-                    provider_cfg.pop(sensitive_key, None)
+                        public_provider["adapter_metadata"] = deepcopy(adapter_metadata)
+                public_providers[str(provider_name)] = public_provider
+            public_domain["providers"] = public_providers
+            public[str(domain)] = public_domain
+        return public
 
     def fetch_catalog_snapshot(self) -> tuple[dict[str, Any] | None, Path | None]:
         runtime_cfg = self.config.get("runtime", {})

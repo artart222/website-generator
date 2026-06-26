@@ -4,14 +4,14 @@ This guide helps migrate older site configurations and build setups to the curre
 
 ## Supported configuration versions
 
-- `version: 2` is the current recommended schema.
-- `version: 1` is still accepted for backward compatibility, but it is deprecated and may emit warnings.
+- `version: 2` is **required** for new sites.
+- v1 flat configs are no longer normalized automatically; migrate to the nested schema below.
 
 ## What changed
 
-The generator now prefers a nested configuration shape with explicit sections for `site`, `content`, `theme`, and `build`.
+The generator uses a nested configuration shape with explicit sections for `site`, `content`, `theme`, and `build`.
 
-Legacy flat keys such as `output_directory`, `template_dirs`, and `frontend` are still normalized, but new sites should use the nested schema.
+Legacy flat keys such as `output_directory`, `template_dirs`, and top-level `frontend` are **not** accepted. Use nested paths instead (for example `build.output_directory`).
 
 ## Migrate an existing config file
 

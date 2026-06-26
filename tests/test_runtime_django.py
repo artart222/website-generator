@@ -267,3 +267,25 @@ def test_payment_callback_rejects_forged_request_when_signing_required():
         )
         assert signed.status_code == 200
         assert Order.objects.get(order_id=order_id).status == "paid"
+
+
+def test_staff_orders_requires_jwt():
+    client = Client()
+    response = client.get("/staff/orders")
+    assert response.status_code == 401
+
+
+def test_staff_orders_returns_list_for_staff_jwt(jwt_client):
+    from wg_runtime.runtime.models import Order
+
+    Order.objects.create(
+        order_id="ORD-TEST-001",
+        status=Order.STATUS_PAID,
+        total_amount="10.00",
+        currency="USD",
+    )
+    response = jwt_client.get("/staff/orders")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "orders" in payload
+    assert any(item["order_id"] == "ORD-TEST-001" for item in payload["orders"])

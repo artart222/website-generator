@@ -1,34 +1,12 @@
 import json
-import os
-import sys
-import tempfile
-from pathlib import Path
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
+import pytest
+from django.test import Client
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wg_runtime.settings")
-os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "True")
+from wg_runtime.runtime.models import IntegrationOutboxEvent
 
-import django  # noqa: E402
-from django.conf import settings  # noqa: E402
-from django.core.management import call_command  # noqa: E402
-from django.test import Client  # noqa: E402
-
-
-temp_db = Path(tempfile.gettempdir()) / f"wg_runtime_test_{os.getpid()}.sqlite3"
-if temp_db.exists():
-    temp_db.unlink()
-settings.DATABASES["default"]["NAME"] = str(temp_db)
-if not django.apps.apps.ready:
-    django.setup()
-call_command("migrate", verbosity=0, interactive=False)
-
-from wg_runtime.runtime.integrations import reset_runtime_integration_context_cache  # noqa: E402
-from wg_runtime.runtime.models import IntegrationOutboxEvent  # noqa: E402
-
-reset_runtime_integration_context_cache()
+# Every test in this module gets a clean, isolated database (rolled back after).
+pytestmark = pytest.mark.django_db
 
 
 def test_django_runtime_checkout_flow():
@@ -89,18 +67,31 @@ def test_django_runtime_checkout_flow():
     assert "order_paid" in outbox_types
 
 
-def test_django_runtime_allows_cors_preflight():
+def test_django_runtime_cors_preflight_echoes_allowed_origin_only():
+    """CORS is scoped to an allow-list (no blanket ``*`` in production)."""
+    from django.test import override_settings
+
     client = Client()
-    response = client.options(
-        "/checkout/session",
-        HTTP_ORIGIN="http://localhost:8000",
-        HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
-        HTTP_ACCESS_CONTROL_REQUEST_HEADERS="Content-Type",
-    )
-    assert response.status_code == 200
-    assert response["Access-Control-Allow-Origin"] == "*"
-    assert "Content-Type" in response["Access-Control-Allow-Headers"]
-    assert "POST" in response["Access-Control-Allow-Methods"]
+    allowed = "http://localhost:8000"
+    with override_settings(DEBUG=False, WG_CORS_ALLOWED_ORIGINS=[allowed]):
+        ok = client.options(
+            "/checkout/session",
+            HTTP_ORIGIN=allowed,
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS="Content-Type",
+        )
+        assert ok.status_code == 200
+        assert ok["Access-Control-Allow-Origin"] == allowed
+        assert "Content-Type" in ok["Access-Control-Allow-Headers"]
+        assert "POST" in ok["Access-Control-Allow-Methods"]
+
+        # A disallowed origin receives no CORS grant.
+        denied = client.options(
+            "/checkout/session",
+            HTTP_ORIGIN="https://evil.example.com",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+        )
+        assert "Access-Control-Allow-Origin" not in denied
 
 
 def test_django_runtime_allows_cross_origin_post_without_csrf():
@@ -221,3 +212,58 @@ def test_django_runtime_callback_is_idempotent_for_duplicate_event_key():
     attempts = PaymentAttempt.objects.filter(order=order, event_idempotency_key="evt-001")
     assert attempts.count() == 1
     assert order.status == "paid"
+
+
+def test_payment_callback_rejects_forged_request_when_signing_required():
+    """With signed callbacks required, an unsigned callback cannot mark paid."""
+    import hashlib
+    import hmac
+
+    from django.test import override_settings
+
+    client = Client()
+    checkout = client.post(
+        "/checkout/session",
+        data=json.dumps(
+            {
+                "currency": "USD",
+                "success_url": "http://example.com/success",
+                "failure_url": "http://example.com/failure",
+                "status_url": "http://example.com/status",
+                "lines": [
+                    {"title": "P", "sku": "S-1", "quantity": 1, "price": "10.00", "currency": "USD"}
+                ],
+            }
+        ),
+        content_type="application/json",
+    )
+    order_id = checkout.json()["order_id"]
+
+    secret = "top-secret"
+    with override_settings(
+        WG_REQUIRE_SIGNED_CALLBACKS=True, WG_PAYMENT_CALLBACK_SECRET=secret
+    ):
+        # Forged (unsigned) callback is rejected and the order is NOT paid.
+        forged = client.post(
+            "/payments/callback",
+            data=json.dumps({"order_id": order_id, "status": "paid", "reference": "X"}),
+            content_type="application/json",
+        )
+        assert forged.status_code == 400
+
+        from wg_runtime.runtime.models import Order
+
+        assert Order.objects.get(order_id=order_id).status != "paid"
+
+        # Correctly signed callback succeeds.
+        message = f"{order_id}:paid:X".encode("utf-8")
+        signature = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
+        signed = client.post(
+            "/payments/callback",
+            data=json.dumps(
+                {"order_id": order_id, "status": "paid", "reference": "X", "signature": signature}
+            ),
+            content_type="application/json",
+        )
+        assert signed.status_code == 200
+        assert Order.objects.get(order_id=order_id).status == "paid"

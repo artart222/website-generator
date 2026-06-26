@@ -1,14 +1,18 @@
-"""Backward-compatible shim.
+"""Shared ports and contracts for the website-generator ecosystem.
 
-The integration contracts now live in the dependency-free :mod:`wg_contracts`
-package so that both the runtime and provider adapters can depend on them
-without importing each other. This module re-exports them for existing
-``wg_runtime`` internal imports.
+This package contains ONLY interfaces and small value types. It has no heavy
+dependencies (no Django, no markdown engine, no filesystem side effects) so that
+every other package can depend on it without creating a dependency cycle:
+
+    wg-core      --> wg_contracts
+    wg-runtime   --> wg_contracts
+    wg-commerce  --> wg_contracts
+
+Nothing here imports wg-core or wg-runtime. This is the dependency sink that
+breaks the former SSG <-> runtime cycle.
 """
 
-from __future__ import annotations
-
-from wg_contracts.integrations import (
+from .integrations import (
     KIND_ACCOUNTING_EXPORTER,
     KIND_NOTIFICATION_PROVIDER,
     KIND_PAYMENT_PROVIDER,

@@ -4,9 +4,6 @@ from pathlib import Path
 import tempfile
 import pytest
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
 
 from core.config import Config  # noqa: E402
 from core.page import Page  # noqa: E402
@@ -284,6 +281,8 @@ def test_runtime_catalog_collection_generates_pages_from_snapshot():
         temp_path = Path(temp_dir)
         config = Config()
         config.settings["build"]["output_directory"] = str(temp_path / "output")
+        # Commerce owns the typed product schema (sku/price/currency); enable it.
+        config.settings["extensions"]["enabled"] = ["wg-commerce"]
         config.settings["content"]["collections"] = {
             "shop": {
                 "type": "runtime_catalog",

@@ -5,9 +5,6 @@ import tempfile
 
 import pytest
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
 
 from core.config import Config  # noqa: E402
 from core.theme_manager import ThemeManager  # noqa: E402
@@ -17,10 +14,14 @@ from utils.fs_manager import FileSystemManager  # noqa: E402
 
 def test_theme_manager_loads_manifest_and_tokens():
     config = Config()
+    # Point project theme settings at a non-existent file so the test is not
+    # coupled to the repo's theme.settings.yaml token overrides.
+    config.settings["theme"]["settings"] = "./__no_such_theme_settings__.yaml"
     manager = ThemeManager(config, FileSystemManager())
 
     assert manager.manifest["name"] == "minimal-blog"
     assert "document" in manager.manifest["layouts"]
+    # With no project override, resolved tokens equal the theme manifest tokens.
     assert manager.get_resolved_tokens()["colors"]["accent"] == (
         manager.manifest["tokens"]["colors"]["accent"]
     )

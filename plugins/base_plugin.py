@@ -1,185 +1,99 @@
-from typing import Any
-from abc import ABC
+"""Plugin base class and lifecycle event vocabulary.
+
+Plugins subclass :class:`BasePlugin` and override the lifecycle hooks they care
+about. Hooks are plain methods - there is no metaclass or ``__init_subclass__``
+magic rewriting them, so behavior is explicit and debuggable. Error handling is
+owned by :class:`core.plugin_manager.PluginManager` (strict vs lenient), not by
+each plugin.
+"""
+
+from __future__ import annotations
+
 import logging
-from core.config import Config
-from core.site import Site
-from utils.fs_manager import FileSystemManager
-from functools import wraps
+from abc import ABC
+from enum import Enum
+from typing import Any
+
+
+class LifecycleEvent(str, Enum):
+    """Named build lifecycle events a plugin can hook into.
+
+    Using an enum documents the available extension points in one place and
+    lets callers reference ``LifecycleEvent.AFTER_BUILD.value`` instead of bare
+    strings. ``PluginManager`` dispatches by the string value.
+    """
+
+    AFTER_CONFIG_LOADED = "after_config_loaded"
+    BEFORE_BUILD = "before_build"
+    AFTER_COLLECTIONS_LOADED = "after_collections_loaded"
+    AFTER_PAGES_DISCOVERED = "after_pages_discovered"
+    BEFORE_PAGE_PARSED = "before_page_parsed"
+    AFTER_DOCUMENT_LOADED = "after_document_loaded"
+    AFTER_PAGE_PARSED = "after_page_parsed"
+    AFTER_ROUTES_BUILT = "after_routes_built"
+    BEFORE_PAGE_RENDERED = "before_page_rendered"
+    AFTER_PAGE_RENDERED = "after_page_rendered"
+    AFTER_BUILD = "after_build"
+    MODIFY_CONTEXT = "modify_context"
+    MODIFY_TEMPLATE_CONTEXT = "modify_template_context"
+    INJECT_CSS = "inject_css"
+    INJECT_JS = "inject_js"
 
 
 class BasePlugin(ABC):
-    """Base class for all plugins."""
+    """Base class for all plugins.
 
-    def __init__(self):
+    Override any subset of the lifecycle hooks below. Hooks receive keyword
+    arguments describing the current build state (commonly ``site``, ``config``,
+    ``fs_manager`` and ``page``). Returning a value is only meaningful for the
+    "collect" hooks (``inject_css``, ``inject_js``, ``modify_context``,
+    ``modify_template_context``).
+    """
+
+    def __init__(self) -> None:
         self.logger = logging.getLogger(f"plugin.{self.__class__.__name__}")
 
-    def validate_args(self, hook_name: str, **kwargs):
-        """
-        Automatically check common kwargs and log errors.
-        """
-        if "site" in kwargs and not isinstance(kwargs["site"], Site):
-            msg = f"Invalid 'site' argument in {self.__class__.__name__}.{hook_name}"
-            self.logger.warning(msg)
-            raise ValueError(msg)
+    def after_config_loaded(self, **kwargs: Any) -> Any:
+        """Called after configuration is loaded and managers are created."""
 
-        if "config" in kwargs and not isinstance(kwargs["config"], Config):
-            msg = f"Invalid 'config' argument in {self.__class__.__name__}.{hook_name}"
-            self.logger.warning(msg)
-            raise ValueError(msg)
+    def before_build(self, **kwargs: Any) -> Any:
+        """Called before the site build starts."""
 
-        if "fs_manager" in kwargs and not isinstance(
-            kwargs["fs_manager"], FileSystemManager
-        ):
-            msg = f"Invalid 'fs_manager' argument in {self.__class__.__name__}.{hook_name}"
-            self.logger.warning(msg)
-            raise ValueError(msg)
+    def after_collections_loaded(self, **kwargs: Any) -> Any:
+        """Called after collections/documents are discovered."""
 
-    @staticmethod
-    def log_hook(func):
-        """
-        Decorator to automatically log entry/exit and validate common args.
-        """
+    def before_page_parsed(self, **kwargs: Any) -> Any:
+        """Called before a Page object is created and parsed."""
 
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            hook_name = func.__name__
-            self.logger.debug(f"{self.__class__.__name__}: {hook_name} hook entered")
+    def after_page_parsed(self, **kwargs: Any) -> Any:
+        """Called after a Page object is created and parsed."""
 
-            # Validate common arguments
-            self.validate_args(hook_name, **kwargs)
+    def after_document_loaded(self, **kwargs: Any) -> Any:
+        """Called after a source document is parsed."""
 
-            result = func(self, *args, **kwargs)
-            self.logger.debug(f"{self.__class__.__name__}: {hook_name} hook finished")
-            return result
+    def after_routes_built(self, **kwargs: Any) -> Any:
+        """Called after output paths and public URLs are assigned."""
 
-        return wrapper
+    def before_page_rendered(self, **kwargs: Any) -> Any:
+        """Called before a Page is rendered into HTML."""
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        for attr, val in cls.__dict__.items():
-            if (
-                callable(val)
-                and not attr.startswith("_")
-                and attr
-                in [
-                    "after_config_loaded",
-                    "after_collections_loaded",
-                    "after_document_loaded",
-                    "after_routes_built",
-                    "before_build",
-                    "before_page_parsed",
-                    "after_page_parsed",
-                    "after_page_rendered",
-                    "before_page_rendered",
-                    "after_build",
-                    "after_pages_discovered",
-                    "modify_context",
-                    "modify_template_context",
-                    "inject_css",
-                    "inject_js",
-                ]
-            ):
-                setattr(cls, attr, cls.log_hook(val))
+    def after_page_rendered(self, **kwargs: Any) -> Any:
+        """Called after a Page is rendered into HTML."""
 
-    @log_hook
-    def after_config_loaded(self, *args, **kwargs) -> Any:
-        """
-        Called after the configuration file is loaded.
-        """
-        pass
+    def after_build(self, **kwargs: Any) -> Any:
+        """Called after the whole site is built."""
 
-    @log_hook
-    def before_build(self, *args, **kwargs) -> Any:
-        """
-        Called before the site build starts.
-        """
-        pass
-
-    @log_hook
-    def after_collections_loaded(self, *args, **kwargs) -> Any:
-        """
-        Called after all collections/documents are discovered.
-        """
-        pass
-
-    @log_hook
-    def before_page_parsed(self, *args, **kwargs) -> Any:
-        """
-        Called before a Page object is created and parsed.
-        """
-        pass
-
-    @log_hook
-    def after_page_parsed(self, *args, **kwargs) -> Any:
-        """
-        Called after a Page object is created and parsed.
-        """
-        pass
-
-    @log_hook
-    def after_document_loaded(self, *args, **kwargs) -> Any:
-        """
-        v1 hook called after a source document is parsed.
-        """
-        pass
-
-    @log_hook
-    def after_routes_built(self, *args, **kwargs) -> Any:
-        """
-        Called after output paths and public URLs are assigned.
-        """
-        pass
-
-    @log_hook
-    def after_page_rendered(self, *args, **kwargs) -> Any:
-        """
-        Called after a Page is rendered into HTML.
-        """
-        pass
-
-    @log_hook
-    def before_page_rendered(self, *args, **kwargs) -> Any:
-        """
-        Called before a Page is rendered into HTML.
-        """
-        pass
-
-    @log_hook
-    def after_build(self, *args, **kwargs) -> Any:
-        """
-        Called after the whole site is built.
-        """
-        pass
-
-    @log_hook
-    def after_pages_discovered(self, *args, **kwargs) -> Any:
+    def after_pages_discovered(self, **kwargs: Any) -> Any:
         """Called after all pages are loaded but before rendering."""
-        pass
 
-    @log_hook
-    def modify_template_context(self, *args, **kwargs) -> Any:
-        """
-        Allows plugins to modify or extend the template context.
-        """
-        pass
+    def modify_template_context(self, **kwargs: Any) -> Any:
+        """Return a dict to merge into a page's template context."""
 
-    @log_hook
-    def modify_context(self, *args, **kwargs) -> Any:
-        """
-        v1 alias for modifying render context.
-        """
-        pass
+    def modify_context(self, **kwargs: Any) -> Any:
+        """Alias for :meth:`modify_template_context`."""
 
-    @log_hook
-    def inject_css(self, *args, **kwargs) -> Any:
-        """
-        Allows plugins to inject additional CSS assets.
-        """
-        pass
+    def inject_css(self, **kwargs: Any) -> Any:
+        """Return stylesheet href(s) to inject into a page."""
 
-    @log_hook
-    def inject_js(self, *args, **kwargs) -> Any:
-        """
-        Allows plugins to inject additional JavaScript assets.
-        """
-        pass
+    def inject_js(self, **kwargs: Any) -> Any:
+        """Return script src(s) to inject into a page."""

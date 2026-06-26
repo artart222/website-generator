@@ -26,11 +26,11 @@ class SitemapPlugin(BasePlugin):
         site: Site = kwargs["site"]
         config: Config = kwargs["config"]
 
-        output_dir = Path(config.get("output_directory"))
+        output_dir = Path(config.get("build.output_directory"))
 
         sitemap_entries = []
 
-        base_url = str(config.get("site.base_url", config.get("base_url", ""))).rstrip("/")
+        base_url = str(config.get("site.base_url", "")).rstrip("/")
 
         for page in site.get_pages():
             self.logger.debug(

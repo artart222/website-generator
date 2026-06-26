@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from wg_runtime.runtime.models import IntegrationOutboxEvent
 from .context import IntegrationResolutionError, get_runtime_integration_context
-from .contracts import AdapterResult, is_error_result
+from wg_contracts.integrations import AdapterResult, is_error_result
 
 
 RETRYABLE_DOMAINS = {"notifications", "shipping", "accounting"}

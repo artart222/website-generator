@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 from django.template import Context, Engine, Template, exceptions
-from typing import NoReturn
 
 from .base_engine import TemplateEngine
 
@@ -36,8 +35,3 @@ class DjangoTemplateEngine(TemplateEngine):
     def render_from_string(self, template_string: str, context: dict) -> str:
         template = Template(template_string, engine=self.engine)
         return template.render(Context(context))
-
-    def load_template(self, template_name: str) -> NoReturn:
-        raise NotImplementedError(
-            "load_template() is not supported for DjangoTemplateEngine. Use render() instead."
-        )

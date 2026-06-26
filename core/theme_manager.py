@@ -12,12 +12,6 @@ from .config import Config
 
 
 CORE_BLOCKS = ["hero", "rich_text", "feature_grid", "gallery", "cta", "faq"]
-LEGACY_TEMPLATE_ROLE_MAP = {
-    "base.html": "base",
-    "post.html": "document",
-    "blog-indexer.html": "collection",
-    "404.html": "not_found",
-}
 
 
 class ThemeManager:
@@ -103,14 +97,10 @@ class ThemeManager:
             if candidate.exists():
                 template_dirs.append(str(candidate))
 
-        for legacy_dir in self.config.get("build.template_dirs", []):
-            legacy_path = Path(legacy_dir)
-            if legacy_path.exists():
-                template_dirs.append(str(legacy_path))
-
-        fallback_legacy_theme_dir = Path("templates") / self.theme_name
-        if fallback_legacy_theme_dir.exists():
-            template_dirs.append(str(fallback_legacy_theme_dir))
+        for extra_dir in self.config.get("build.template_dirs", []):
+            extra_path = Path(extra_dir)
+            if extra_path.exists():
+                template_dirs.append(str(extra_path))
 
         deduped: list[str] = []
         for template_dir in template_dirs:
@@ -121,11 +111,6 @@ class ThemeManager:
     def resolve_layout(self, requested_layout: str | None, page=None) -> str:
         if not requested_layout:
             requested_layout = "collection" if getattr(page, "is_collection_index", False) else "document"
-
-        if requested_layout.endswith(".html"):
-            requested_layout = LEGACY_TEMPLATE_ROLE_MAP.get(
-                requested_layout, requested_layout
-            )
 
         layouts = self.manifest.get("layouts", {})
         if isinstance(layouts, dict):

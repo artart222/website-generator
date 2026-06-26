@@ -6,9 +6,6 @@ import tempfile
 
 import pytest
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
 
 from core.config import Config  # noqa: E402
 from core.page import Page  # noqa: E402

@@ -10,6 +10,8 @@ from slugify import slugify
 from processor.base_processor import ContentProcessor
 from utils.fs_manager import FileSystemManager
 from .config import Config
+from .presentation import DEFAULT_SHARE_IMAGE, format_price_display, safe_image_url
+from .routing import build_output_path, to_abs_url, to_root_relative_url
 
 if TYPE_CHECKING:
     from .site import Site
@@ -167,63 +169,31 @@ class Page:
             return value.strip().lower() in {"true", "1", "yes", "on"}
         return bool(value)
 
-    def get_output_path_without_output_dir(self, output_dir: Path | str) -> Path:
-        output_root = Path(output_dir)
-        if self.output_path and self.output_path.is_relative_to(output_root):
-            return self.output_path.relative_to(output_root)
-        return self.output_path or Path()
-
     def generate_abs_url(self) -> str:
-        base_url = str(
-            self.config.get("site.base_url", self.config.get("base_url", ""))
-        ).rstrip("/")
+        base_url = str(self.config.get("site.base_url", "")).rstrip("/")
         if not self.root_rel_url:
             self.generate_root_rel_url()
 
-        self.abs_url = f"{base_url}{self.root_rel_url}" if base_url else self.root_rel_url
+        self.abs_url = to_abs_url(base_url, self.root_rel_url)
         return self.abs_url
 
     def generate_root_rel_url(self) -> str:
-        if not self.output_path:
-            self.root_rel_url = "/"
-            return self.root_rel_url
-
-        rel_path = self.get_output_path_without_output_dir(
-            self.config.get("build.output_directory", self.config.get("output_directory", "./output"))
-        )
-        rel_path_str = str(rel_path).replace(os.sep, "/")
-
-        if rel_path_str == "index.html":
-            self.root_rel_url = "/"
-            return self.root_rel_url
-
-        if rel_path_str.endswith("/index.html"):
-            self.root_rel_url = "/" + rel_path_str[: -len("index.html")]
-            return self.root_rel_url
-
-        self.root_rel_url = "/" + rel_path_str
+        output_dir = Path(self.config.get("build.output_directory", "./output"))
+        self.root_rel_url = to_root_relative_url(self.output_path, output_dir)
         return self.root_rel_url
 
     def calculate_output_path(
         self, output_dir: Path, url_prefix: str | None = None
     ) -> Path:
         prefix = url_prefix if url_prefix is not None else self.get_route_prefix()
-
-        if self.is_home_page():
-            self.output_path = output_dir / "index.html"
-            return self.output_path
-
-        if self.is_not_found_page():
-            self.output_path = output_dir / "404.html"
-            return self.output_path
-
-        folder_path = output_dir
-        if prefix:
-            folder_path = folder_path / slugify(prefix)
-        if self.slug:
-            folder_path = folder_path / slugify(self.slug)
-
-        self.output_path = folder_path / "index.html"
+        self.output_path = build_output_path(
+            output_dir,
+            is_home=self.is_home_page(),
+            is_not_found=self.is_not_found_page(),
+            is_collection_index=False,
+            route_prefix=prefix,
+            slug=self.slug,
+        )
         return self.output_path
 
     def set_raw_content(self, content: str) -> None:
@@ -288,7 +258,7 @@ class Page:
             "page_draft": self.draft,
             "site_name": self.config.get("site.name", self.config.get("site_name", "Website Generator")),
             "page_url": self.get_abs_url(),
-            "page_image": self.metadata.get("image", "/assets/default-share.png"),
+            "page_image": self.metadata.get("image", DEFAULT_SHARE_IMAGE),
             "page_type": self.page_type,
             "page_layout": self.layout,
             "page_layout_options": layout_options,
@@ -298,10 +268,10 @@ class Page:
             "page_meta": self.metadata,
             "page_model_name": self.model_name,
             "page_model": self.model_data,
-            "page_price_display": self._format_price_display(
+            "page_price_display": format_price_display(
                 self.model_data.get("price", self.metadata.get("price"))
             ),
-            "page_compare_price_display": self._format_price_display(
+            "page_compare_price_display": format_price_display(
                 self.model_data.get(
                     "price_compare_at", self.metadata.get("price_compare_at")
                 )
@@ -392,28 +362,7 @@ class Page:
         return self.page_type == "404" or self.slug == "404"
 
     def ensure_image_url_is_safe(self) -> str:
-        image_addr: Any = self.metadata.get("image")
-
-        if isinstance(image_addr, list):
-            return str(image_addr[0]) if image_addr else "/assets/default-share.png"
-
-        if isinstance(image_addr, str) and image_addr:
-            return image_addr
-
-        return "/assets/default-share.png"
-
-    def _format_price_display(self, value: Any) -> str:
-        if value is None or value == "":
-            return ""
-        if isinstance(value, bool):
-            return str(value)
-        if isinstance(value, int):
-            return f"{value:,}"
-        if isinstance(value, float):
-            return f"{value:,.0f}" if value.is_integer() else f"{value:,.2f}"
-        if isinstance(value, str):
-            return value.strip()
-        return str(value)
+        return safe_image_url(self.metadata.get("image"))
 
     def __repr__(self) -> str:
         return f"<Page title='{self.title}' slug='{self.slug}' type='{self.page_type}'>"

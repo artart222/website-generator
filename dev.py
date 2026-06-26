@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def clean(config: Config, fs: FileSystemManager) -> None:
-    output_path = Path(config.get("output_directory"))
+    output_path = Path(config.get("build.output_directory"))
     if fs.path_exists(output_path):
         logger.info("Cleaning output directory...")
         shutil.rmtree(output_path)
@@ -71,7 +71,7 @@ def serve(config: Config) -> None:
     logger.info("Serving site at http://localhost:8000")
     subprocess.run(
         [sys.executable, "-m", "http.server", "8000"],
-        cwd=config.get("output_directory"),
+        cwd=config.get("build.output_directory"),
         check=True,
     )
 

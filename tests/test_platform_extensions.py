@@ -7,9 +7,6 @@ from unittest.mock import Mock
 
 import pytest
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
 
 from cli import cmd_init  # noqa: E402
 from core.config import Config  # noqa: E402

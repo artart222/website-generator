@@ -1,53 +1,47 @@
 from __future__ import annotations
 
-import json
 import logging
-import os
-import shutil
-from copy import deepcopy
-from datetime import date, datetime
-from pathlib import Path
-from typing import Any
-
-import yaml
-
-from slugify import slugify
+from typing import Any, Callable
 
 from engines.base_engine import TemplateEngine
 from engines.factory import create_template_engine
-from processor.factory import _PROCESSOR_MAP, create_content_processor
-from processor.tailwind_processor import build_tailwind
 from utils.fs_manager import FileSystemManager
-from .content_models import ContentModelError
+from wg_contracts.ports import FileSystemPort
+from .build_cache import BuildCache, compute_build_signature
+from .build_context import BuildContext
+from .build_pipeline import BuildPipeline
 from .config import Config
+from .exporting import JsonExporter
 from .extension_manager import ExtensionManager
 from .frontend_manager import FrontendManager
-from .page import Page
 from .plugin_manager import PluginManager
+from .rendering import PageContextBuilder, TemplateResolver
 from .router import Router
 from .runtime_manager import RuntimeManager
 from .site import Site
 from .theme_manager import ThemeManager
 
-supported_extensions = list(_PROCESSOR_MAP.keys())
-
 
 class Project:
-    """
-    Main build orchestrator for the website generator.
+    """Facade that wires the build subsystem together and runs the pipeline.
 
-    Coordinates all subsystem managers (theme, plugin, extension, frontend, runtime)
-    and executes the build lifecycle with hooks. Manages the end-to-end site
-    generation from configuration loading to output writing.
-
-    The build process follows a phased approach with extension points for
-    plugins and extensions to inject custom behavior.
+    All build work is performed by discrete collaborators operating on a shared
+    :class:`~core.build_context.BuildContext`; this class only constructs them
+    (the composition root for a build) and exposes a small, stable surface.
     """
 
-    def __init__(self, config: Config):
+    def __init__(
+        self,
+        config: Config,
+        *,
+        fs_manager: FileSystemPort | None = None,
+        template_engine_factory: Callable[[str, list[str]], TemplateEngine] = create_template_engine,
+    ):
         self.logger = logging.getLogger(__name__)
         self.config: Config = config
-        self.fs_manager: FileSystemManager = FileSystemManager()
+        self.strict: bool = bool(config.get("build.strict", True))
+        self.fs_manager: FileSystemPort = fs_manager or FileSystemManager()
+
         self.extension_manager = ExtensionManager(self.config, self.fs_manager)
         self.extension_manager.detect_and_load_extensions()
         self.site: Site = Site(self.config)
@@ -57,9 +51,11 @@ class Project:
             self.config, self.fs_manager, self.extension_manager
         )
         self.runtime_manager = RuntimeManager(
-            self.config, self.fs_manager, self.extension_manager
+            self.config, self.fs_manager, self.extension_manager, strict=self.strict
         )
-        self.plugin_manager: PluginManager = PluginManager(self.config, self.site)
+        self.plugin_manager: PluginManager = PluginManager(
+            self.config, self.site, strict=self.strict
+        )
         self.plugin_manager.detect_and_load_plugins()
 
         self.plugin_manager.run_hook(
@@ -70,726 +66,87 @@ class Project:
             extension_manager=self.extension_manager,
         )
 
-        template_dirs = self.theme_manager.get_template_dirs() + self.extension_manager.get_template_dirs()
+        template_dirs = (
+            self.theme_manager.get_template_dirs()
+            + self.extension_manager.get_template_dirs()
+        )
         deduped_template_dirs: list[str] = []
         for template_dir in template_dirs:
             if template_dir not in deduped_template_dirs:
                 deduped_template_dirs.append(template_dir)
 
-        self.template_engine: TemplateEngine = create_template_engine(
-            self.config.get("build.template_engine", self.config.get("template_engine")),
+        self.template_engine: TemplateEngine = template_engine_factory(
+            self.config.get("build.template_engine"),
             deduped_template_dirs,
         )
-        self.runtime_catalog_snapshot: dict[str, Any] | None = None
+
+        self.incremental: bool = bool(config.get("build.incremental", False))
+        build_cache = self._create_build_cache() if self.incremental else None
+
+        self.context = BuildContext(
+            config=self.config,
+            fs_manager=self.fs_manager,
+            site=self.site,
+            router=self.router,
+            theme_manager=self.theme_manager,
+            plugin_manager=self.plugin_manager,
+            extension_manager=self.extension_manager,
+            frontend_manager=self.frontend_manager,
+            runtime_manager=self.runtime_manager,
+            template_engine=self.template_engine,
+            strict=self.strict,
+            incremental=self.incremental,
+            build_cache=build_cache,
+            project=self,
+        )
+        self.pipeline = BuildPipeline(self.context)
+
+    def _create_build_cache(self) -> BuildCache:
+        from pathlib import Path
+
+        output_dir = Path(self.config.get("build.output_directory"))
+        signature = compute_build_signature(
+            {
+                "theme_tokens": self.theme_manager.get_resolved_tokens(),
+                "site": self.config.get("site", {}),
+                "template_engine": self.config.get("build.template_engine"),
+                "plugins": self.config.get("plugins", []),
+            }
+        )
+        return BuildCache(output_dir, signature)
 
     def build(self) -> None:
-        self.extension_manager.run_build_hook(
-            "before_build", project=self, site=self.site, config=self.config
-        )
-        self.plugin_manager.run_hook(
-            "before_build",
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-        )
-
-        self.logger.info("Build process started.")
-        self._prepare_output_dir()
-        self._fetch_runtime_catalog_snapshot()
-
-        self._discover_and_load_pages()
-        self._apply_content_models()
-        self.extension_manager.run_build_hook(
-            "after_pages_modeled", project=self, site=self.site, config=self.config
-        )
-        self._load_site_data()
-        self._assign_routes()
-
-        self.plugin_manager.run_hook(
-            "after_collections_loaded",
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-        )
-        self.plugin_manager.run_hook(
-            "after_pages_discovered",
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-        )
-        self._apply_content_models(only_missing=True)
-
-        self._assign_routes()
-        self.plugin_manager.run_hook(
-            "after_routes_built",
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-        )
-        self.extension_manager.run_build_hook(
-            "after_routes_built", project=self, site=self.site, config=self.config
-        )
-
-        self._render_pages()
-        self._export_json_data()
-        self.extension_manager.run_build_hook(
-            "after_json_export", project=self, site=self.site, config=self.config
-        )
-        self.frontend_manager.build_targets(
-            runtime_public_config=self.runtime_manager.build_public_config()
-        )
-        self.extension_manager.run_build_hook(
-            "after_frontend_targets", project=self, site=self.site, config=self.config
-        )
-        self.runtime_manager.emit_manifest()
-        self.extension_manager.run_build_hook(
-            "after_runtime_manifest", project=self, site=self.site, config=self.config
-        )
-        self._build_tailwind()
-        self._copy_assets()
-
-        self.plugin_manager.run_hook(
-            "after_build",
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-        )
-        self.extension_manager.run_build_hook(
-            "after_build", project=self, site=self.site, config=self.config
-        )
-
-        self.logger.info("Build process finished successfully.")
-
-    def _prepare_output_dir(self) -> None:
-        output_dir = Path(
-            self.config.get("build.output_directory", self.config.get("output_directory"))
-        )
-        resolved_output_dir = output_dir.resolve()
-        project_root = Path.cwd().resolve()
-
-        if resolved_output_dir == project_root:
-            raise ValueError(
-                f"Refusing to use the project root as the output directory: {resolved_output_dir}"
-            )
-        if output_dir.exists() and output_dir.is_file():
-            raise FileExistsError(f"Output path is a file, not a directory: {output_dir}")
-
-        self.fs_manager.create_directory(output_dir)
-        for child in output_dir.iterdir():
-            if child.name == ".git":
-                continue
-            if child.is_dir():
-                shutil.rmtree(child)
-            else:
-                child.unlink()
-
-    def _fetch_runtime_catalog_snapshot(self) -> None:
-        snapshot_data, output_path = self.runtime_manager.fetch_catalog_snapshot()
-        if snapshot_data is None:
-            self.logger.debug("Runtime catalog snapshot fetching is disabled or not configured.")
-            return
-
-        self.runtime_catalog_snapshot = snapshot_data
-        if output_path is not None:
-            self.logger.info("Runtime catalog snapshot saved to %s", output_path)
-
-    def _normalize_runtime_catalog_product(
-        self, product: dict[str, Any], collection_cfg: dict
-    ) -> dict[str, Any] | None:
-        runtime_metadata = product.get("metadata", {})
-        if not isinstance(runtime_metadata, dict):
-            runtime_metadata = {}
-
-        raw_variants = product.get("variants", [])
-        variants: list[dict[str, Any]] = []
-        if isinstance(raw_variants, list):
-            for raw_variant in raw_variants:
-                if isinstance(raw_variant, dict):
-                    variants.append(deepcopy(raw_variant))
-
-        first_variant = variants[0] if variants else {}
-        name = str(product.get("name", product.get("title", ""))).strip()
-        if not name:
-            self.logger.warning("Skipping runtime catalog product with missing name/title.")
-            return None
-
-        slug = str(product.get("slug", "")).strip() or slugify(name)
-        description = str(product.get("description", "")).strip()
-        summary = str(product.get("summary", description)).strip()
-
-        sku_value = product.get("sku")
-        if (sku_value is None or sku_value == "") and isinstance(first_variant, dict):
-            sku_value = first_variant.get("sku", "")
-
-        price_value = product.get("price")
-        if (price_value is None or price_value == "") and isinstance(first_variant, dict):
-            price_value = first_variant.get("price")
-
-        currency_value = (
-            product.get("currency")
-            or (first_variant.get("currency", "") if isinstance(first_variant, dict) else "")
-            or runtime_metadata.get("currency", "")
-        )
-        availability_value = product.get("availability", runtime_metadata.get("availability", "in_stock"))
-        page_type = str(product.get("type", collection_cfg.get("model", "product"))).strip() or "product"
-        layout_value = (
-            product.get("layout")
-            or collection_cfg.get("layout")
-            or runtime_metadata.get("layout", "")
-        )
-
-        normalized = deepcopy(runtime_metadata)
-        normalized["title"] = name
-        normalized["slug"] = slug
-        normalized["summary"] = summary
-        normalized["description"] = description
-        normalized["type"] = page_type
-        normalized["model"] = str(collection_cfg.get("model", "product"))
-        normalized["variants"] = variants
-        if layout_value:
-            normalized["layout"] = str(layout_value)
-
-        if sku_value is not None and sku_value != "":
-            normalized["sku"] = str(sku_value)
-        if price_value is not None and price_value != "":
-            normalized["price"] = price_value
-        if currency_value is not None and currency_value != "":
-            normalized["currency"] = str(currency_value)
-        if availability_value is not None and availability_value != "":
-            normalized["availability"] = str(availability_value)
-
-        return normalized
-
-    def _load_runtime_catalog_collection(self, collection_name: str, collection_cfg: dict, collection_path: Path | None) -> None:
-        if self.runtime_catalog_snapshot is None:
-            self.logger.warning(
-                "No runtime catalog snapshot available for collection '%s'.", collection_name
-            )
-            return
-
-        products = self.runtime_catalog_snapshot.get("products")
-        if not isinstance(products, list):
-            self.logger.warning(
-                "Runtime catalog snapshot for collection '%s' does not contain products list.",
-                collection_name,
-            )
-            return
-
-        route_prefix = collection_cfg.get("route", {}).get("prefix", "")
-        for product in products:
-            if not isinstance(product, dict):
-                continue
-
-            page_metadata = self._normalize_runtime_catalog_product(product, collection_cfg)
-            if page_metadata is None:
-                continue
-
-            page = Page(Path(), self.config, self.fs_manager)
-            page.is_generated = True
-            page.collection = collection_name
-            page.collection_config = collection_cfg
-            page.metadata = page_metadata
-            page._populate_attributes()
-            page.page_type = str(page_metadata.get("type", "")) or page.page_type
-            page.set_route_prefix(route_prefix)
-            self._apply_collection_defaults(page, collection_cfg)
-
-            page.processed_content = ""
-            page.raw_content = ""
-            page.model_data = deepcopy(page_metadata)
-
-            if not page.get_output_path():
-                page.calculate_output_path(Path(self.config.get("build.output_directory", self.config.get("output_directory", "./output"))))
-
-            self.site.add_page(page)
+        self.pipeline.run()
 
     def get_template_engine(self) -> TemplateEngine:
         return self.template_engine
 
-    def _discover_and_load_pages(self) -> None:
-        self.logger.info("Discovering and loading site content...")
+    # -- thin delegations kept for callers/tests --------------------------
 
-        collections = self.config.get("content.collections", self.config.get("collections"))
-        output_dir = Path(
-            self.config.get("build.output_directory", self.config.get("output_directory"))
-        )
+    @property
+    def runtime_catalog_snapshot(self) -> dict[str, Any] | None:
+        return self.context.runtime_catalog_snapshot
 
-        if isinstance(collections, dict) and collections:
-            collection_items: list[tuple[str, dict, Path | None]] = []
-            for name, cfg in collections.items():
-                if not isinstance(cfg, dict):
-                    continue
-                path_value = cfg.get("path")
-                collection_type = str(cfg.get("type", "")).strip()
-                if not path_value and collection_type != "runtime_catalog":
-                    continue
-                collection_path = Path(path_value) if path_value else None
-                collection_items.append((name, cfg, collection_path))
-
-            collection_items.sort(
-                key=lambda item: len(item[2].resolve().parts) if item[2] is not None else 0,
-                reverse=True,
-            )
-
-            seen_paths: set[Path] = set()
-            for name, cfg, collection_path in collection_items:
-                collection_type = str(cfg.get("type", "")).strip()
-                if collection_type == "runtime_catalog":
-                    self._load_runtime_catalog_collection(name, cfg, collection_path)
-                    continue
-
-                if collection_path is None or not collection_path.exists():
-                    self.logger.warning("Collection path does not exist: %s", collection_path)
-                    continue
-
-                page_filepaths = self.fs_manager.list_files(collection_path, recursive=True)
-                for path in page_filepaths:
-                    if path in seen_paths:
-                        continue
-                    seen_paths.add(path)
-
-                    ext = os.path.splitext(path)[1].lstrip(".").lower()
-                    if ext not in supported_extensions:
-                        continue
-
-                    page = Page(path, self.config, self.fs_manager)
-                    page.collection = name
-                    page.collection_config = cfg
-                    page.set_route_prefix(cfg.get("route", {}).get("prefix", ""))
-
-                    self.plugin_manager.run_hook(
-                        "before_page_parsed",
-                        site=self.site,
-                        config=self.config,
-                        fs_manager=self.fs_manager,
-                        page=page,
-                    )
-
-                    processor = create_content_processor(ext)
-                    page.load(processor)
-                    self._apply_collection_defaults(page, cfg)
-
-                    if page.draft:
-                        self.logger.info("Skipping draft page: %s", page.source_filepath)
-                        continue
-
-                    self.site.add_page(page)
-
-                    self.plugin_manager.run_hook(
-                        "after_document_loaded",
-                        site=self.site,
-                        config=self.config,
-                        fs_manager=self.fs_manager,
-                        page=page,
-                    )
-                    self.plugin_manager.run_hook(
-                        "after_page_parsed",
-                        site=self.site,
-                        config=self.config,
-                        fs_manager=self.fs_manager,
-                        page=page,
-                    )
-        else:
-            content_path = Path(
-                self.config.get("content.source_directory", self.config.get("source_directory"))
-            )
-            if not content_path.exists():
-                self.logger.warning("Source directory does not exist: %s", content_path)
-                return
-
-            page_filepaths = self.fs_manager.list_files(content_path, recursive=True)
-            for path in page_filepaths:
-                ext = os.path.splitext(path)[1].lstrip(".").lower()
-                if ext not in supported_extensions:
-                    continue
-
-                page = Page(path, self.config, self.fs_manager)
-                self.plugin_manager.run_hook(
-                    "before_page_parsed",
-                    site=self.site,
-                    config=self.config,
-                    fs_manager=self.fs_manager,
-                    page=page,
-                )
-
-                processor = create_content_processor(ext)
-                page.load(processor)
-                if page.draft:
-                    continue
-
-                if not page.get_output_path():
-                    page.calculate_output_path(output_dir)
-
-                self.site.add_page(page)
-                self.plugin_manager.run_hook(
-                    "after_document_loaded",
-                    site=self.site,
-                    config=self.config,
-                    fs_manager=self.fs_manager,
-                    page=page,
-                )
-                self.plugin_manager.run_hook(
-                    "after_page_parsed",
-                    site=self.site,
-                    config=self.config,
-                    fs_manager=self.fs_manager,
-                    page=page,
-                )
-
-    def _apply_collection_defaults(self, page: Page, collection_cfg: dict) -> None:
-        page.set_route_prefix(collection_cfg.get("route", {}).get("prefix", ""))
-
-        defaults = collection_cfg.get("defaults", {})
-        if not isinstance(defaults, dict):
-            defaults = {}
-
-        if not page.page_type:
-            collection_type = collection_cfg.get("type") or defaults.get("type")
-            if collection_type:
-                page.set_page_type(str(collection_type))
-
-        if not page.layout:
-            layout = (
-                page.metadata.get("layout")
-                or collection_cfg.get("layout")
-                or defaults.get("layout")
-                or page.metadata.get("template")
-            )
-            if layout:
-                page.layout = str(layout[0] if isinstance(layout, list) else layout)
-
-        if not page.layout_options and isinstance(defaults.get("layout_options"), dict):
-            page.layout_options = deepcopy(defaults.get("layout_options", {}))
-
-    def _assign_routes(self) -> None:
-        for page in self.site.pages:
-            self.router.assign(page)
-
-    def _apply_content_models(self, *, only_missing: bool = False) -> None:
-        for page in self.site.pages:
-            if only_missing and page.model_name:
-                continue
-            try:
-                self.extension_manager.model_registry.apply_to_page(page)
-            except ContentModelError as exc:
-                raise ContentModelError(str(exc)) from exc
-
-    def _render_pages(self) -> None:
-        self.logger.info("Rendering pages...")
-        navigation_items = self.site.build_navigation()
-        header = self.site.populate_header()
-
-        for page in self.site.pages:
-            self.plugin_manager.run_hook(
-                "before_page_rendered",
-                site=self.site,
-                config=self.config,
-                fs_manager=self.fs_manager,
-                page=page,
-            )
-
-            context = self._build_page_context(page, header, navigation_items)
-            template_name = self._resolve_template_name(page)
-            rendered_html = self.template_engine.render(template_name, context)
-            output_path = page.get_output_path()
-            if output_path is None:
-                raise RuntimeError(f"No output path assigned for page '{page.title}'")
-
-            self.fs_manager.write_file(output_path, rendered_html)
-            self.logger.debug(
-                "Rendered page: %s -> %s", page.source_filepath, page.get_output_path()
-            )
-
-            self.plugin_manager.run_hook(
-                "after_page_rendered",
-                site=self.site,
-                config=self.config,
-                fs_manager=self.fs_manager,
-                page=page,
-            )
+    @runtime_catalog_snapshot.setter
+    def runtime_catalog_snapshot(self, value: dict[str, Any] | None) -> None:
+        self.context.runtime_catalog_snapshot = value
 
     def _build_page_context(
-        self, page: Page, header: str, navigation_items: list[dict]
+        self, page, header: str, navigation_items: list[dict]
     ) -> dict:
-        stylesheets = self.theme_manager.get_stylesheets()
-        scripts = self.theme_manager.get_scripts()
-        layout_options = self.theme_manager.get_layout_options(page)
-        theme_context = self.theme_manager.get_theme_context()
+        return PageContextBuilder(self.context).build(page, header, navigation_items)
 
-        css_injections = self.plugin_manager.run_hook_collect(
-            "inject_css",
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-            page=page,
-        )
-        for injected in css_injections:
-            if isinstance(injected, str):
-                stylesheets.append(injected)
-            elif isinstance(injected, (list, tuple)):
-                stylesheets.extend(injected)
-
-        js_injections = self.plugin_manager.run_hook_collect(
-            "inject_js",
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-            page=page,
-        )
-        for injected in js_injections:
-            if isinstance(injected, str):
-                scripts.append(injected)
-            elif isinstance(injected, (list, tuple)):
-                scripts.extend(injected)
-
-        frontend_context = self.frontend_manager.get_context()
-        runtime_context = self.runtime_manager.get_context()
-        extensions_context = self.extension_manager.get_context()
-        bootstrap_script = frontend_context.get("frontend", {}).get("bootstrap_script", "")
-        if bootstrap_script and bootstrap_script not in scripts:
-            scripts.append(bootstrap_script)
-
-        base_context = page.get_context(
-            header=header,
-            site=self.site,
-            stylesheets=stylesheets,
-            scripts=scripts,
-            navigation_items=navigation_items,
-            theme_context=theme_context,
-            layout_options=layout_options,
-            frontend_context=frontend_context,
-            runtime_context=runtime_context,
-            extensions_context=extensions_context,
-        )
-        rendered_blocks = self.theme_manager.render_blocks(
-            page.blocks, self.template_engine, base_context
-        )
-        context = page.get_context(
-            header=header,
-            site=self.site,
-            stylesheets=stylesheets,
-            scripts=scripts,
-            navigation_items=navigation_items,
-            theme_context=theme_context,
-            rendered_blocks=rendered_blocks,
-            layout_options=layout_options,
-            frontend_context=frontend_context,
-            runtime_context=runtime_context,
-            extensions_context=extensions_context,
-        )
-
-        for update in self.plugin_manager.run_hook_collect(
-            "modify_context",
-            context=context,
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-            page=page,
-        ):
-            if isinstance(update, dict):
-                context.update(update)
-
-        for update in self.plugin_manager.run_hook_collect(
-            "modify_template_context",
-            context=context,
-            site=self.site,
-            config=self.config,
-            fs_manager=self.fs_manager,
-            page=page,
-        ):
-            if isinstance(update, dict):
-                context.update(update)
-
-        return context
-
-    def _resolve_template_name(self, page: Page) -> str:
-        requested_layout = page.layout
-        if not requested_layout and isinstance(page.collection_config, dict):
-            requested_layout = (
-                page.collection_config.get("layout")
-                or page.collection_config.get("defaults", {}).get("layout")
-            )
-
-        if page.is_not_found_page():
-            requested_layout = "not_found"
-        elif page.is_collection_index and not requested_layout:
-            requested_layout = "collection"
-
-        if not requested_layout:
-            templates_by_type = self.config.get("content.templates_by_type", {})
-            if isinstance(templates_by_type, dict):
-                requested_layout = templates_by_type.get(page.page_type)
-
-        if not requested_layout:
-            requested_layout = "document"
-
-        return self.theme_manager.resolve_layout(str(requested_layout), page)
-
-    def _build_tailwind(self) -> None:
-        build_tailwind(self.config)
-
-    def _load_site_data(self) -> None:
-        data_dir_value = self.config.get("content.data_dir", self.config.get("data_dir"))
-        if not data_dir_value:
-            return
-
-        data_dir = Path(data_dir_value)
-        if not data_dir.exists():
-            self.logger.info("Data directory does not exist: %s", data_dir)
-            return
-
-        data_files = self.fs_manager.list_files(
-            data_dir, recursive=True, extensions=[".json", ".yaml", ".yml"]
-        )
-
-        data: dict = {}
-        for data_file in data_files:
-            try:
-                raw_content = self.fs_manager.read_file(data_file)
-                if data_file.suffix.lower() == ".json":
-                    parsed = json.loads(raw_content)
-                else:
-                    parsed = yaml.safe_load(raw_content)
-
-                rel_path = data_file.relative_to(data_dir).with_suffix("")
-                parts = rel_path.parts
-                cursor = data
-                for part in parts[:-1]:
-                    cursor = cursor.setdefault(part, {})
-                cursor[parts[-1]] = parsed
-            except Exception as exc:
-                self.logger.error(
-                    "Failed to load data file %s: %s", data_file, exc, exc_info=True
-                )
-
-        self.site.set_data(data)
+    def _resolve_template_name(self, page) -> str:
+        return TemplateResolver(self.context).resolve(page)
 
     def _export_json_data(self) -> None:
-        export_data = self.config.get(
-            "experimental.export_data",
-            self.config.get("frontend", {}).get("export_data", {}),
-        )
-        if not isinstance(export_data, dict) or not export_data.get("enabled", False):
-            return
+        JsonExporter(self.context).export()
 
-        output_dir = Path(
-            self.config.get("build.output_directory", self.config.get("output_directory"))
-        )
-        data_dir = Path(export_data.get("output_dir", "./output/data"))
-        include_collections = export_data.get("include_collections")
-        filter_collections = (
-            isinstance(include_collections, list) and len(include_collections) > 0
-        )
+    def _discover_and_load_pages(self) -> None:
+        self.pipeline.discoverer.discover()
 
-        site_payload: dict = {
-            "site": {
-                "name": self.config.get("site.name", ""),
-                "description": self.config.get("site.description", ""),
-                "base_url": self.config.get("site.base_url", ""),
-            },
-            "frontend": self.frontend_manager.get_context().get("frontend", {}),
-            "runtime": self.runtime_manager.build_public_config(),
-            "pages": [],
-        }
+    def _apply_content_models(self, *, only_missing: bool = False) -> None:
+        self.pipeline._apply_content_models(only_missing=only_missing)
 
-        for page in self.site.pages:
-            if filter_collections and page.collection not in include_collections:
-                continue
-
-            output_path = page.get_output_path()
-            if not output_path:
-                continue
-
-            try:
-                rel_output_path = output_path.relative_to(output_dir)
-            except ValueError:
-                rel_output_path = Path(output_path.name)
-
-            if rel_output_path.name == "index.html":
-                json_rel_path = rel_output_path.parent / "page.json"
-            else:
-                json_rel_path = rel_output_path.with_suffix(".json")
-            json_output_path = data_dir / json_rel_path
-
-            page_payload = {
-                "title": page.title,
-                "slug": page.slug,
-                "type": page.page_type,
-                "model": page.model_name,
-                "model_data": self._make_json_safe(page.model_data),
-                "collection": page.collection,
-                "abs_url": page.abs_url,
-                "root_rel_url": page.root_rel_url,
-                "metadata": self._make_json_safe(page.metadata),
-                "content_html": page.processed_content,
-                "blocks": self._make_json_safe(page.blocks),
-                "islands": self._make_json_safe(page.islands),
-                "layout": page.layout,
-            }
-
-            self.fs_manager.write_file(
-                json_output_path,
-                json.dumps(page_payload, ensure_ascii=False, indent=2, sort_keys=True),
-            )
-
-            try:
-                data_rel_dir = data_dir.relative_to(output_dir)
-                json_path = data_rel_dir / json_rel_path
-            except ValueError:
-                json_path = json_output_path
-
-            site_payload["pages"].append(
-                {
-                    "title": page.title,
-                    "slug": page.slug,
-                    "type": page.page_type,
-                    "model": page.model_name,
-                    "collection": page.collection,
-                    "url": page.abs_url,
-                    "root_rel_url": page.root_rel_url,
-                    "json_path": str(json_path).replace(os.sep, "/"),
-                }
-            )
-
-        site_index_path = data_dir / "site.json"
-        self.fs_manager.write_file(
-            site_index_path,
-            json.dumps(site_payload, ensure_ascii=False, indent=2, sort_keys=True),
-        )
-
-    def _make_json_safe(self, value):
-        if isinstance(value, dict):
-            return {
-                str(key): self._make_json_safe(item)
-                for key, item in value.items()
-            }
-        if isinstance(value, list):
-            return [self._make_json_safe(item) for item in value]
-        if isinstance(value, tuple):
-            return [self._make_json_safe(item) for item in value]
-        if isinstance(value, Path):
-            return str(value)
-        if isinstance(value, (datetime, date)):
-            return value.isoformat()
-        return value
-
-    def _copy_assets(self) -> None:
-        output_dir = Path(
-            self.config.get("build.output_directory", self.config.get("output_directory"))
-        )
-        self.theme_manager.prepare_theme_output(output_dir)
-        self.extension_manager.copy_extension_assets(output_dir)
-
-        asset_dirs = list(self.config.get("build.asset_dirs", self.config.get("asset_dirs", [])))
-        if "./styles" not in asset_dirs:
-            asset_dirs.insert(0, "./styles")
-
-        for asset_dir_value in asset_dirs:
-            asset_dir = Path(asset_dir_value)
-            if asset_dir.exists():
-                self.fs_manager.copy_directory(
-                    asset_dir, output_dir / asset_dir.name, exist_ok=True
-                )
-                self.logger.info("Copied asset directory: %s", asset_dir)
-            else:
-                self.logger.warning("Asset directory does not exist: %s", asset_dir)
+    def _assign_routes(self) -> None:
+        self.pipeline._assign_routes()

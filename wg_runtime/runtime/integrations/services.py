@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from wg_runtime.runtime.models import Order, OrderLine, PaymentAttempt, Refund
 from .context import IntegrationResolutionError, get_runtime_integration_context
-from .contracts import is_error_result
+from wg_contracts.integrations import is_error_result
 from .outbox import enqueue_integration_event
 from .state_machine import transition_order_status
 

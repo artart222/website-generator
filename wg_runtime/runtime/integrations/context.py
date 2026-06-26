@@ -1,21 +1,28 @@
+"""Runtime integration context: resolves provider bindings and adapters.
+
+This module is independent of the static-site generator. It loads the
+integrations provider map and the adapter registry from runtime-local sources
+(Django settings / a directly-read YAML file), so a request never re-bootstraps
+the SSG.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-import os
-from pathlib import Path
 from typing import Any
 
-from core.bootstrap import bootstrap
-from core.config import Config
-from core.extension_manager import ExtensionManager
-from utils.fs_manager import FileSystemManager
-from .contracts import (
+from wg_contracts.integrations import (
     KIND_ACCOUNTING_EXPORTER,
     KIND_NOTIFICATION_PROVIDER,
     KIND_PAYMENT_PROVIDER,
     KIND_SHIPPING_PROVIDER,
     KIND_TAX_PRICING_PROVIDER,
+)
+from .registry import (
+    RuntimeAdapterRegistry,
+    build_adapter_registry,
+    load_integrations_config,
 )
 
 DOMAIN_KIND_MAP = {
@@ -41,15 +48,11 @@ class ProviderBinding:
 
 @dataclass(frozen=True)
 class RuntimeIntegrationContext:
-    config_path: Path | None
-    config: Config
-    extension_manager: ExtensionManager
+    integrations: dict[str, Any]
+    adapter_registry: RuntimeAdapterRegistry
 
     def _integration_domain_config(self, domain: str) -> tuple[str, dict[str, Any]]:
-        integrations_cfg = self.config.get("integrations", {})
-        if not isinstance(integrations_cfg, dict):
-            return "", {}
-        domain_cfg = integrations_cfg.get(domain, {})
+        domain_cfg = self.integrations.get(domain, {})
         if not isinstance(domain_cfg, dict):
             return "", {}
 
@@ -110,13 +113,13 @@ class RuntimeIntegrationContext:
                 f"Provider '{binding.name}' in integrations.{domain}.providers is missing 'adapter'."
             )
 
-        adapter_cls = self.extension_manager.runtime_adapter_registry.get(binding.adapter_name)
+        adapter_cls = self.adapter_registry.get(binding.adapter_name)
         if adapter_cls is None:
             raise IntegrationResolutionError(
                 f"Adapter '{binding.adapter_name}' for integrations.{domain}.{binding.name} is not registered."
             )
 
-        metadata = self.extension_manager.runtime_adapter_registry.describe(binding.adapter_name)
+        metadata = self.adapter_registry.describe(binding.adapter_name)
         expected_kind = DOMAIN_KIND_MAP[domain]
         actual_kind = str(metadata.get("kind", "")).strip()
         if not actual_kind:
@@ -131,34 +134,11 @@ class RuntimeIntegrationContext:
         return adapter_cls(), binding
 
 
-def _default_config_path() -> Path:
-    env_value = (
-        os.environ.get("WG_RUNTIME_CONFIG_PATH")
-        or os.environ.get("RUNTIME_CONFIG_PATH")
-        or os.environ.get("WG_CONFIG_PATH")
-    )
-    if env_value:
-        return Path(env_value).expanduser().resolve()
-    return (Path(__file__).resolve().parents[3] / "config.yaml").resolve()
-
-
 @lru_cache(maxsize=1)
 def get_runtime_integration_context() -> RuntimeIntegrationContext:
-    config_path = _default_config_path()
-    if config_path.exists():
-        config = bootstrap(config_path)
-        loaded_path: Path | None = config_path
-    else:
-        config = Config()
-        loaded_path = None
-
-    fs_manager = FileSystemManager()
-    extension_manager = ExtensionManager(config, fs_manager)
-    extension_manager.detect_and_load_extensions()
     return RuntimeIntegrationContext(
-        config_path=loaded_path,
-        config=config,
-        extension_manager=extension_manager,
+        integrations=load_integrations_config(),
+        adapter_registry=build_adapter_registry(),
     )
 
 

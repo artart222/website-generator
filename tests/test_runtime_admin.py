@@ -1,34 +1,13 @@
-import os
-import sys
-import tempfile
 import uuid
-from pathlib import Path
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
+import pytest
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core.management import call_command
+from django.test import Client
+from django.urls import reverse
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wg_runtime.settings")
-
-import django  # noqa: E402
-import django.apps  # noqa: E402
-from django.conf import settings  # noqa: E402
-
-temp_db = Path(tempfile.gettempdir()) / f"wg_runtime_admin_test_{os.getpid()}.sqlite3"
-if temp_db.exists():
-    temp_db.unlink()
-settings.DATABASES["default"]["NAME"] = str(temp_db)
-if not django.apps.apps.ready:
-    django.setup()
-
-from django.contrib.auth import get_user_model  # noqa: E402
-from django.contrib.auth.models import Group  # noqa: E402
-from django.core.management import call_command  # noqa: E402
-from django.db import connections  # noqa: E402
-from django.test import Client  # noqa: E402
-from django.urls import reverse  # noqa: E402
-
-from wg_runtime.runtime.models import (  # noqa: E402
+from wg_runtime.runtime.models import (
     AuditEvent,
     IntegrationOutboxEvent,
     InventoryAdjustment,
@@ -40,8 +19,9 @@ from wg_runtime.runtime.models import (  # noqa: E402
     ProductVariant,
     Refund,
 )
-connections.close_all()
-call_command("migrate", verbosity=0, interactive=False)
+
+# Every test in this module gets a clean, isolated database (rolled back after).
+pytestmark = pytest.mark.django_db
 
 
 def _unique_username(prefix: str) -> str:

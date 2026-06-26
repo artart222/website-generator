@@ -55,9 +55,8 @@ class BlogIndexerPlugin(BasePlugin):
         # metadata and object properties are two different things.
         index_page.set_title()
         index_page.set_slug()
-        # dir= Path(config.get("output_directory"))
         index_page.calculate_output_path(
-            Path(config.get("output_directory")) / Path("blog-indexer")
+            Path(config.get("build.output_directory")) / Path("blog-indexer")
         )
         index_page.set_page_type("blog-indexer")
         index_page.set_processed_content(html_list)

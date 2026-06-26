@@ -6,20 +6,27 @@ from unittest.mock import Mock
 
 import pytest
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
-
 from core.config import Config  # noqa: E402
+from core.errors import ConfigError  # noqa: E402
 
 
-def test_config_initialization_uses_v1_defaults():
+def test_config_initialization_uses_v2_defaults():
     config = Config()
 
-    assert config.get("version") == 1
+    assert config.get("version") == 2
     assert config.get("site.name") == "Website Generator"
     assert config.get("theme.name") == "minimal-blog"
     assert config.get("build.template_engine") == "django"
+
+
+def test_typed_schema_mirrors_settings():
+    config = Config()
+
+    assert config.schema.version == 2
+    assert config.schema.site.name == "Website Generator"
+    assert config.schema.theme.name == "minimal-blog"
+    assert config.schema.build.template_engine == "django"
+    assert config.schema.experimental.export_data.enabled is False
 
 
 def test_dotted_get_returns_nested_values():
@@ -28,28 +35,31 @@ def test_dotted_get_returns_nested_values():
     assert config.get("experimental.export_data.enabled") is False
 
 
-def test_legacy_config_is_normalized_to_v1_shape():
+def test_legacy_flat_keys_are_no_longer_remapped():
+    """Legacy flat keys are not magically promoted into nested sections.
+
+    They are retained verbatim (so nothing is silently dropped), but they do
+    NOT override the nested schema, and no arbitrary attributes are created.
+    """
     mock_fs = Mock()
     mock_fs.read_file.return_value = """
     site_name: Test Site
     output_directory: ./dist
-    frontend:
-      theme: shop-theme
-      assets:
-        css:
-          - /styles/custom.css
     foo: bar
     """
 
     config = Config(fs_manager=mock_fs)
     config.load(Path("config.yaml"))
 
-    assert config.get("version") == 1
-    assert config.get("site.name") == "Test Site"
-    assert config.get("build.output_directory") == "./dist"
-    assert config.get("theme.name") == "shop-theme"
-    assert config.get("theme.extra_css_urls") == ["/styles/custom.css"]
-    assert config.foo == "bar"  # type: ignore[attr-defined]
+    assert config.get("version") == 2
+    # Nested schema keeps its default; the flat key is not promoted.
+    assert config.get("site.name") == "Website Generator"
+    assert config.get("build.output_directory") == "./output"
+    # Unknown keys are retained verbatim.
+    assert config.get("foo") == "bar"
+    assert config.get("site_name") == "Test Site"
+    # No arbitrary attributes are synthesized from settings keys.
+    assert not hasattr(config, "foo")
 
 
 def test_v1_config_load_preserves_nested_sections():
@@ -77,10 +87,10 @@ def test_v1_config_load_preserves_nested_sections():
     assert config.get("theme.name") == "docs-basic"
 
 
-def test_unknown_top_level_v1_key_is_retained():
+def test_unknown_top_level_key_is_retained():
     mock_fs = Mock()
     mock_fs.read_file.return_value = """
-    version: 1
+    version: 2
     site:
       name: Demo
     experimental_feature: true
@@ -92,14 +102,23 @@ def test_unknown_top_level_v1_key_is_retained():
     assert config.get("experimental_feature") is True
 
 
-def test_config_load_missing_file_does_not_crash():
+def test_config_load_missing_file_fails_loud():
     mock_fs = Mock()
     mock_fs.read_file.side_effect = FileNotFoundError
 
     config = Config(fs_manager=mock_fs)
-    config.load(Path("config.yaml"))
+    with pytest.raises(ConfigError, match="Config file not found"):
+        config.load(Path("config.yaml"))
 
-    assert config.get("build.output_directory") == "./output"
+
+def test_config_load_invalid_yaml_fails_loud():
+    mock_fs = Mock()
+    # Unbalanced flow collection is invalid YAML and fails in yaml.safe_load.
+    mock_fs.read_file.return_value = "site:\n  name: [unterminated"
+
+    config = Config(fs_manager=mock_fs)
+    with pytest.raises(ConfigError, match="Invalid YAML"):
+        config.load(Path("config.yaml"))
 
 
 def test_validate_warns_on_v1_config():
@@ -127,7 +146,7 @@ def test_validate_rejects_non_django_template_engine():
 
     config = Config(fs_manager=mock_fs)
     config.load(Path("config.yaml"))
-    with pytest.raises(ValueError, match="Unsupported template engine"):
+    with pytest.raises(ConfigError, match="Unsupported template engine"):
         config.validate()
 
 

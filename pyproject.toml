@@ -48,10 +48,16 @@ Issues = "https://github.com/artart222/website-generator/issues"
 dev = [
   "pytest==8.4.1",
   "pytest-mock==3.14.1",
+  "pytest-django==4.9.0",
   "pylint>=2.17,<3",
   "ruff>=0.0.280,<0.0.400",
   "mypy>=1.9,<2",
 ]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "wg_runtime.settings"
+pythonpath = ["."]
+testpaths = ["tests"]
 
 [project.scripts]
 wg = "cli:main"
@@ -60,7 +66,7 @@ wg = "cli:main"
 py-modules = ["cli", "main", "dev"]
 
 [tool.setuptools.packages.find]
-include = ["core*", "engines*", "plugins*", "processor*", "utils*", "extensions*", "wg_runtime*"]
+include = ["wg_contracts*", "core*", "engines*", "plugins*", "processor*", "utils*", "extensions*", "wg_runtime*"]
 
 [tool.ruff]
 line-length = 88

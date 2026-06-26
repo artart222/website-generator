@@ -13,6 +13,7 @@ import time
 from slugify import slugify
 
 from core.bootstrap import bootstrap
+from core.composition import build_project as compose_project
 from core.project import Project
 from core.starters import STARTER_NAMES, scaffold_starter
 from core.theme_manager import ThemeManager
@@ -22,22 +23,25 @@ from wg_runtime.mock_server import serve_mock_runtime
 logger = logging.getLogger(__name__)
 
 
-def build_project(config_path: str = "config.yaml") -> Project:
+def build_project(config_path: str = "config.yaml", *, strict: bool = True) -> Project:
     config = bootstrap(config_path)
-    project = Project(config)
+    if not strict:
+        config.settings["build"]["strict"] = False
+        config._rebuild_schema()
+    project = compose_project(config)
     project.build()
     return project
 
 
 def cmd_build(args: argparse.Namespace) -> int:
-    build_project(args.config)
+    build_project(args.config, strict=not getattr(args, "lenient", False))
     return 0
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
     config = bootstrap(args.config)
     if args.build_first:
-        project = Project(config)
+        project = compose_project(config)
         project.build()
 
     output_dir = Path(config.get("build.output_directory", config.get("output_directory")))
@@ -65,7 +69,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
     last_snapshot = _snapshot_paths(watch_paths)
 
     logger.info("Starting watch mode.")
-    Project(config).build()
+    compose_project(config).build()
 
     try:
         while True:
@@ -74,7 +78,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
             if current_snapshot != last_snapshot:
                 logger.info("Detected changes, rebuilding...")
                 config = bootstrap(args.config)
-                Project(config).build()
+                compose_project(config).build()
                 watch_paths = _collect_watch_paths(config, Path(args.config))
                 current_snapshot = _snapshot_paths(watch_paths)
             last_snapshot = current_snapshot
@@ -355,6 +359,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     build_parser = subparsers.add_parser("build", help="Build the site")
     build_parser.add_argument("--config", default="config.yaml")
+    build_parser.add_argument(
+        "--lenient",
+        action="store_true",
+        help="Continue the build when a plugin or runtime integration fails (default: strict).",
+    )
     build_parser.set_defaults(func=cmd_build)
 
     serve_parser = subparsers.add_parser("serve", help="Serve the output directory")

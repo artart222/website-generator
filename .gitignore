@@ -52,8 +52,9 @@ react-app/public/data/
 output/
 output.zip
 
-# Temporary files and folders
+# Temporary files and folders (e.g. pytest tempfile.TemporaryDirectory leftovers)
 tmp*/
+/tmp*/
 *.log
 
 # OS generated files

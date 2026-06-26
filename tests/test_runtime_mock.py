@@ -7,10 +7,6 @@ from pathlib import Path
 import pytest
 from urllib import request
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
-
 from wg_runtime.mock_server import run_mock_runtime_in_thread  # noqa: E402
 
 

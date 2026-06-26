@@ -1,5 +1,6 @@
 from .config import Config
-from plugins.base_plugin import BasePlugin
+from .errors import PluginError
+from plugins.base_plugin import BasePlugin, LifecycleEvent
 from .site import Site
 
 import importlib
@@ -8,25 +9,36 @@ import logging
 from pathlib import Path
 
 
+def _event_name(hook: "str | LifecycleEvent") -> str:
+    return hook.value if isinstance(hook, LifecycleEvent) else str(hook)
+
+
 class PluginManager:
     """
     Manages the discovery, loading, and execution of plugins.
 
     A plugin is a class that inherits from `BasePlugin`, located in the `plugins/`
     directory, and explicitly listed in the `plugins` section of the config.
+
+    Hook execution follows an explicit error policy: in ``strict`` mode (the
+    default) a failing plugin raises :class:`core.errors.PluginError` so the
+    build fails loudly; in lenient mode the error is logged and other plugins
+    continue. Failures are never silently ignored.
     """
 
-    def __init__(self, config: Config, site: Site) -> None:
+    def __init__(self, config: Config, site: Site, *, strict: bool = True) -> None:
         """
         Initialize the plugin manager.
 
         Args:
             config (Config): Application configuration.
             site (Site): The site instance, representing the project being built.
+            strict (bool): If True, a plugin hook error aborts the build.
         """
         self.logger = logging.getLogger(__name__)
         self.config: Config = config
         self.site: Site = site
+        self.strict: bool = strict
         self.plugins: list[BasePlugin] = []
 
     def detect_and_load_plugins(self) -> list[BasePlugin]:
@@ -103,19 +115,18 @@ class PluginManager:
             **kwargs: Keyword arguments passed to the hook method.
 
         Notes:
-            - If a plugin raises an exception, it is logged but does not stop other plugins.
-            - Errors include full stack traces in logs for debugging.
+            - In strict mode a plugin error is re-raised as PluginError.
+            - In lenient mode the error is logged (with stack trace) and other
+              plugins continue.
         """
+        hook_name = _event_name(hook_name)
         for plugin in self.plugins:
             method = getattr(plugin, hook_name, None)
             if method and callable(method):
                 try:
                     method(*args, **kwargs)
-                except Exception as e:
-                    self.logger.error(
-                        f"Plugin '{plugin.__class__.__name__}' failed on hook '{hook_name}': {e}",
-                        exc_info=True,
-                    )
+                except Exception as exc:
+                    self._handle_hook_error(plugin, hook_name, exc)
 
     def run_hook_collect(self, hook_name: str, *args, **kwargs) -> list:
         """
@@ -129,6 +140,7 @@ class PluginManager:
         Returns:
             List of non-None results returned by plugins, in plugin order.
         """
+        hook_name = _event_name(hook_name)
         results: list = []
         for plugin in self.plugins:
             method = getattr(plugin, hook_name, None)
@@ -137,9 +149,13 @@ class PluginManager:
                     result = method(*args, **kwargs)
                     if result is not None:
                         results.append(result)
-                except Exception as e:
-                    self.logger.error(
-                        f"Plugin '{plugin.__class__.__name__}' failed on hook '{hook_name}': {e}",
-                        exc_info=True,
-                    )
+                except Exception as exc:
+                    self._handle_hook_error(plugin, hook_name, exc)
         return results
+
+    def _handle_hook_error(self, plugin: BasePlugin, hook_name: str, exc: Exception) -> None:
+        plugin_name = plugin.__class__.__name__
+        message = f"Plugin '{plugin_name}' failed on hook '{hook_name}': {exc}"
+        if self.strict:
+            raise PluginError(message) from exc
+        self.logger.error(message, exc_info=True)

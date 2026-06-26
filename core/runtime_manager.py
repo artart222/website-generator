@@ -2,22 +2,42 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
+import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urljoin
-from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 from utils.fs_manager import FileSystemManager
+from wg_contracts.ports import CatalogSourcePort
+from .catalog_source import HttpCatalogSource
+from .errors import IntegrationError
+
+
+def _default_catalog_source_factory(url: str) -> CatalogSourcePort:
+    return HttpCatalogSource(url, timeout=30)
 
 
 class RuntimeManager:
     """Serializes runtime target configuration into public build artifacts."""
 
-    def __init__(self, config, fs_manager: FileSystemManager, extension_manager) -> None:
+    def __init__(
+        self,
+        config,
+        fs_manager: FileSystemManager,
+        extension_manager,
+        *,
+        strict: bool = True,
+        catalog_source_factory: Callable[[str], CatalogSourcePort] | None = None,
+    ) -> None:
+        self.logger = logging.getLogger(__name__)
         self.config = config
         self.fs_manager = fs_manager
         self.extension_manager = extension_manager
+        self.strict = strict
+        self.catalog_source_factory = (
+            catalog_source_factory or _default_catalog_source_factory
+        )
         self.public_manifest: dict[str, Any] = {"targets": [], "integrations": {}}
 
     def build_public_config(self) -> dict[str, Any]:
@@ -110,13 +130,20 @@ class RuntimeManager:
             url_path = "/" + url_path
 
         snapshot_url = urljoin(public_base_url.rstrip("/") + "/", url_path.lstrip("/"))
-        request = Request(snapshot_url, headers={"Accept": "application/json"})
+        catalog_source = self.catalog_source_factory(snapshot_url)
 
         try:
-            with urlopen(request, timeout=30) as response:
-                payload = response.read()
-                snapshot_data = json.loads(payload.decode("utf-8"))
-        except (HTTPError, URLError, ValueError, json.JSONDecodeError):
+            snapshot_data = catalog_source.fetch_snapshot()
+        except (HTTPError, URLError, ValueError, json.JSONDecodeError, OSError) as exc:
+            message = (
+                f"Failed to fetch runtime catalog snapshot from '{snapshot_url}': {exc}"
+            )
+            if self.strict:
+                raise IntegrationError(message) from exc
+            self.logger.warning("%s (continuing in lenient mode)", message)
+            return None, None
+
+        if snapshot_data is None:
             return None, None
 
         output_dir = Path(snapshot_cfg.get("output_dir", "./output/data/runtime"))

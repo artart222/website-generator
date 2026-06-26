@@ -1,12 +1,56 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "unsafe-runtime-secret")
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in {"1", "true", "yes"}
-ALLOWED_HOSTS = ["*"]
+PROJECT_ROOT = BASE_DIR.parent
+
+# Detect a test run so secure production defaults don't block the test runner.
+_UNDER_TEST = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+
+
+def _env_flag(name: str, default: str = "False") -> bool:
+    return os.environ.get(name, default).lower() in {"1", "true", "yes"}
+
+
+def _env_list(name: str, default: str = "") -> list[str]:
+    return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
+
+
+# Secure by default: production must opt OUT via explicit env vars. Under tests
+# we default to DEBUG so a dev key/host config is used without external setup.
+DEBUG = _env_flag("DJANGO_DEBUG", "True" if _UNDER_TEST else "False")
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "dev-insecure-key-not-for-production"
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is not enabled."
+        )
+
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = _env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+
+# Where the runtime reads its integrations provider map from (no SSG import).
+WG_CONFIG_PATH = os.environ.get("WG_CONFIG_PATH", str(PROJECT_ROOT / "config.yaml"))
+
+# CORS: explicit allow-list (only used when DEBUG is False; DEBUG allows all).
+WG_CORS_ALLOWED_ORIGINS = _env_list("WG_CORS_ALLOWED_ORIGINS")
+
+# Payment callback signing (opt-in; strongly recommended in production).
+WG_REQUIRE_SIGNED_CALLBACKS = _env_flag("WG_REQUIRE_SIGNED_CALLBACKS", "False")
+WG_PAYMENT_CALLBACK_SECRET = os.environ.get("WG_PAYMENT_CALLBACK_SECRET", "")
+
+# Expose the dev-only mock payment gateway view (never in production).
+WG_ENABLE_MOCK_GATEWAY = DEBUG
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -104,11 +148,9 @@ REST_FRAMEWORK = {
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
-CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "False").lower() in {
-    "1",
-    "true",
-    "yes",
-}
+CELERY_TASK_ALWAYS_EAGER = _env_flag(
+    "CELERY_TASK_ALWAYS_EAGER", "True" if _UNDER_TEST else "False"
+)
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULE = {

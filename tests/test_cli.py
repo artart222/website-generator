@@ -5,10 +5,6 @@ import tempfile
 
 import pytest
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
-
 from cli import build_parser, cmd_init, cmd_new_post, cmd_theme_create, cmd_theme_eject  # noqa: E402
 
 

@@ -5,6 +5,8 @@ from .context import (
     reset_runtime_integration_context_cache,
 )
 
+# Lazy exports via __getattr__; names are not module-level bindings.
+# pylint: disable=undefined-all-variable
 __all__ = [
     "IntegrationResolutionError",
     "RuntimeIntegrationContext",

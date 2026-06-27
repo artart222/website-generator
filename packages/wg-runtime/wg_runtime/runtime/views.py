@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .auth import IsStaffUser, PUBLIC_STOREFRONT
-from .integrations import (
+from .integrations import (  # pylint: disable=no-name-in-module
     IntegrationResolutionError,
     apply_payment_callback,
     create_checkout_order,

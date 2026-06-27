@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User  # pylint: disable=imported-auth-user
 from django.test import Client
 
 # Environment defaults are set in the repository-root conftest.py, which loads

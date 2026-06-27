@@ -258,7 +258,7 @@ class ExtensionManager:
         if hasattr(discovered, "select"):
             candidates = discovered.select(group="wg.extensions")
         else:
-            candidates = discovered.get("wg.extensions", [])
+            candidates = discovered.get("wg.extensions", [])  # pylint: disable=no-member
 
         for candidate in candidates:
             if candidate.name == extension_name:

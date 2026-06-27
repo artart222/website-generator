@@ -12,6 +12,10 @@ jobs:
         python-version: ["3.10", "3.12"]
 
     steps:
+      - name: Preserve LF line endings on Windows
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5

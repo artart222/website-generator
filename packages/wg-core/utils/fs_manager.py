@@ -43,7 +43,10 @@ class FileSystemManager:
             if not filepath.parent.exists():
                 self.logger.debug("Creating parent directories for: %s", filepath.parent)
                 self.create_directory(filepath.parent)
-            filepath.write_text(content, encoding="utf-8")
+            # Always emit LF so static output hashes match across OS (Windows
+            # defaults write_text to CRLF).
+            normalized = content.replace("\r\n", "\n").replace("\r", "\n")
+            filepath.write_text(normalized, encoding="utf-8", newline="\n")
             self.logger.debug("Successfully wrote file: %s", filepath)
         except PermissionError as exc:
             msg = f"Permission denied when writing to file: {filepath}"

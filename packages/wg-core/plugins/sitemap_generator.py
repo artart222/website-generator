@@ -40,8 +40,11 @@ class SitemapPlugin(BasePlugin):
             if base_url and url.startswith("/"):
                 url = f"{base_url}{url}"
 
-            # last modified date (Today)
-            lastmod = getattr(page, "last_modified", date.today()).isoformat()
+            page_date = getattr(page, "date", None)
+            if page_date:
+                lastmod = str(page_date)[:10]
+            else:
+                lastmod = getattr(page, "last_modified", date.today()).isoformat()
             if page.get_root_rel_url() == "/":
                 priority = "1.0"
             else:
@@ -66,4 +69,4 @@ class SitemapPlugin(BasePlugin):
 
         # Write sitemap.xml
         sitemap_file = output_dir / "sitemap.xml"
-        sitemap_file.write_text(sitemap_content, encoding="utf-8")
+        sitemap_file.write_text(sitemap_content, encoding="utf-8", newline="\n")

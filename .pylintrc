@@ -1,6 +1,9 @@
 [MASTER]
 ignore=.git,venv,.venv,__pycache__,migrations
 py-version=3.12
+load-plugins=pylint_django
+django-settings-module=wg_runtime.settings
+init-hook='import os; os.environ.setdefault("DJANGO_DEBUG", "True")'
 
 [MESSAGES CONTROL]
 disable=
